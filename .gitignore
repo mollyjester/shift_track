@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Firebase secrets — NEVER commit
+app/google-services.json
+*-firebase-adminsdk-*.json
+shift-track-*-*.json
+
+# Keys
+*.keystore
+*.jks
+# Exception: debug keystore is fine to exclude too
+debug.keystore
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+*.swp
+
+# Generated
+app/src/main/java/com/slikharev/shifttrack/BuildConfig.java
