@@ -10,6 +10,9 @@ import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
+import com.slikharev.shifttrack.data.remote.InviteDocument
+import com.slikharev.shifttrack.invite.InviteRepository
+import com.slikharev.shifttrack.invite.RedeemResult
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -51,6 +54,7 @@ class SettingsViewModelTest {
     private lateinit var fakeOvertimeBalanceDao: FakeOvertimeBalanceDao
     private val fakeUserSession = object : UserSession { override val currentUserId = "uid-test" }
     private lateinit var mockAuthRepository: AuthRepository
+    private lateinit var fakeInviteRepository: FakeInviteRepository
     private lateinit var viewModel: SettingsViewModel
 
     @Before
@@ -63,6 +67,7 @@ class SettingsViewModelTest {
         appDataStore = AppDataStore(dataStore)
         fakeLeaveBalanceDao = FakeLeaveBalanceDao()
         fakeOvertimeBalanceDao = FakeOvertimeBalanceDao()
+        fakeInviteRepository = FakeInviteRepository()
         mockAuthRepository = mockk(relaxed = true) {
             every { currentUser } returns null
         }
@@ -72,6 +77,7 @@ class SettingsViewModelTest {
             overtimeBalanceDao = fakeOvertimeBalanceDao,
             authRepository = mockAuthRepository,
             userSession = fakeUserSession,
+            inviteRepository = fakeInviteRepository,
         )
     }
 
@@ -235,6 +241,42 @@ class SettingsViewModelTest {
         assertNull(viewModel.uiState.value.savedMessage)
         assertNull(viewModel.uiState.value.error)
     }
+
+    // ── generateInvite ────────────────────────────────────────────────────
+
+    @Test
+    fun `generateInvite sets pendingInviteLink with deep link`() = testScope.runTest {
+        viewModel.generateInvite()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("shiftapp://invite/fake-token-123", viewModel.pendingInviteLink.value)
+        assertNull(viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `generateInvite on repository failure sets error message`() = testScope.runTest {
+        fakeInviteRepository.shouldThrow = true
+        viewModel.generateInvite()
+        testScheduler.advanceUntilIdle()
+
+        assertNull(viewModel.pendingInviteLink.value)
+        assertNotNull(viewModel.uiState.value.error)
+    }
+}
+
+private class FakeInviteRepository : InviteRepository {
+    var nextToken = "fake-token-123"
+    var shouldThrow = false
+
+    override suspend fun createInvite(hostUid: String, hostDisplayName: String): String {
+        if (shouldThrow) throw Exception("Network error")
+        return nextToken
+    }
+
+    override suspend fun getInvite(token: String): InviteDocument? = null
+
+    override suspend fun redeemInvite(token: String, guestUid: String): RedeemResult =
+        RedeemResult.Success
 }
 
 // ── Fake DAOs ────────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
+import com.slikharev.shifttrack.invite.InviteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +39,7 @@ class SettingsViewModel @Inject constructor(
     private val overtimeBalanceDao: OvertimeBalanceDao,
     private val authRepository: AuthRepository,
     private val userSession: UserSession,
+    private val inviteRepository: InviteRepository,
 ) : ViewModel() {
 
     private val uid get() = userSession.currentUserId.orEmpty()
@@ -164,6 +166,34 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(savedMessage = null, error = null)
+    }
+
+    // ─── Invite ───────────────────────────────────────────────────────────────────
+
+    /** Deep link ready to be shared, e.g. `shiftapp://invite/{token}`. Null when idle. */
+    private val _pendingInviteLink = MutableStateFlow<String?>(null)
+    val pendingInviteLink: StateFlow<String?> = _pendingInviteLink.asStateFlow()
+
+    /**
+     * Creates an invite token in Firestore and stores the resulting share link in
+     * [pendingInviteLink]. The caller should present a share sheet once the link
+     * is non-null and then call [clearInviteLink] to reset.
+     */
+    fun generateInvite() {
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                val token = inviteRepository.createInvite(uid, displayName)
+                _pendingInviteLink.value = "shiftapp://invite/$token"
+                _uiState.value = SettingsUiState()
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(error = "Failed to generate invite: ${e.message}")
+            }
+        }
+    }
+
+    fun clearInviteLink() {
+        _pendingInviteLink.value = null
     }
 
     fun signOut(onComplete: () -> Unit) {

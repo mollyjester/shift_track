@@ -115,7 +115,7 @@ fun ShiftTrackNavHost() {
             composable(
                 route = Screen.InviteRedemption.route,
                 arguments = listOf(navArgument("token") { type = NavType.StringType }),
-                deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://invite" })
+                deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://invite/{token}" })
             ) { backStackEntry ->
                 val token = backStackEntry.arguments?.getString("token") ?: return@composable
                 InviteRedemptionScreen(token = token, navController = navController)

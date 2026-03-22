@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,6 +46,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -65,6 +71,7 @@ fun SettingsScreen(navController: NavController) {
     val leaveBalance by viewModel.leaveBalance.collectAsStateWithLifecycle()
     val overtimeBalance by viewModel.overtimeBalance.collectAsStateWithLifecycle()
     val todayShiftLabel by viewModel.todayShiftLabel.collectAsStateWithLifecycle()
+    val pendingInviteLink by viewModel.pendingInviteLink.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.savedMessage, uiState.error) {
@@ -79,6 +86,7 @@ fun SettingsScreen(navController: NavController) {
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showOvertimeDialog by remember { mutableStateOf(false) }
     var showSignOutConfirm by remember { mutableStateOf(false) }
+    var showShareInviteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
@@ -135,6 +143,15 @@ fun SettingsScreen(navController: NavController) {
                 HorizontalDivider()
             }
 
+            // ── Invite viewers ─────────────────────────────────────────────────
+            SettingsSectionHeader("Viewers")
+            InviteCard(
+                onGenerateClick = {
+                    viewModel.generateInvite()
+                    showShareInviteDialog = true
+                },
+            )
+
             if (uiState.isSaving) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -180,6 +197,16 @@ fun SettingsScreen(navController: NavController) {
                 viewModel.updateCompensatedOvertimeHours(hours)
             },
             onDismiss = { showOvertimeDialog = false },
+        )
+    }
+
+    if (showShareInviteDialog) {
+        ShareInviteDialog(
+            link = pendingInviteLink,
+            onDismiss = {
+                showShareInviteDialog = false
+                viewModel.clearInviteLink()
+            },
         )
     }
 
@@ -520,6 +547,96 @@ private fun EditCompensatedDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun InviteCard(onGenerateClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = "Invite a viewer", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "Share a 7-day link so someone can view your schedule.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(onClick = onGenerateClick) {
+                Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Invite")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareInviteDialog(link: String?, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Share invite link") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (link == null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Text("Generating…", style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else {
+                    Text("This link expires in 7 days:", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = link,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (link != null) {
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "View my ShiftTrack schedule: $link")
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Share invite"))
+                        onDismiss()
+                    },
+                ) { Text("Share") }
+            }
+        },
+        dismissButton = {
+            if (link != null) {
+                TextButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(link))
+                        onDismiss()
+                    },
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Copy")
+                }
+            } else {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
         },
     )
 }
