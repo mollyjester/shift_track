@@ -1,0 +1,173 @@
+package com.slikharev.shifttrack.settings
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.slikharev.shifttrack.auth.AuthRepository
+import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.AppDataStore
+import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
+import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
+import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
+import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
+import com.slikharev.shifttrack.engine.CadenceEngine
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import javax.inject.Inject
+
+data class SettingsUiState(
+    val isSaving: Boolean = false,
+    val error: String? = null,
+    val savedMessage: String? = null,
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    private val appDataStore: AppDataStore,
+    private val leaveBalanceDao: LeaveBalanceDao,
+    private val overtimeBalanceDao: OvertimeBalanceDao,
+    private val authRepository: AuthRepository,
+    private val userSession: UserSession,
+) : ViewModel() {
+
+    private val uid get() = userSession.currentUserId.orEmpty()
+    private val currentYear = LocalDate.now().year
+
+    // ─── Persisted anchor ────────────────────────────────────────────────────────
+
+    val anchorDate: StateFlow<LocalDate?> = appDataStore.anchorDate
+        .flatMapLatest { str -> flowOf(str?.let { LocalDate.parse(it) }) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val anchorCycleIndex: StateFlow<Int> = appDataStore.anchorCycleIndex
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), -1)
+
+    // ─── Leave balance ────────────────────────────────────────────────────────────
+
+    val leaveBalance: StateFlow<LeaveBalanceEntity?> = combine(
+        appDataStore.anchorDate, // re-trigger after onboarding completes
+        flowOf(currentYear),
+    ) { _, year -> year }
+        .flatMapLatest { year ->
+            leaveBalanceDao.observeBalanceForYear(uid, year)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ─── Overtime balance ─────────────────────────────────────────────────────────
+
+    val overtimeBalance: StateFlow<OvertimeBalanceEntity?> =
+        overtimeBalanceDao.observeBalanceForYear(uid, currentYear)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ─── User info ────────────────────────────────────────────────────────────────
+
+    val displayName: String get() = authRepository.currentUser?.displayName ?: ""
+    val email: String get() = authRepository.currentUser?.email ?: ""
+
+    // ─── Mutable UI state ─────────────────────────────────────────────────────────
+
+    private val _uiState = MutableStateFlow(SettingsUiState())
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    // ─── Computed today label ─────────────────────────────────────────────────────
+
+    /** The shift type label for today given the current anchor, or null if not set. */
+    val todayShiftLabel: StateFlow<String?> = combine(
+        anchorDate,
+        anchorCycleIndex,
+    ) { date, idx ->
+        if (date == null || idx < 0) null
+        else {
+            val type = CadenceEngine.shiftTypeForDate(LocalDate.now(), date, idx)
+            type.name.lowercase().replaceFirstChar { it.uppercase() }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ─── Actions ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Saves a new anchor (shift schedule).
+     * The semantics mirror the Onboarding screen: [date] is the day for which the
+     * user declares it is cycle position [cycleIndex].
+     */
+    fun updateAnchor(date: LocalDate, cycleIndex: Int) {
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                appDataStore.setAnchor(date.toString(), cycleIndex)
+                _uiState.value = SettingsUiState(savedMessage = "Schedule updated")
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(error = "Failed to save: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Updates the total annual leave allowance for the current year.
+     * Creates the balance row if it doesn't exist yet.
+     */
+    fun updateLeaveTotalDays(totalDays: Float) {
+        require(totalDays > 0f) { "Leave days must be positive" }
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                val existing = leaveBalanceDao.getBalanceForYear(uid, currentYear)
+                if (existing == null) {
+                    leaveBalanceDao.upsert(
+                        LeaveBalanceEntity(
+                            year = currentYear,
+                            totalDays = totalDays,
+                            userId = uid,
+                        ),
+                    )
+                } else {
+                    leaveBalanceDao.update(existing.copy(totalDays = totalDays))
+                }
+                _uiState.value = SettingsUiState(savedMessage = "Leave allowance updated")
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(error = "Failed to save: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Records how many overtime hours have been compensated this year.
+     * Does nothing if no overtime balance row exists yet.
+     */
+    fun updateCompensatedOvertimeHours(hours: Float) {
+        require(hours >= 0f) { "Compensated hours cannot be negative" }
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                val existing = overtimeBalanceDao.getBalanceForYear(uid, currentYear)
+                if (existing != null) {
+                    overtimeBalanceDao.update(existing.copy(compensatedHours = hours))
+                    _uiState.value = SettingsUiState(savedMessage = "Overtime balance updated")
+                } else {
+                    _uiState.value = SettingsUiState()
+                }
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(error = "Failed to save: ${e.message}")
+            }
+        }
+    }
+
+    fun clearMessage() {
+        _uiState.value = _uiState.value.copy(savedMessage = null, error = null)
+    }
+
+    fun signOut(onComplete: () -> Unit) {
+        authRepository.signOut()
+        onComplete()
+    }
+}

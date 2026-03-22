@@ -1,12 +1,25 @@
 package com.slikharev.shifttrack
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.padding
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
@@ -17,6 +30,7 @@ import com.slikharev.shifttrack.calendar.DayDetailScreen
 import com.slikharev.shifttrack.dashboard.DashboardScreen
 import com.slikharev.shifttrack.invite.InviteRedemptionScreen
 import com.slikharev.shifttrack.onboarding.OnboardingScreen
+import com.slikharev.shifttrack.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
     data object Auth : Screen("auth")
@@ -32,6 +46,12 @@ sealed class Screen(val route: String) {
     }
 }
 
+private val MAIN_ROUTES = setOf(
+    Screen.Calendar.route,
+    Screen.Dashboard.route,
+    Screen.Settings.route,
+)
+
 @Composable
 fun ShiftTrackNavHost() {
     val navController = rememberNavController()
@@ -45,43 +65,103 @@ fun ShiftTrackNavHost() {
         else -> Screen.Calendar.route
     }
 
-    NavHost(navController = navController, startDestination = startDestination) {
-        composable(Screen.Auth.route) {
-            AuthScreen(onAuthSuccess = {
-                val dest = if (onboardingComplete) Screen.Calendar.route else Screen.Onboarding.route
-                navController.navigate(dest) {
-                    popUpTo(Screen.Auth.route) { inclusive = true }
-                }
-            })
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+
+    Scaffold(
+        bottomBar = {
+            if (currentRoute in MAIN_ROUTES) {
+                BottomNav(navController = navController, currentRoute = currentRoute)
+            }
+        },
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = startDestination,
+            modifier = Modifier.padding(innerPadding),
+        ) {
+            composable(Screen.Auth.route) {
+                AuthScreen(onAuthSuccess = {
+                    val dest = if (onboardingComplete) Screen.Calendar.route else Screen.Onboarding.route
+                    navController.navigate(dest) {
+                        popUpTo(Screen.Auth.route) { inclusive = true }
+                    }
+                })
+            }
+            composable(Screen.Onboarding.route) {
+                OnboardingScreen(onComplete = {
+                    navController.navigate(Screen.Calendar.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                })
+            }
+            composable(Screen.Calendar.route) {
+                CalendarScreen(navController = navController)
+            }
+            composable(Screen.Dashboard.route) {
+                DashboardScreen(navController = navController)
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(navController = navController)
+            }
+            composable(
+                route = Screen.DayDetail.route,
+                arguments = listOf(navArgument("date") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://day/{date}" })
+            ) { backStackEntry ->
+                if (backStackEntry.arguments?.getString("date") == null) return@composable
+                DayDetailScreen(navController = navController)
+            }
+            composable(
+                route = Screen.InviteRedemption.route,
+                arguments = listOf(navArgument("token") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://invite" })
+            ) { backStackEntry ->
+                val token = backStackEntry.arguments?.getString("token") ?: return@composable
+                InviteRedemptionScreen(token = token, navController = navController)
+            }
         }
-        composable(Screen.Onboarding.route) {
-            OnboardingScreen(onComplete = {
+    }
+}
+
+@Composable
+private fun BottomNav(navController: NavController, currentRoute: String?) {
+    NavigationBar {
+        NavigationBarItem(
+            selected = currentRoute == Screen.Calendar.route,
+            onClick = {
                 navController.navigate(Screen.Calendar.route) {
-                    popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    popUpTo(Screen.Calendar.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
                 }
-            })
-        }
-        composable(Screen.Calendar.route) {
-            CalendarScreen(navController = navController)
-        }
-        composable(Screen.Dashboard.route) {
-            DashboardScreen(navController = navController)
-        }
-        composable(
-            route = Screen.DayDetail.route,
-            arguments = listOf(navArgument("date") { type = NavType.StringType }),
-            deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://day/{date}" })
-        ) { backStackEntry ->
-            if (backStackEntry.arguments?.getString("date") == null) return@composable
-            DayDetailScreen(navController = navController)
-        }
-        composable(
-            route = Screen.InviteRedemption.route,
-            arguments = listOf(navArgument("token") { type = NavType.StringType }),
-            deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://invite" })
-        ) { backStackEntry ->
-            val token = backStackEntry.arguments?.getString("token") ?: return@composable
-            InviteRedemptionScreen(token = token, navController = navController)
-        }
+            },
+            icon = { Icon(Icons.Default.CalendarMonth, contentDescription = "Calendar") },
+            label = { Text("Calendar") },
+        )
+        NavigationBarItem(
+            selected = currentRoute == Screen.Dashboard.route,
+            onClick = {
+                navController.navigate(Screen.Dashboard.route) {
+                    popUpTo(Screen.Calendar.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            icon = { Icon(Icons.Default.Dashboard, contentDescription = "Dashboard") },
+            label = { Text("Dashboard") },
+        )
+        NavigationBarItem(
+            selected = currentRoute == Screen.Settings.route,
+            onClick = {
+                navController.navigate(Screen.Settings.route) {
+                    popUpTo(Screen.Calendar.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
+            label = { Text("Settings") },
+        )
     }
 }
