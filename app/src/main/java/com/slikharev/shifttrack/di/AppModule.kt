@@ -6,10 +6,17 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.room.Room
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.slikharev.shifttrack.data.local.db.ShiftTrackDatabase
+import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
+import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
+import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
+import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
+import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -52,4 +59,27 @@ object AppModule {
         PreferenceDataStoreFactory.create(
             produceFile = { context.preferencesDataStoreFile("shift_track_prefs") },
         )
+
+    // ── Room ────────────────────────────────────────────────────────────────
+
+    @Provides
+    @Singleton
+    fun provideShiftTrackDatabase(@ApplicationContext context: Context): ShiftTrackDatabase =
+        Room.databaseBuilder(context, ShiftTrackDatabase::class.java, "shift_track.db")
+            .build()
+
+    @Provides
+    fun provideShiftDao(db: ShiftTrackDatabase): ShiftDao = db.shiftDao()
+
+    @Provides
+    fun provideLeaveDao(db: ShiftTrackDatabase): LeaveDao = db.leaveDao()
+
+    @Provides
+    fun provideOvertimeDao(db: ShiftTrackDatabase): OvertimeDao = db.overtimeDao()
+
+    @Provides
+    fun provideLeaveBalanceDao(db: ShiftTrackDatabase): LeaveBalanceDao = db.leaveBalanceDao()
+
+    @Provides
+    fun provideOvertimeBalanceDao(db: ShiftTrackDatabase): OvertimeBalanceDao = db.overtimeBalanceDao()
 }
