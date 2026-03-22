@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.slikharev.shifttrack.data.remote.FirestoreUserDataSource
+import com.slikharev.shifttrack.sync.FcmTokenManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -17,6 +18,7 @@ open class AuthRepository @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val encryptedPrefs: SharedPreferences,
     private val firestoreUserDataSource: FirestoreUserDataSource,
+    private val fcmTokenManager: FcmTokenManager,
 ) : UserSession {
     companion object {
         private const val KEY_USER_ID = "user_id"
@@ -61,6 +63,8 @@ open class AuthRepository @Inject constructor(
         // Write to Firestore best-effort — offline or permission failures must not
         // block the sign-in flow; they will be retried by the sync layer.
         runCatching { firestoreUserDataSource.saveUser(user) }
+        // Upload any FCM token that arrived before the user signed in.
+        runCatching { fcmTokenManager.uploadPendingToken(user.uid) }
         Result.success(user)
     } catch (e: Exception) {
         Result.failure(e)

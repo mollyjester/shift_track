@@ -19,6 +19,8 @@ object PrefsKeys {
     val ANCHOR_CYCLE_INDEX = intPreferencesKey("anchor_cycle_index")
     // Phase 2.8: annual reset
     val LAST_RESET_YEAR = intPreferencesKey("last_reset_year")
+    // Phase 2.10: FCM registration token (persisted so it survives sign-in)
+    val FCM_TOKEN = stringPreferencesKey("fcm_token")
 }
 
 @Singleton
@@ -38,6 +40,9 @@ class AppDataStore @Inject constructor(
     val lastResetYear: Flow<Int> = dataStore.data
         .map { prefs -> prefs[PrefsKeys.LAST_RESET_YEAR] ?: 0 }
 
+    val pendingFcmToken: Flow<String?> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.FCM_TOKEN] }
+
     suspend fun setOnboardingComplete(complete: Boolean) {
         dataStore.edit { it[PrefsKeys.ONBOARDING_COMPLETE] = complete }
     }
@@ -51,5 +56,12 @@ class AppDataStore @Inject constructor(
 
     suspend fun setLastResetYear(year: Int) {
         dataStore.edit { it[PrefsKeys.LAST_RESET_YEAR] = year }
+    }
+
+    suspend fun setPendingFcmToken(token: String?) {
+        dataStore.edit { prefs ->
+            if (token != null) prefs[PrefsKeys.FCM_TOKEN] = token
+            else prefs.remove(PrefsKeys.FCM_TOKEN)
+        }
     }
 }

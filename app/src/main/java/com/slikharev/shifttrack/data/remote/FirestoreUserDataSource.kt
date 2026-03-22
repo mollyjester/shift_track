@@ -23,4 +23,12 @@ class FirestoreUserDataSource @Inject constructor(
             .set(doc, SetOptions.merge())
             .await()
     }
+
+    /** Writes the FCM registration token to users/{uid}.fcmToken. */
+    suspend fun saveFcmToken(uid: String, token: String) {
+        firestore.collection("users")
+            .document(uid)
+            .set(mapOf("fcmToken" to token), SetOptions.merge())
+            .await()
+    }
 }
