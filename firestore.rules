@@ -1,0 +1,125 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ShiftTrack — Firestore Security Rules
+//
+// Data model
+//   users/{uid}                  Profile + spectators list
+//   users/{uid}/shifts/{date}    Manual shift overrides
+//   users/{uid}/leaves/{date}    Leave entries
+//   users/{uid}/overtime/{date}  Overtime entries
+//   invites/{token}              7-day single-use invite tokens (UUIDs)
+//
+// Role model
+//   Owner     — the authenticated user whose uid matches the document path
+//   Spectator — authenticated user whose uid appears in users/{uid}.spectators
+//
+// NOTE: Full atomic invite redemption (write to two documents in one
+// transaction) can be hardened further by migrating to a Cloud Function.
+// The rules below provide defence-in-depth for the current client-side approach.
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Reads the spectators array from the user document (only if it exists).
+    function isSpectator(uid) {
+      let userDoc = get(/databases/$(database)/documents/users/$(uid));
+      return isSignedIn()
+             && userDoc != null
+             && request.auth.uid in userDoc.data.get("spectators", []);
+    }
+
+    // Returns true if the only field being changed on a user document is
+    // "spectators", and the caller is appending exactly their own UID to an
+    // existing list (never removing or adding someone else's).
+    function isOnlyAddingSelfToSpectators() {
+      let before = resource.data.get("spectators", []);
+      let after  = request.resource.data.get("spectators", []);
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(["spectators"])
+             && after.size()    == before.size() + 1
+             && after.hasAll(before)
+             && after.hasAll([request.auth.uid]);
+    }
+
+    // ── Users ────────────────────────────────────────────────────────────────
+
+    match /users/{uid} {
+      // Owner: full access. Spectators: read-only.
+      allow read:   if isOwner(uid) || isSpectator(uid);
+      allow create: if isOwner(uid);
+      allow delete: if isOwner(uid);
+
+      // Owner can update anything on their own document.
+      // Any authenticated guest may append only their own UID to spectators
+      // (enforced by isOnlyAddingSelfToSpectators).
+      allow update: if isOwner(uid) || (isSignedIn() && isOnlyAddingSelfToSpectators());
+
+      // ── Shift overrides ──────────────────────────────────────────────────
+      match /shifts/{date} {
+        allow read:  if isOwner(uid) || isSpectator(uid);
+        allow write: if isOwner(uid);
+      }
+
+      // ── Leave entries ────────────────────────────────────────────────────
+      match /leaves/{date} {
+        allow read:  if isOwner(uid) || isSpectator(uid);
+        allow write: if isOwner(uid);
+      }
+
+      // ── Overtime entries ─────────────────────────────────────────────────
+      match /overtime/{date} {
+        allow read:  if isOwner(uid) || isSpectator(uid);
+        allow write: if isOwner(uid);
+      }
+    }
+
+    // ── Invites ──────────────────────────────────────────────────────────────
+
+    match /invites/{token} {
+      // Any authenticated user can read an invite to check its status.
+      allow read: if isSignedIn();
+
+      // Only the host can create an invite, and only for themselves.
+      // Validates: token matches document ID, claimed starts as false,
+      // and the expiry is set in the future.
+      allow create: if isSignedIn()
+                    && request.auth.uid == request.resource.data.hostUid
+                    && request.resource.data.get("claimed", false) == false
+                    && request.resource.data.token == token
+                    && request.resource.data.expiresAt > request.time.toMillis();
+
+      // Any authenticated user can CLAIM an unclaimed, unexpired token.
+      // The update must: flip claimed→true, set claimedBy to the requester,
+      // and leave all other fields untouched.
+      allow update: if isSignedIn()
+                    && resource.data.claimed     == false
+                    && resource.data.expiresAt    > request.time.toMillis()
+                    && request.resource.data.claimed    == true
+                    && request.resource.data.claimedBy  == request.auth.uid
+                    && request.resource.data.hostUid    == resource.data.hostUid
+                    && request.resource.data.token      == resource.data.token
+                    && request.resource.data.expiresAt  == resource.data.expiresAt
+                    && request.resource.data.createdAt  == resource.data.createdAt
+                    && request.resource.data.hostDisplayName == resource.data.hostDisplayName;
+
+      // Invite documents are never deleted from the client.
+      allow delete: if false;
+    }
+
+    // Deny all other paths.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

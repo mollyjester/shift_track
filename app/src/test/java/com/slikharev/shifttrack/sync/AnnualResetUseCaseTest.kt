@@ -133,6 +133,40 @@ class AnnualResetUseCaseTest {
         assertEquals(upsertCountBefore, fakeLeaveDao.upsertCount)
     }
 
+    // ── multi-year gap ────────────────────────────────────────────────────────
+
+    @Test
+    fun `runIfNeeded with multi-year gap carries totalDays from last reset year`() =
+        testScope.runTest {
+            val lastResetYear = currentYear - 3
+            appDataStore.setLastResetYear(lastResetYear)
+            fakeLeaveDao.store[lastResetYear] = LeaveBalanceEntity(
+                id = 1L, year = lastResetYear, totalDays = 22f, usedDays = 10f, userId = uid,
+            )
+
+            val result = useCase.runIfNeeded(uid)
+
+            assertTrue(result)
+            val balance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
+            assertNotNull(balance)
+            assertEquals(22f, balance!!.totalDays)    // carried from 3 years ago
+            assertEquals(0f, balance.usedDays)         // reset to 0
+            assertEquals(currentYear, appDataStore.lastResetYear.first())
+        }
+
+    @Test
+    fun `runIfNeeded with multi-year gap uses DEFAULT when no prior balance found`() =
+        testScope.runTest {
+            // Set last reset year to 3 years ago — no balance row exists for that year
+            appDataStore.setLastResetYear(currentYear - 3)
+
+            val result = useCase.runIfNeeded(uid)
+
+            assertTrue(result)
+            val balance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
+            assertEquals(AnnualResetUseCase.DEFAULT_LEAVE_DAYS, balance!!.totalDays)
+        }
+
     // ── idempotency ───────────────────────────────────────────────────────────
 
     @Test

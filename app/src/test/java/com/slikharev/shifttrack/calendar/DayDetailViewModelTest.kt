@@ -9,6 +9,7 @@ import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.coVerify
@@ -45,6 +46,7 @@ class DayDetailViewModelTest {
     private lateinit var mockLeaveRepository: LeaveRepository
     private lateinit var mockOvertimeRepository: OvertimeRepository
     private lateinit var mockUserSession: UserSession
+    private lateinit var mockWidgetUpdater: ShiftWidgetUpdater
     private lateinit var viewModel: DayDetailViewModel
 
     @Before
@@ -56,6 +58,7 @@ class DayDetailViewModelTest {
         mockUserSession = mockk {
             every { currentUserId } returns "test-uid"
         }
+        mockWidgetUpdater = mockk(relaxed = true)
 
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(emptyList())
         every { mockOvertimeRepository.getOvertimeForRange(any(), any()) } returns
@@ -67,6 +70,7 @@ class DayDetailViewModelTest {
             leaveRepository = mockLeaveRepository,
             overtimeRepository = mockOvertimeRepository,
             userSession = mockUserSession,
+            widgetUpdater = mockWidgetUpdater,
         )
     }
 
@@ -100,6 +104,7 @@ class DayDetailViewModelTest {
             leaveRepository = mockLeaveRepository,
             overtimeRepository = mockOvertimeRepository,
             userSession = mockUserSession,
+            widgetUpdater = mockWidgetUpdater,
         )
 
         val job = launch { viewModel.dayInfo.collect { } }
@@ -127,6 +132,7 @@ class DayDetailViewModelTest {
             leaveRepository = mockLeaveRepository,
             overtimeRepository = mockOvertimeRepository,
             userSession = mockUserSession,
+            widgetUpdater = mockWidgetUpdater,
         )
 
         val job = launch { viewModel.overtimeEntry.collect { } }

@@ -1,0 +1,167 @@
+# ShiftTrack — User Documentation
+
+## Quick Start Guide
+
+### Step 1 — First Launch and Sign In
+
+1. Open **ShiftTrack** on your Android device.
+2. Tap **Sign in with Google** and choose your Google account.
+3. You will be taken to the **Onboarding** screen.
+
+### Step 2 — Set the Anchor Date
+
+The app uses a rotating 5-day cycle (Day → Day → Night → Rest → Off). To calculate your schedule correctly, it needs to know **one specific date and which position in the cycle that date falls on.**
+
+1. On the Onboarding screen, select the **date** for which you know your shift position.
+2. Tap the **cycle position** that matches that date (Day, Day, Night, Rest, or Off).
+3. Tap **Next**.
+
+> **Tip:** Use today's date and whatever shift you are working right now.
+
+### Step 3 — Enter Your Leave Balance
+
+1. Enter the total number of leave days you are entitled to this year (e.g., 28).
+2. The app will track how many days you use as you record leave.
+3. Tap **Finish** to complete onboarding.
+
+### Step 4 — Navigating the App
+
+The bottom navigation bar has three sections:
+
+| Tab | What you see |
+|---|---|
+| **Home** (Dashboard) | Today's shift, the next 6 days, leave balance remaining, weekly/annual overtime |
+| **Calendar** | A full month view with each day's shift colour-coded |
+| **Settings** | Anchor date, leave entitlement, overtime compensation, and invite management |
+
+---
+
+## Feature Reference
+
+### Dashboard
+
+- **Shift cards** — Each card shows the date, weekday, and shift type. Today's card is highlighted.
+- **Leave balance** — Shows remaining days as `(total – used)`. This updates immediately when you record or remove leave.
+- **Overtime summary** — Shows hours worked this week and the cumulative yearly total.
+
+### Calendar
+
+- Tap any day to open the **Day Detail** screen for that day.
+- Days with leave are shown with a leave indicator.
+- Days with overtime show an overtime indicator.
+- Manual overrides (days where you changed the computed shift) are visually distinguished.
+
+### Day Detail Screen
+
+Opening a day shows:
+
+- The computed shift (from the cadence engine).
+- Any manually set override.
+- Any leave recorded for that day.
+- Any overtime recorded.
+
+**Available actions:**
+
+| Action | How |
+|---|---|
+| Override shift | Tap a shift type button (Day / Night / Rest / Off / Leave) |
+| Clear override | Tap the current override to remove it and restore the computed shift |
+| Add leave | Tap **Add Leave**, choose leave type (Annual / Sick / Personal / Unpaid / Other), toggle **Half Day** if needed, optionally add a note |
+| Remove leave | Tap the leave entry and confirm removal |
+| Add overtime | Tap **Log Overtime**, enter hours, optionally add a note |
+| Remove overtime | Tap the overtime entry and confirm removal |
+
+### Settings
+
+| Setting | Description |
+|---|---|
+| **Anchor date** | Change the reference date for the cadence engine. You may need to update this if your shift pattern was re-based. |
+| **Leave entitlement** | Total leave days for the current year. The app will reset this carry-over automatically on the first launch of each new year. |
+| **Overtime compensation** | Mark hours as compensated (paid out or taken as time-off). This does not remove them from the history. |
+| **Invite a viewer** | Generate a 7-day invite link to share your schedule with a family member or manager (see *Invite Guide* below). |
+
+---
+
+## Invite Guide
+
+### Generating an Invite
+
+1. Go to **Settings → Invite a viewer**.
+2. Tap **Generate invite link**.
+3. A unique link is created and copied to your clipboard, e.g., `shiftapp://invite/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
+4. Share this link via any messaging app.
+
+> **Note:** The link expires after **7 days**. After it has been redeemed once, it cannot be reused. Generate a new link if needed.
+
+### Redeeming an Invite (Recipient Steps)
+
+1. Tap the invite link on your device.
+2. ShiftTrack opens on the **Invite Redemption** screen.
+3. You will see the name of the person who sent the invite.
+4. Tap **Accept** to gain read-only access to their schedule.
+
+> You must be signed in to accept an invite. If you are not signed in, you will be taken to the sign-in screen first.
+
+### What a Spectator Can See
+
+- The host's full shift calendar (all days, overrides, leave, overtime).
+- The host's dashboard (upcoming shifts, leave balance, overtime summary).
+
+### What a Spectator Cannot Do
+
+- Add, change, or remove any shifts, leave, or overtime entries.
+- Modify any settings for the host's account.
+
+---
+
+## Widget Setup
+
+### Adding the Widget
+
+1. Long-press an empty area of your home screen.
+2. Tap **Widgets**.
+3. Find **ShiftTrack** in the list.
+4. Drag the **2×2** or **4×2** widget to your home screen.
+
+### What Each Size Shows
+
+| Size | Content |
+|---|---|
+| **2×2** | Today's shift + the next 2 days |
+| **4×2** | Today's shift + the next 6 days (full week) |
+
+### Widget Refresh
+
+The widget updates automatically when you:
+- Make any change on the Day Detail screen (override, leave, overtime).
+- Change the anchor date in Settings.
+- Come back online after offline use (sync completes).
+
+---
+
+## Troubleshooting
+
+### Widget not updating
+
+- The widget refreshes after every local data change. If it still shows old data, try removing and re-adding it.
+- The system may delay widget updates to conserve battery. Open the app to force a sync.
+
+### Sync delay after offline use
+
+- All changes are saved locally immediately. When you reconnect, the app syncs automatically in the background within a few minutes.
+- If you are in a hurry, open the app — opening it triggers an immediate sync request.
+
+### Annual reset prompt not appearing
+
+- The annual leave roll-over fires silently on the first launch of the new year. If you miss it, the new year's leave balance is created automatically with the previous year's entitlement copied over.
+- Check **Settings → Leave entitlement** to verify the new year's total is correct and adjust if needed.
+
+### Sign-in not working
+
+- Ensure you have an active internet connection for the first sign-in.
+- Once signed in, the app caches your credentials so you can use it offline.
+
+### Invite link not working
+
+- The link expires after 7 days. Ask the sender to generate a new one.
+- Each link can only be redeemed once. If you have already accepted an invite from this person, no action is needed.

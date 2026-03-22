@@ -10,6 +10,17 @@ import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Manages the user's overtime entries and yearly overtime-balance.
+ *
+ * All writes are local-first (Room); Firestore sync is handled by
+ * [com.slikharev.shifttrack.sync.SyncWorker]. After every mutation the
+ * yearly [OvertimeBalanceEntity.totalHours] is recomputed via a one-shot
+ * suspend query and the balance row is created if it didn't exist yet.
+ *
+ * Note: [addOvertime] requires [hours] > 0 and will throw
+ * [IllegalArgumentException] otherwise.
+ */
 @Singleton
 class OvertimeRepository @Inject constructor(
     private val overtimeDao: OvertimeDao,

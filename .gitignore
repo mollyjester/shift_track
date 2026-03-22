@@ -28,3 +28,4 @@ debug.keystore
 
 # Generated
 app/src/main/java/com/slikharev/shifttrack/BuildConfig.java
+.kotlin/

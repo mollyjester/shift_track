@@ -1,0 +1,139 @@
+# Architecture Overview
+
+## High-Level Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Compose UI Layer                               │
+│  AuthScreen  OnboardingScreen  DashboardScreen  CalendarScreen          │
+│  DayDetailScreen  SettingsScreen  InviteRedemptionScreen  ShiftWidget   │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │  observes StateFlow / calls methods
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         ViewModel Layer                                 │
+│  AuthViewModel  DashboardViewModel  CalendarViewModel  DayDetailViewModel│
+│  SettingsViewModel  OnboardingViewModel  InviteViewModel                │
+└──────────────┬──────────────────────────────────────┬───────────────────┘
+               │ suspend calls / Flow                  │ suspend calls
+               ▼                                       ▼
+┌──────────────────────────────────┐  ┌───────────────────────────────────┐
+│       Repository Layer           │  │         AppDataStore              │
+│  ShiftRepository                 │  │  (anchor date, onboarding flag,   │
+│  LeaveRepository                 │  │   last reset year, FCM token)     │
+│  OvertimeRepository              │  └───────────────────────────────────┘
+│  InviteRepository (interface)    │
+└────────────┬─────────────────────┘
+             │
+      ┌──────┴──────┐
+      ▼             ▼
+┌─────────┐   ┌────────────────────────────────────────────────┐
+│  Room   │   │                 Firestore                      │
+│  DB     │   │  users/{uid}/shifts|leaves|overtime            │
+│ (local) │   │  invites/{token}                               │
+└─────────┘   └────────────────────────────────────────────────┘
+      ▲
+      │  reads / writes on schedule
+      │
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         SyncWorker (WorkManager)                        │
+│  1. AnnualResetUseCase  →  LeaveBalanceDao                              │
+│  2. FirestoreSyncDataSource  →  Firestore (shifts, leaves, overtime)    │
+│  3. ShiftWidgetUpdater  →  Glance widget refresh                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## Key Design Decisions
+
+### Offline-First
+
+The Room database is the **single source of truth**. Every user action writes to Room immediately and the UI reads from Room. Firestore is written to asynchronously by `SyncWorker` and failures are retried with exponential back-off. The user never waits for a network response.
+
+### Pure Cadence Engine
+
+`CadenceEngine` is a Kotlin `object` (singleton) with zero Android dependencies. Given an anchor date and anchor cycle index (0–4), it computes the shift type for any date using modular arithmetic:
+
+```
+cycleIndex(date) = floorMod(anchorCycleIndex + daysBetween(anchorDate, date), 5)
+shiftType = CYCLE[cycleIndex]     where CYCLE = [DAY, DAY, NIGHT, REST, OFF]
+```
+
+`Math.floorMod` ensures correct behaviour for dates **before** the anchor (negative `daysBetween`).
+
+### Unidirectional Data Flow
+
+ViewModels expose immutable `StateFlow` values. Screens call ViewModel methods but never mutate state directly. This makes the app predictable and easy to test.
+
+### Widget Refresh Strategy
+
+`ShiftWidgetUpdater.updateAll()` is called:
+1. After every local mutation in `DayDetailViewModel` (manual override, leave, overtime).
+2. After settings changes in `SettingsViewModel` (new anchor date).
+3. After every successful `SyncWorker` run.
+
+`ShiftWidgetUpdater` swallows errors so a missing widget host never crashes the caller.
+
+---
+
+## Cadence Engine — Detailed Explanation
+
+### The 5-Day Cycle
+
+```
+Index │ Shift
+──────┼───────
+  0   │ DAY
+  1   │ DAY
+  2   │ NIGHT
+  3   │ REST
+  4   │ OFF
+```
+
+A "rotation" consists of two day shifts followed by one night shift, one rest day, and one day off. After index 4 the cycle wraps back to index 0.
+
+### Anchor Date
+
+The **anchor date** is a specific calendar date for which the user knows their cycle position. This is entered once during onboarding. Once stored in `AppDataStore`, every date's shift is computed relative to the anchor:
+
+```kotlin
+val days = ChronoUnit.DAYS.between(anchorDate, targetDate)  // negative for past dates
+val index = Math.floorMod(anchorCycleIndex + days, 5)
+return CYCLE[index]
+```
+
+### Edge Cases
+
+| Scenario | Behaviour |
+|---|---|
+| Date before anchor | `Math.floorMod` with negative offset correctly wraps to the previous cycle |
+| `anchorCycleIndex` out of 0–4 | `require()` throws `IllegalArgumentException` immediately |
+| No anchor set yet | `ShiftRepository` returns an empty list so the UI shows no shift data |
+
+---
+
+## Firestore Sync Strategy
+
+### Write Path (Local → Cloud)
+
+1. User action → ViewModel → Repository → Room DAO (immediate, returns to UI)
+2. Repository marks the row `synced = false`
+3. `SyncWorker` runs (triggered immediately after mutation OR on a 15-min periodic schedule)
+4. Worker fetches all rows where `synced = false`, batch-writes to Firestore, marks them `synced = true`
+
+### Conflict Resolution
+
+Each shift/leave/overtime document in Firestore is keyed by `date` string (`YYYY-MM-DD`). Writes use `SetOptions.merge()` so two devices writing the same date overwrite each other (last-write-wins). This is acceptable because only the **owner** can write shift data.
+
+### Spectator (Read-Only) Access
+
+A spectator is a user whose UID appears in `users/{hostUid}.spectators`. Firestore rules grant spectators `read` access to `users/{hostUid}/{shifts,leaves,overtime}` but deny all writes. The app does not currently push real-time updates to spectators; they reload data on app open.
+
+---
+
+## Deep Link Scheme
+
+| URI | Destination |
+|---|---|
+| `shiftapp://invite/{token}` | `InviteRedemptionScreen` — validates and redeems the token |
+
+The token is a UUID generated by `FirestoreInviteRepository.createInvite`. It contains no user-identifying information. The document at `invites/{token}` stores the `hostUid`, but the deep link itself is opaque.

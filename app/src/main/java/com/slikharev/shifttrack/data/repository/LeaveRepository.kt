@@ -7,10 +7,21 @@ import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.LeaveEntity
 import com.slikharev.shifttrack.model.LeaveType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Manages the user's leave records and yearly leave-balance.
+ *
+ * All writes go to Room via [LeaveDao] immediately; Firestore sync is handled
+ * separately by [com.slikharev.shifttrack.sync.SyncWorker].
+ *
+ * After any mutation the yearly [LeaveBalanceEntity.usedDays] is recomputed
+ * from the leaves table using a one-shot [kotlinx.coroutines.flow.first] call
+ * and written back, so the balance screen never needs a separate aggregation.
+ */
 @Singleton
 class LeaveRepository @Inject constructor(
     private val leaveDao: LeaveDao,
@@ -59,12 +70,7 @@ class LeaveRepository @Inject constructor(
         val balance = leaveBalanceDao.getBalanceForYear(uid, year) ?: return
         val start = LocalDate.of(year, 1, 1).toString()
         val end = LocalDate.of(year, 12, 31).toString()
-        // Collect first emission synchronously — this is a one-shot aggregation query.
-        var usedDays = 0f
-        leaveDao.sumLeaveDaysForYear(uid, start, end).collect {
-            usedDays = it
-            return@collect
-        }
+        val usedDays = leaveDao.sumLeaveDaysForYear(uid, start, end).first()
         leaveBalanceDao.update(balance.copy(usedDays = usedDays))
     }
 }

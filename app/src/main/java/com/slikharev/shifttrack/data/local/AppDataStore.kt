@@ -23,6 +23,16 @@ object PrefsKeys {
     val FCM_TOKEN = stringPreferencesKey("fcm_token")
 }
 
+/**
+ * Typed accessor for the app's DataStore<Preferences> store.
+ *
+ * Keys stored:
+ * - `onboarding_complete` (Boolean) — set once after the user finishes onboarding
+ * - `anchor_date` (String, ISO-8601) — the date used as cycle index 0 reference
+ * - `anchor_cycle_index` (Int, 0–4) — which cycle position the anchor falls on
+ * - `last_reset_year` (Int) — the year in which the annual leave roll-over last ran
+ * - `fcm_token` (String?) — the most recently received FCM registration token
+ */
 @Singleton
 class AppDataStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,

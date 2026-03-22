@@ -11,6 +11,7 @@ import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,6 +30,7 @@ class DayDetailViewModel @Inject constructor(
     private val leaveRepository: LeaveRepository,
     private val overtimeRepository: OvertimeRepository,
     private val userSession: UserSession,
+    private val widgetUpdater: ShiftWidgetUpdater,
 ) : ViewModel() {
 
     val date: LocalDate = LocalDate.parse(
@@ -62,6 +64,7 @@ class DayDetailViewModel @Inject constructor(
                     date = date,
                     shiftType = shiftType,
                 )
+                widgetUpdater.updateAll()
             } catch (e: Exception) {
                 _error.value = "Failed to save: ${e.message}"
             } finally {
@@ -79,6 +82,7 @@ class DayDetailViewModel @Inject constructor(
                     userId = userSession.currentUserId.orEmpty(),
                     date = date,
                 )
+                widgetUpdater.updateAll()
             } catch (e: Exception) {
                 _error.value = "Failed to clear: ${e.message}"
             } finally {
@@ -93,6 +97,7 @@ class DayDetailViewModel @Inject constructor(
             _error.value = null
             try {
                 leaveRepository.addLeave(date, leaveType, halfDay, note)
+                widgetUpdater.updateAll()
             } catch (e: Exception) {
                 _error.value = "Failed to save leave: ${e.message}"
             } finally {
@@ -107,6 +112,7 @@ class DayDetailViewModel @Inject constructor(
             _error.value = null
             try {
                 leaveRepository.removeLeave(date)
+                widgetUpdater.updateAll()
             } catch (e: Exception) {
                 _error.value = "Failed to remove leave: ${e.message}"
             } finally {
@@ -121,6 +127,7 @@ class DayDetailViewModel @Inject constructor(
             _error.value = null
             try {
                 overtimeRepository.addOvertime(date, hours, note)
+                widgetUpdater.updateAll()
             } catch (e: Exception) {
                 _error.value = "Failed to save overtime: ${e.message}"
             } finally {
@@ -135,6 +142,7 @@ class DayDetailViewModel @Inject constructor(
             _error.value = null
             try {
                 overtimeRepository.removeOvertime(date)
+                widgetUpdater.updateAll()
             } catch (e: Exception) {
                 _error.value = "Failed to remove overtime: ${e.message}"
             } finally {
