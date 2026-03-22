@@ -7,7 +7,10 @@ import com.slikharev.shifttrack.auth.AuthRepository
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
+import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
+import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
+import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.remote.InviteDocument
@@ -75,7 +78,10 @@ class SettingsViewModelTest {
         }
         viewModel = SettingsViewModel(
             appDataStore = appDataStore,
+            shiftDao = mockk(relaxed = true),
+            leaveDao = mockk(relaxed = true),
             leaveBalanceDao = fakeLeaveBalanceDao,
+            overtimeDao = mockk(relaxed = true),
             overtimeBalanceDao = fakeOvertimeBalanceDao,
             authRepository = mockAuthRepository,
             userSession = fakeUserSession,
@@ -309,7 +315,11 @@ private class FakeLeaveBalanceDao : LeaveBalanceDao {
         stored = null
         flow.value = null
     }
-}
+
+    override suspend fun deleteAllForUser(userId: String) {
+        if (stored?.userId == userId) { stored = null; flow.value = null }
+    }
+} 
 
 private class FakeOvertimeBalanceDao : OvertimeBalanceDao {
     var stored: OvertimeBalanceEntity? = null
@@ -335,5 +345,9 @@ private class FakeOvertimeBalanceDao : OvertimeBalanceDao {
     override suspend fun delete(balance: OvertimeBalanceEntity) {
         stored = null
         flow.value = null
+    }
+
+    override suspend fun deleteAllForUser(userId: String) {
+        if (stored?.userId == userId) { stored = null; flow.value = null }
     }
 }

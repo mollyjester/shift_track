@@ -220,6 +220,10 @@ private class FakeLeaveDao : LeaveDao {
             if (entity != null && entity.id in ids) store[key] = entity.copy(synced = true)
         }
     }
+
+    override suspend fun deleteAllForUser(userId: String) {
+        store.entries.removeIf { it.value.userId == userId }
+    }
 }
 
 private class FakeLeaveBalanceDao : LeaveBalanceDao {
@@ -243,5 +247,9 @@ private class FakeLeaveBalanceDao : LeaveBalanceDao {
 
     override suspend fun delete(balance: LeaveBalanceEntity) {
         store.remove(balance.year)
+    }
+
+    override suspend fun deleteAllForUser(userId: String) {
+        store.entries.removeIf { it.value.userId == userId }
     }
 }

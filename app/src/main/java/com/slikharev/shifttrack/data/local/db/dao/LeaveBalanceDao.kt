@@ -26,4 +26,7 @@ interface LeaveBalanceDao {
 
     @Delete
     suspend fun delete(balance: LeaveBalanceEntity)
+
+    @Query("DELETE FROM leave_balance WHERE user_id = :userId")
+    suspend fun deleteAllForUser(userId: String)
 }

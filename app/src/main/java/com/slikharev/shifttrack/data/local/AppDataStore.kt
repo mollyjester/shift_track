@@ -74,4 +74,8 @@ class AppDataStore @Inject constructor(
             else prefs.remove(PrefsKeys.FCM_TOKEN)
         }
     }
+
+    suspend fun clearAll() {
+        dataStore.edit { it.clear() }
+    }
 }

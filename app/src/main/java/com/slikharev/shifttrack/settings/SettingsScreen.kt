@@ -86,6 +86,7 @@ fun SettingsScreen(navController: NavController) {
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showOvertimeDialog by remember { mutableStateOf(false) }
     var showSignOutConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     var showShareInviteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -105,6 +106,7 @@ fun SettingsScreen(navController: NavController) {
                 displayName = viewModel.displayName,
                 email = viewModel.email,
                 onSignOut = { showSignOutConfirm = true },
+                onDeleteAccount = { showDeleteConfirm = true },
             )
 
             HorizontalDivider()
@@ -235,6 +237,37 @@ fun SettingsScreen(navController: NavController) {
             },
         )
     }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete account?") },
+            text = {
+                Text(
+                    "This will permanently delete your account and all associated " +
+                        "data (shifts, leave records, and overtime). This action cannot be undone.",
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        viewModel.deleteAccount {
+                            navController.navigate("auth") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text("Delete account") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
 }
 
 // ── Section composables ───────────────────────────────────────────────────────
@@ -254,31 +287,44 @@ private fun AccountSection(
     displayName: String,
     email: String,
     onSignOut: () -> Unit,
+    onDeleteAccount: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(
-            imageVector = Icons.Default.AccountCircle,
-            contentDescription = null,
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            if (displayName.isNotBlank()) {
-                Text(text = displayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                if (displayName.isNotBlank()) {
+                    Text(text = displayName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                }
+                if (email.isNotBlank()) {
+                    Text(text = email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            if (email.isNotBlank()) {
-                Text(text = email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(
+                onClick = onSignOut,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                Text("Sign out")
             }
         }
         OutlinedButton(
-            onClick = onSignOut,
+            onClick = onDeleteAccount,
+            modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
         ) {
-            Text("Sign out")
+            Text("Delete my account and all data")
         }
     }
 }

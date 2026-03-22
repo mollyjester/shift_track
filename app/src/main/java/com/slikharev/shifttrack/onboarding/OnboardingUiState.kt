@@ -43,6 +43,8 @@ data class OnboardingUiState(
     val isSaving: Boolean = false,
     val error: String? = null,
     val previewDays: List<DayPreview> = emptyList(),
+    /** When true the user skips all schedule setup and enters as a spectator. */
+    val spectatorOnly: Boolean = false,
 )
 
 data class DayPreview(

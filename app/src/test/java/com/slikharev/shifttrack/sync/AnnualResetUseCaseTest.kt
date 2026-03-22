@@ -207,6 +207,10 @@ private class FakeLeaveBalanceDao : LeaveBalanceDao {
     override suspend fun delete(balance: LeaveBalanceEntity) {
         store.remove(balance.year)
     }
+
+    override suspend fun deleteAllForUser(userId: String) {
+        store.entries.removeIf { it.value.userId == userId }
+    }
 }
 
 private class FakeOvertimeBalanceDao : OvertimeBalanceDao {
@@ -233,5 +237,9 @@ private class FakeOvertimeBalanceDao : OvertimeBalanceDao {
     override suspend fun delete(balance: OvertimeBalanceEntity) {
         stored = null
         _flow.value = null
+    }
+
+    override suspend fun deleteAllForUser(userId: String) {
+        if (stored?.userId == userId) { stored = null; _flow.value = null }
     }
 }

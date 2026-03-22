@@ -84,6 +84,10 @@ class OvertimeRepositoryTest {
                 .filter { it.id in ids }
                 .forEach { entry -> store[entry.date] = entry.copy(synced = true) }
         }
+
+        override suspend fun deleteAllForUser(userId: String) {
+            store.entries.removeIf { it.value.userId == userId }
+        }
     }
 
     private class FakeOvertimeBalanceDao : OvertimeBalanceDao {
@@ -112,6 +116,10 @@ class OvertimeRepositoryTest {
                 stored = null
                 _flow.value = null
             }
+        }
+
+        override suspend fun deleteAllForUser(userId: String) {
+            if (stored?.userId == userId) { stored = null; _flow.value = null }
         }
     }
 

@@ -26,4 +26,7 @@ interface OvertimeBalanceDao {
 
     @Delete
     suspend fun delete(balance: OvertimeBalanceEntity)
+
+    @Query("DELETE FROM overtime_balance WHERE user_id = :userId")
+    suspend fun deleteAllForUser(userId: String)
 }

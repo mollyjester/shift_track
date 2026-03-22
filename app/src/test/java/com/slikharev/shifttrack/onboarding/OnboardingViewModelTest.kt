@@ -276,4 +276,5 @@ private class FakeLeaveBalanceDao : LeaveBalanceDao {
     }
     override suspend fun update(balance: LeaveBalanceEntity) {}
     override suspend fun delete(balance: LeaveBalanceEntity) {}
+    override suspend fun deleteAllForUser(userId: String) {}
 }

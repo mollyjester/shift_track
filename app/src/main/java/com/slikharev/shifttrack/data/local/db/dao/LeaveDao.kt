@@ -57,4 +57,7 @@ interface LeaveDao {
 
     @Query("UPDATE leaves SET synced = 1 WHERE id IN (:ids)")
     suspend fun markSynced(ids: List<Long>)
+
+    @Query("DELETE FROM leaves WHERE user_id = :userId")
+    suspend fun deleteAllForUser(userId: String)
 }

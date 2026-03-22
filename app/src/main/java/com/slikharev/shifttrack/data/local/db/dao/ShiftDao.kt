@@ -46,4 +46,7 @@ interface ShiftDao {
     /** Marks a batch of rows as synced after a successful Firestore write. */
     @Query("UPDATE shifts SET synced = 1 WHERE id IN (:ids)")
     suspend fun markSynced(ids: List<Long>)
+
+    @Query("DELETE FROM shifts WHERE user_id = :userId")
+    suspend fun deleteAllForUser(userId: String)
 }

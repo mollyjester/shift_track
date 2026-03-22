@@ -75,6 +75,25 @@ open class AuthRepository @Inject constructor(
         encryptedPrefs.edit().clear().apply()
     }
 
+    /**
+     * Deletes the Firebase Authentication account and clears locally cached
+     * credentials. Firestore data deletion is handled best-effort via
+     * [firestoreUserDataSource].
+     *
+     * @throws com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
+     *   if the user's credential is stale — the caller must ask the user to
+     *   sign out and sign back in before retrying.
+     */
+    suspend fun deleteAccount() {
+        val uid = currentUserId ?: return
+        // Delete the Firebase Auth account first. Throws if re-auth is needed,
+        // which means no local data has been touched yet.
+        firebaseAuth.currentUser?.delete()?.await()
+        // Auth deletion succeeded — clean up Firestore and local credentials.
+        runCatching { firestoreUserDataSource.deleteUserData(uid) }
+        encryptedPrefs.edit().clear().apply()
+    }
+
     private fun cacheCredentials(user: FirebaseUser) {
         encryptedPrefs.edit()
             .putString(KEY_USER_ID, user.uid)

@@ -6,7 +6,10 @@ import com.slikharev.shifttrack.auth.AuthRepository
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
+import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
+import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
+import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
@@ -36,7 +39,10 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val appDataStore: AppDataStore,
+    private val shiftDao: ShiftDao,
+    private val leaveDao: LeaveDao,
     private val leaveBalanceDao: LeaveBalanceDao,
+    private val overtimeDao: OvertimeDao,
     private val overtimeBalanceDao: OvertimeBalanceDao,
     private val authRepository: AuthRepository,
     private val userSession: UserSession,
@@ -202,5 +208,40 @@ class SettingsViewModel @Inject constructor(
     fun signOut(onComplete: () -> Unit) {
         authRepository.signOut()
         onComplete()
+    }
+
+    /**
+     * Deletes all user data (Room, DataStore, Firestore) and the Firebase Auth
+     * account, then invokes [onComplete] for the caller to navigate away.
+     *
+     * If the user's credential is stale, sets an error message asking them to
+     * sign out and sign back in before retrying.
+     */
+    fun deleteAccount(onComplete: () -> Unit) {
+        val uid = uid
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                // Firebase Auth deletion comes first: if it fails (stale credential)
+                // no local data has been touched yet.
+                authRepository.deleteAccount()
+                // Auth deletion succeeded — wipe all local data.
+                shiftDao.deleteAllForUser(uid)
+                leaveDao.deleteAllForUser(uid)
+                leaveBalanceDao.deleteAllForUser(uid)
+                overtimeDao.deleteAllForUser(uid)
+                overtimeBalanceDao.deleteAllForUser(uid)
+                appDataStore.clearAll()
+                onComplete()
+            } catch (e: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                _uiState.value = SettingsUiState(
+                    error = "Please sign out and sign back in, then try again.",
+                )
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(
+                    error = "Failed to delete account: ${e.message}",
+                )
+            }
+        }
     }
 }

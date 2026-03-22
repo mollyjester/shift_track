@@ -29,7 +29,9 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -75,6 +77,8 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     onAnchorForward = viewModel::shiftAnchorForward,
                     onAnchorBack = viewModel::shiftAnchorBack,
                     onNext = { viewModel.nextStep() },
+                    onSetSpectatorOnly = viewModel::setSpectatorOnly,
+                    onCompleteAsSpectator = { viewModel.completeOnboarding(onComplete) },
                 )
                 OnboardingStep.LEAVE_SETUP -> LeaveSetupStep(
                     state = state,
@@ -101,6 +105,8 @@ private fun ShiftPickerStep(
     onAnchorForward: () -> Unit,
     onAnchorBack: () -> Unit,
     onNext: () -> Unit,
+    onSetSpectatorOnly: (Boolean) -> Unit,
+    onCompleteAsSpectator: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -124,14 +130,41 @@ private fun ShiftPickerStep(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // ── Spectator-only toggle ─────────────────────────────────────
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Spectator only mode",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "I don't have my own schedule — I just want to view someone else's.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(
+                    checked = state.spectatorOnly,
+                    onCheckedChange = onSetSpectatorOnly,
+                )
+            }
+
             // Anchor date adjuster
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(if (state.spectatorOnly) 0.38f else 1f),
             ) {
-                IconButton(onClick = onAnchorBack) {
+                IconButton(onClick = onAnchorBack, enabled = !state.spectatorOnly) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Previous day")
                 }
                 Text(
@@ -140,7 +173,7 @@ private fun ShiftPickerStep(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.width(160.dp),
                 )
-                IconButton(onClick = onAnchorForward) {
+                IconButton(onClick = onAnchorForward, enabled = !state.spectatorOnly) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Next day")
                 }
             }
@@ -149,22 +182,27 @@ private fun ShiftPickerStep(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(if (state.spectatorOnly) 0.38f else 1f),
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // Cycle option cards
-            CYCLE_LABELS.forEachIndexed { index, label ->
-                val isSelected = state.selectedCycleIndex == index
-                val shiftType = com.slikharev.shifttrack.engine.CadenceEngine.CYCLE[index]
-                CycleOptionCard(
-                    label = label,
-                    shiftType = shiftType,
-                    isSelected = isSelected,
-                    onClick = { onSelectCycleIndex(index) },
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            Column(modifier = Modifier.alpha(if (state.spectatorOnly) 0.38f else 1f)) {
+                CYCLE_LABELS.forEachIndexed { index, label ->
+                    val isSelected = state.selectedCycleIndex == index
+                    val shiftType = com.slikharev.shifttrack.engine.CadenceEngine.CYCLE[index]
+                    CycleOptionCard(
+                        label = label,
+                        shiftType = shiftType,
+                        isSelected = isSelected,
+                        enabled = !state.spectatorOnly,
+                        onClick = { onSelectCycleIndex(index) },
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
 
             state.error?.let {
@@ -173,14 +211,33 @@ private fun ShiftPickerStep(
             }
         }
 
-        Button(
-            onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            enabled = state.selectedCycleIndex >= 0,
-        ) {
-            Text("Next")
+        if (state.spectatorOnly) {
+            Button(
+                onClick = onCompleteAsSpectator,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !state.isSaving,
+            ) {
+                if (state.isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.height(20.dp).width(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text("Continue as Spectator")
+                }
+            }
+        } else {
+            Button(
+                onClick = onNext,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = state.selectedCycleIndex >= 0,
+            ) {
+                Text("Next")
+            }
         }
     }
 }
@@ -191,6 +248,7 @@ private fun CycleOptionCard(
     shiftType: ShiftType,
     isSelected: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     val border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     val containerColor = if (isSelected) {
@@ -200,6 +258,7 @@ private fun CycleOptionCard(
     }
     Card(
         onClick = onClick,
+        enabled = enabled,
         border = border,
         colors = CardDefaults.cardColors(containerColor = containerColor),
         modifier = Modifier.fillMaxWidth(),

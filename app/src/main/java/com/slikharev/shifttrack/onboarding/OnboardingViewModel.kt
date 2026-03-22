@@ -41,6 +41,10 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(anchorDate = it.anchorDate.minusDays(1)) }
     }
 
+    fun setSpectatorOnly(enabled: Boolean) {
+        _uiState.update { it.copy(spectatorOnly = enabled, error = null) }
+    }
+
     // ── Step 2: leave setup ──────────────────────────────────────────────────
 
     fun setLeaveAllowanceDays(days: Int) {
@@ -97,32 +101,34 @@ class OnboardingViewModel @Inject constructor(
      */
     fun completeOnboarding(onSuccess: () -> Unit) {
         val state = _uiState.value
-        if (state.selectedCycleIndex < 0) return
+        if (!state.spectatorOnly && state.selectedCycleIndex < 0) return
         _uiState.update { it.copy(isSaving = true, error = null) }
 
         viewModelScope.launch {
             try {
-                // 1. Save anchor
-                appDataStore.setAnchor(
-                    date = state.anchorDate.toString(),
-                    cycleIndex = state.selectedCycleIndex,
-                )
+                if (!state.spectatorOnly) {
+                    // 1. Save anchor
+                    appDataStore.setAnchor(
+                        date = state.anchorDate.toString(),
+                        cycleIndex = state.selectedCycleIndex,
+                    )
 
-                // 2. Seed leave balance for current year
-                val userId = userSession.currentUserId.orEmpty()
-                val year = LocalDate.now().year
-                leaveBalanceDao.upsert(
-                    LeaveBalanceEntity(
-                        year = year,
-                        totalDays = state.leaveAllowanceDays.toFloat(),
-                        usedDays = 0f,
-                        userId = userId,
-                    ),
-                )
+                    // 2. Seed leave balance for current year
+                    val userId = userSession.currentUserId.orEmpty()
+                    val year = LocalDate.now().year
+                    leaveBalanceDao.upsert(
+                        LeaveBalanceEntity(
+                            year = year,
+                            totalDays = state.leaveAllowanceDays.toFloat(),
+                            usedDays = 0f,
+                            userId = userId,
+                        ),
+                    )
+                    appDataStore.setLastResetYear(year)
+                }
 
-                // 3. Mark onboarding complete (this is last so a crash before here is retryable)
+                // 3. Mark onboarding complete (last so a crash before here is retryable)
                 appDataStore.setOnboardingComplete(true)
-                appDataStore.setLastResetYear(year)
 
                 _uiState.update { it.copy(isSaving = false) }
                 onSuccess()
