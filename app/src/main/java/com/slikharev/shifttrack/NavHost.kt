@@ -13,6 +13,7 @@ import androidx.navigation.navDeepLink
 import com.slikharev.shifttrack.auth.AuthScreen
 import com.slikharev.shifttrack.auth.AuthViewModel
 import com.slikharev.shifttrack.calendar.CalendarScreen
+import com.slikharev.shifttrack.calendar.DayDetailScreen
 import com.slikharev.shifttrack.dashboard.DashboardScreen
 import com.slikharev.shifttrack.invite.InviteRedemptionScreen
 import com.slikharev.shifttrack.onboarding.OnboardingScreen
@@ -71,8 +72,8 @@ fun ShiftTrackNavHost() {
             arguments = listOf(navArgument("date") { type = NavType.StringType }),
             deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://day/{date}" })
         ) { backStackEntry ->
-            val date = backStackEntry.arguments?.getString("date") ?: return@composable
-            // DayDetailScreen will be implemented in Phase 2.4
+            if (backStackEntry.arguments?.getString("date") == null) return@composable
+            DayDetailScreen(navController = navController)
         }
         composable(
             route = Screen.InviteRedemption.route,

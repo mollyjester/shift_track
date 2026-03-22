@@ -1,5 +1,6 @@
 package com.slikharev.shifttrack.data.repository
 
+import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
@@ -22,6 +23,7 @@ class ShiftRepository @Inject constructor(
     private val shiftDao: ShiftDao,
     private val leaveDao: LeaveDao,
     private val appDataStore: AppDataStore,
+    private val userSession: UserSession,
 ) {
     /**
      * Returns a [Flow] of [DayInfo] list for every day in [startDate]..[endDate] inclusive.
@@ -56,12 +58,12 @@ class ShiftRepository @Inject constructor(
 
                 combine(
                     shiftDao.getShiftsForRange(
-                        userId = CURRENT_USER_PLACEHOLDER,
+                        userId = userSession.currentUserId.orEmpty(),
                         startDate = startStr,
                         endDate = endStr,
                     ),
                     leaveDao.getLeavesForRange(
-                        userId = CURRENT_USER_PLACEHOLDER,
+                        userId = userSession.currentUserId.orEmpty(),
                         startDate = startStr,
                         endDate = endStr,
                     ),
@@ -132,7 +134,7 @@ class ShiftRepository @Inject constructor(
     }
 
     companion object {
-        // Replaced with real userId from AuthRepository in Phase 2.4+
+        // userId is now sourced from UserSession — this stub is kept for unit tests only
         internal const val CURRENT_USER_PLACEHOLDER = ""
     }
 }
