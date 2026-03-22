@@ -11,6 +11,7 @@ import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.invite.InviteRepository
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,7 @@ class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userSession: UserSession,
     private val inviteRepository: InviteRepository,
+    private val widgetUpdater: ShiftWidgetUpdater,
 ) : ViewModel() {
 
     private val uid get() = userSession.currentUserId.orEmpty()
@@ -107,6 +109,7 @@ class SettingsViewModel @Inject constructor(
             _uiState.value = SettingsUiState(isSaving = true)
             try {
                 appDataStore.setAnchor(date.toString(), cycleIndex)
+                widgetUpdater.updateAll()
                 _uiState.value = SettingsUiState(savedMessage = "Schedule updated")
             } catch (e: Exception) {
                 _uiState.value = SettingsUiState(error = "Failed to save: ${e.message}")

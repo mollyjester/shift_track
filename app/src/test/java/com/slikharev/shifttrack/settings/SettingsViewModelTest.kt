@@ -13,6 +13,7 @@ import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.remote.InviteDocument
 import com.slikharev.shifttrack.invite.InviteRepository
 import com.slikharev.shifttrack.invite.RedeemResult
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -55,6 +56,7 @@ class SettingsViewModelTest {
     private val fakeUserSession = object : UserSession { override val currentUserId = "uid-test" }
     private lateinit var mockAuthRepository: AuthRepository
     private lateinit var fakeInviteRepository: FakeInviteRepository
+    private val mockWidgetUpdater = mockk<ShiftWidgetUpdater>(relaxed = true)
     private lateinit var viewModel: SettingsViewModel
 
     @Before
@@ -78,6 +80,7 @@ class SettingsViewModelTest {
             authRepository = mockAuthRepository,
             userSession = fakeUserSession,
             inviteRepository = fakeInviteRepository,
+            widgetUpdater = mockWidgetUpdater,
         )
     }
 

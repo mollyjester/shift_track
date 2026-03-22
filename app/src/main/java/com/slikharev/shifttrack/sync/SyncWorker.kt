@@ -9,6 +9,7 @@ import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.remote.FirestoreSyncDataSource
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -38,6 +39,7 @@ class SyncWorker @AssistedInject constructor(
     private val overtimeDao: OvertimeDao,
     private val syncDataSource: FirestoreSyncDataSource,
     private val annualResetUseCase: AnnualResetUseCase,
+    private val widgetUpdater: ShiftWidgetUpdater,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -49,6 +51,7 @@ class SyncWorker @AssistedInject constructor(
             syncShifts(uid)
             syncLeaves(uid)
             syncOvertimes(uid)
+            widgetUpdater.updateAll()
             Result.success()
         } catch (e: Exception) {
             if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
