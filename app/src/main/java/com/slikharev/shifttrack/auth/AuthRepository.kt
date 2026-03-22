@@ -13,18 +13,19 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AuthRepository @Inject constructor(
+open class AuthRepository @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val encryptedPrefs: SharedPreferences,
     private val firestoreUserDataSource: FirestoreUserDataSource,
-) {
+) : UserSession {
     companion object {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_DISPLAY_NAME = "display_name"
         private const val KEY_EMAIL = "email"
     }
 
-    val currentUser: FirebaseUser? get() = firebaseAuth.currentUser
+    open val currentUser: FirebaseUser? get() = firebaseAuth.currentUser
+    override val currentUserId: String? get() = currentUser?.uid
 
     /**
      * Emits the current FirebaseUser whenever auth state changes.

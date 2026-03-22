@@ -47,7 +47,8 @@ fun ShiftTrackNavHost() {
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Screen.Auth.route) {
             AuthScreen(onAuthSuccess = {
-                navController.navigate(Screen.Calendar.route) {
+                val dest = if (onboardingComplete) Screen.Calendar.route else Screen.Onboarding.route
+                navController.navigate(dest) {
                     popUpTo(Screen.Auth.route) { inclusive = true }
                 }
             })
