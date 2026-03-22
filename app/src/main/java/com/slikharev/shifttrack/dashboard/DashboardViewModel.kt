@@ -3,7 +3,9 @@ package com.slikharev.shifttrack.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
+import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
+import com.slikharev.shifttrack.data.repository.OvertimeRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.model.DayInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +25,7 @@ data class UpcomingDay(
 class DashboardViewModel @Inject constructor(
     shiftRepository: ShiftRepository,
     leaveRepository: LeaveRepository,
+    overtimeRepository: OvertimeRepository,
 ) : ViewModel() {
 
     private val today: LocalDate = LocalDate.now()
@@ -48,5 +51,16 @@ class DashboardViewModel @Inject constructor(
             if (balance == null) null
             else (balance.totalDays - balance.usedDays).coerceAtLeast(0f)
         }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Total overtime hours accumulated this week (today + 6 days ahead). */
+    val weeklyOvertimeHours: StateFlow<Float> = overtimeRepository
+        .getOvertimeForRange(today, upcomingEnd)
+        .map { list -> list.sumOf { it.hours.toDouble() }.toFloat() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0f)
+
+    /** Yearly overtime balance — null until any overtime is recorded. */
+    val yearlyOvertimeBalance: StateFlow<OvertimeBalanceEntity?> = overtimeRepository
+        .observeBalanceForYear(today.year)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }

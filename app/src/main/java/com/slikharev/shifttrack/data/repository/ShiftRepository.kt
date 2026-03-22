@@ -3,6 +3,7 @@ package com.slikharev.shifttrack.data.repository
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
+import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
@@ -22,6 +23,7 @@ import javax.inject.Singleton
 class ShiftRepository @Inject constructor(
     private val shiftDao: ShiftDao,
     private val leaveDao: LeaveDao,
+    private val overtimeDao: OvertimeDao,
     private val appDataStore: AppDataStore,
     private val userSession: UserSession,
 ) {
@@ -67,15 +69,22 @@ class ShiftRepository @Inject constructor(
                         startDate = startStr,
                         endDate = endStr,
                     ),
-                ) { shifts, leaves ->
+                    overtimeDao.getOvertimeForRange(
+                        userId = userSession.currentUserId.orEmpty(),
+                        startDate = startStr,
+                        endDate = endStr,
+                    ),
+                ) { shifts, leaves, overtimes ->
                     val shiftByDate = shifts.associateBy { it.date }
                     val leaveDates = leaves.map { it.date }.toSet()
+                    val overtimeDates = overtimes.map { it.date }.toSet()
 
                     var current = startDate
                     val result = mutableListOf<DayInfo>()
                     while (!current.isAfter(endDate)) {
                         val dateStr = current.toString()
                         val entity = shiftByDate[dateStr]
+                        val hasOt = dateStr in overtimeDates
                         val dayInfo = when {
                             entity != null && entity.isManualOverride ->
                                 DayInfo(
@@ -83,7 +92,7 @@ class ShiftRepository @Inject constructor(
                                     shiftType = ShiftType.valueOf(entity.shiftType),
                                     isManualOverride = true,
                                     hasLeave = dateStr in leaveDates,
-                                    hasOvertime = false,
+                                    hasOvertime = hasOt,
                                     note = entity.note,
                                 )
                             dateStr in leaveDates ->
@@ -91,11 +100,13 @@ class ShiftRepository @Inject constructor(
                                     date = current,
                                     shiftType = ShiftType.LEAVE,
                                     hasLeave = true,
+                                    hasOvertime = hasOt,
                                 )
                             else ->
                                 DayInfo(
                                     date = current,
                                     shiftType = cadenceMap[current] ?: ShiftType.OFF,
+                                    hasOvertime = hasOt,
                                 )
                         }
                         result.add(dayInfo)

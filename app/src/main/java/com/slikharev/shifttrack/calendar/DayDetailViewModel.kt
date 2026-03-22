@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
+import com.slikharev.shifttrack.data.repository.OvertimeRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
@@ -25,6 +27,7 @@ class DayDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val shiftRepository: ShiftRepository,
     private val leaveRepository: LeaveRepository,
+    private val overtimeRepository: OvertimeRepository,
     private val userSession: UserSession,
 ) : ViewModel() {
 
@@ -34,6 +37,12 @@ class DayDetailViewModel @Inject constructor(
 
     val dayInfo: StateFlow<DayInfo?> = shiftRepository
         .getDayInfosForRange(date, date)
+        .map { it.firstOrNull() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Reactive overtime entry for this day — null when none is recorded. */
+    val overtimeEntry: StateFlow<OvertimeEntity?> = overtimeRepository
+        .getOvertimeForRange(date, date)
         .map { it.firstOrNull() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -100,6 +109,34 @@ class DayDetailViewModel @Inject constructor(
                 leaveRepository.removeLeave(date)
             } catch (e: Exception) {
                 _error.value = "Failed to remove leave: ${e.message}"
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun addOvertime(hours: Float, note: String? = null) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _error.value = null
+            try {
+                overtimeRepository.addOvertime(date, hours, note)
+            } catch (e: Exception) {
+                _error.value = "Failed to save overtime: ${e.message}"
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun removeOvertime() {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _error.value = null
+            try {
+                overtimeRepository.removeOvertime(date)
+            } catch (e: Exception) {
+                _error.value = "Failed to remove overtime: ${e.message}"
             } finally {
                 _isSaving.value = false
             }

@@ -35,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.slikharev.shifttrack.Screen
+import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.ShiftColors
@@ -49,6 +50,8 @@ fun DashboardScreen(navController: NavController) {
     val upcomingDays by viewModel.upcomingDays.collectAsStateWithLifecycle()
     val leaveBalance by viewModel.leaveBalance.collectAsStateWithLifecycle()
     val remainingLeave by viewModel.remainingLeaveDays.collectAsStateWithLifecycle()
+    val weeklyOvertimeHours by viewModel.weeklyOvertimeHours.collectAsStateWithLifecycle()
+    val yearlyOvertimeBalance by viewModel.yearlyOvertimeBalance.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -80,6 +83,13 @@ fun DashboardScreen(navController: NavController) {
                     totalDays = leaveBalance!!.totalDays,
                     usedDays = leaveBalance!!.usedDays,
                     remaining = remainingLeave,
+                )
+            }
+
+            if (weeklyOvertimeHours > 0f || yearlyOvertimeBalance != null) {
+                OvertimeCard(
+                    weeklyHours = weeklyOvertimeHours,
+                    balance = yearlyOvertimeBalance,
                 )
             }
 
@@ -213,6 +223,41 @@ private fun UpcomingDayRow(entry: UpcomingDay, label: String, onClick: () -> Uni
             if (entry.dayInfo.hasLeave) {
                 Spacer(modifier = Modifier.size(4.dp))
                 Text(text = "🌴", style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OvertimeCard(weeklyHours: Float, balance: OvertimeBalanceEntity?) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(text = "Overtime", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "This week: ${"%.1f".format(weeklyHours)} h",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (balance != null) {
+                    Text(
+                        text = "Year total: ${"%.1f".format(balance.totalHours)} h",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            if (balance != null && balance.compensatedHours > 0f) {
+                Text(
+                    text = "Compensated: ${"%.1f".format(balance.compensatedHours)} h",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                )
             }
         }
     }

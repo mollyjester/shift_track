@@ -37,6 +37,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
@@ -60,6 +62,7 @@ import java.util.Locale
 fun DayDetailScreen(navController: NavController) {
     val viewModel: DayDetailViewModel = hiltViewModel()
     val dayInfo by viewModel.dayInfo.collectAsStateWithLifecycle()
+    val overtimeEntry by viewModel.overtimeEntry.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
@@ -95,11 +98,14 @@ fun DayDetailScreen(navController: NavController) {
             DayDetailContent(
                 modifier = Modifier.padding(padding),
                 dayInfo = dayInfo!!,
+                overtimeEntry = overtimeEntry,
                 isSaving = isSaving,
                 onOverride = viewModel::setManualOverride,
                 onClearOverride = viewModel::clearManualOverride,
                 onAddLeave = viewModel::addLeave,
                 onRemoveLeave = viewModel::removeLeave,
+                onAddOvertime = viewModel::addOvertime,
+                onRemoveOvertime = viewModel::removeOvertime,
             )
         }
     }
@@ -109,13 +115,17 @@ fun DayDetailScreen(navController: NavController) {
 private fun DayDetailContent(
     modifier: Modifier = Modifier,
     dayInfo: DayInfo,
+    overtimeEntry: OvertimeEntity?,
     isSaving: Boolean,
     onOverride: (ShiftType) -> Unit,
     onClearOverride: () -> Unit,
     onAddLeave: (LeaveType, Boolean, String?) -> Unit,
     onRemoveLeave: () -> Unit,
+    onAddOvertime: (Float, String?) -> Unit,
+    onRemoveOvertime: () -> Unit,
 ) {
     var showLeaveDialog by remember { mutableStateOf(false) }
+    var showOvertimeDialog by remember { mutableStateOf(false) }
     var showOverrideMenu by remember { mutableStateOf(false) }
 
     Column(
@@ -150,6 +160,14 @@ private fun DayDetailContent(
             onAddLeaveClick = { showLeaveDialog = true },
             onRemoveLeave = onRemoveLeave,
         )
+
+        // Overtime section
+        OvertimeSection(
+            overtimeEntry = overtimeEntry,
+            isSaving = isSaving,
+            onAddOvertimeClick = { showOvertimeDialog = true },
+            onRemoveOvertime = onRemoveOvertime,
+        )
     }
 
     if (showLeaveDialog) {
@@ -159,6 +177,16 @@ private fun DayDetailContent(
                 onAddLeave(leaveType, halfDay, null)
             },
             onDismiss = { showLeaveDialog = false },
+        )
+    }
+
+    if (showOvertimeDialog) {
+        AddOvertimeDialog(
+            onConfirm = { hours ->
+                showOvertimeDialog = false
+                onAddOvertime(hours, null)
+            },
+            onDismiss = { showOvertimeDialog = false },
         )
     }
 }
@@ -298,6 +326,88 @@ private fun AddLeaveDialog(
         },
         confirmButton = {
             Button(onClick = { onConfirm(selectedType, halfDay) }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun OvertimeSection(
+    overtimeEntry: OvertimeEntity?,
+    isSaving: Boolean,
+    onAddOvertimeClick: () -> Unit,
+    onRemoveOvertime: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = "Overtime", style = MaterialTheme.typography.titleMedium)
+        if (overtimeEntry != null) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "⏱ ${"%.1f".format(overtimeEntry.hours)} h",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (overtimeEntry.note != null) {
+                    Text(
+                        text = "· ${overtimeEntry.note}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = onRemoveOvertime, enabled = !isSaving) {
+                    Text("Remove")
+                }
+            }
+        } else {
+            Button(onClick = onAddOvertimeClick, enabled = !isSaving) {
+                Text("Add overtime")
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddOvertimeDialog(
+    onConfirm: (Float) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Step 0.5 h, range 0.5 – 24 h
+    var hours by remember { mutableFloatStateOf(1f) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add overtime") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("Hours worked over the scheduled shift:")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = { if (hours > 0.5f) hours -= 0.5f },
+                        enabled = hours > 0.5f,
+                    ) { Text("−") }
+                    Text(
+                        text = "${"%.1f".format(hours)} h",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    OutlinedButton(
+                        onClick = { if (hours < 24f) hours += 0.5f },
+                        enabled = hours < 24f,
+                    ) { Text("+") }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(hours) }) { Text("Save") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }

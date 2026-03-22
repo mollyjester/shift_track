@@ -29,6 +29,14 @@ interface OvertimeDao {
     )
     fun sumOvertimeHoursForYear(userId: String, startDate: String, endDate: String): Flow<Float>
 
+    /** Suspend (one-shot) version of [sumOvertimeHoursForYear] — used by refreshTotalHours. */
+    @Query(
+        """SELECT COALESCE(SUM(hours), 0)
+           FROM overtime
+           WHERE user_id = :userId AND date BETWEEN :startDate AND :endDate"""
+    )
+    suspend fun sumOvertimeHoursOnce(userId: String, startDate: String, endDate: String): Float
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(overtime: OvertimeEntity): Long
 
