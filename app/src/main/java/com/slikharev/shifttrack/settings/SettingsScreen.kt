@@ -82,6 +82,7 @@ import java.util.Locale
 fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isSpectatorOnly by viewModel.isSpectatorOnly.collectAsStateWithLifecycle()
     val anchorDate by viewModel.anchorDate.collectAsStateWithLifecycle()
     val anchorCycleIndex by viewModel.anchorCycleIndex.collectAsStateWithLifecycle()
     val leaveBalances by viewModel.leaveBalances.collectAsStateWithLifecycle()
@@ -128,74 +129,76 @@ fun SettingsScreen(navController: NavController) {
                 onDeleteAccount = { showDeleteConfirm = true },
             )
 
-            HorizontalDivider()
-
-            // ── Shift schedule ───────────────────────────────────────────────────
-            SettingsSectionHeader("Shift Schedule")
-            ScheduleCard(
-                anchorDate = anchorDate,
-                anchorCycleIndex = anchorCycleIndex,
-                todayShiftLabel = todayShiftLabel,
-                onEditClick = { showScheduleDialog = true },
-            )
-
-            HorizontalDivider()
-
-            // ── Leave balance (per-category) ─────────────────────────────────────
-            SettingsSectionHeader("Leave Allowance")
-            LeaveBalancesCard(
-                balances = leaveBalances,
-                year = LocalDate.now().year,
-                onEditClick = { showLeaveDialog = true },
-            )
-
-            HorizontalDivider()
-
-            // ── Shift colors ─────────────────────────────────────────────────────
-            SettingsSectionHeader("Shift Colors")
-            ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
-
-            HorizontalDivider()
-
-            // ── Leave type colors ────────────────────────────────────────────────
-            SettingsSectionHeader("Leave Type Colors")
-            LeaveColorLegend()
-
-            HorizontalDivider()
-
-            // ── Widget settings ──────────────────────────────────────────────────
-            SettingsSectionHeader("Widget")
-            WidgetSettingsSection(
-                bgColorArgb = widgetBgColor,
-                transparency = widgetTransparency,
-                dayCount = widgetDayCount,
-                onBgColorChange = viewModel::setWidgetBgColor,
-                onTransparencyChange = viewModel::setWidgetTransparency,
-                onDayCountChange = viewModel::setWidgetDayCount,
-            )
-
-            HorizontalDivider()
-
-            // ── Overtime balance ─────────────────────────────────────────────────
-            if (overtimeBalance != null) {
-                SettingsSectionHeader("Overtime")
-                OvertimeSettingsCard(
-                    totalHours = overtimeBalance!!.totalHours,
-                    compensatedHours = overtimeBalance!!.compensatedHours,
-                    year = overtimeBalance!!.year,
-                    onEditClick = { showOvertimeDialog = true },
-                )
+            if (!isSpectatorOnly) {
                 HorizontalDivider()
-            }
 
-            // ── Invite viewers ─────────────────────────────────────────────────
-            SettingsSectionHeader("Viewers")
-            InviteCard(
-                onGenerateClick = {
-                    viewModel.generateInvite()
-                    showShareInviteDialog = true
-                },
-            )
+                // ── Shift schedule ───────────────────────────────────────────────────
+                SettingsSectionHeader("Shift Schedule")
+                ScheduleCard(
+                    anchorDate = anchorDate,
+                    anchorCycleIndex = anchorCycleIndex,
+                    todayShiftLabel = todayShiftLabel,
+                    onEditClick = { showScheduleDialog = true },
+                )
+
+                HorizontalDivider()
+
+                // ── Leave balance (per-category) ─────────────────────────────────────
+                SettingsSectionHeader("Leave Allowance")
+                LeaveBalancesCard(
+                    balances = leaveBalances,
+                    year = LocalDate.now().year,
+                    onEditClick = { showLeaveDialog = true },
+                )
+
+                HorizontalDivider()
+
+                // ── Shift colors ─────────────────────────────────────────────────────
+                SettingsSectionHeader("Shift Colors")
+                ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
+
+                HorizontalDivider()
+
+                // ── Leave type colors ────────────────────────────────────────────────
+                SettingsSectionHeader("Leave Type Colors")
+                LeaveColorLegend()
+
+                HorizontalDivider()
+
+                // ── Widget settings ──────────────────────────────────────────────────
+                SettingsSectionHeader("Widget")
+                WidgetSettingsSection(
+                    bgColorArgb = widgetBgColor,
+                    transparency = widgetTransparency,
+                    dayCount = widgetDayCount,
+                    onBgColorChange = viewModel::setWidgetBgColor,
+                    onTransparencyChange = viewModel::setWidgetTransparency,
+                    onDayCountChange = viewModel::setWidgetDayCount,
+                )
+
+                HorizontalDivider()
+
+                // ── Overtime balance ─────────────────────────────────────────────────
+                if (overtimeBalance != null) {
+                    SettingsSectionHeader("Overtime")
+                    OvertimeSettingsCard(
+                        totalHours = overtimeBalance!!.totalHours,
+                        compensatedHours = overtimeBalance!!.compensatedHours,
+                        year = overtimeBalance!!.year,
+                        onEditClick = { showOvertimeDialog = true },
+                    )
+                    HorizontalDivider()
+                }
+
+                // ── Invite viewers ─────────────────────────────────────────────────
+                SettingsSectionHeader("Viewers")
+                InviteCard(
+                    onGenerateClick = {
+                        viewModel.generateInvite()
+                        showShareInviteDialog = true
+                    },
+                )
+            }
 
             if (uiState.isSaving) {
                 Row(

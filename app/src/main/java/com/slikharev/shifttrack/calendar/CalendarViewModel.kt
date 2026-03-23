@@ -2,39 +2,89 @@ package com.slikharev.shifttrack.calendar
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.repository.ShiftRepository
+import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.time.YearMonth
 import javax.inject.Inject
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
     private val shiftRepository: ShiftRepository,
+    private val spectatorRepository: SpectatorRepository,
+    private val appDataStore: AppDataStore,
 ) : ViewModel() {
 
     private val _currentYearMonth = MutableStateFlow(YearMonth.now())
     val currentYearMonth: StateFlow<YearMonth> = _currentYearMonth.asStateFlow()
 
+    /** True when the user is in spectator-only mode (no own schedule). */
+    val isSpectatorOnly: StateFlow<Boolean> = appDataStore.spectatorMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** List of hosts the spectator can view. */
+    val watchedHosts: StateFlow<List<AppDataStore.WatchedHost>> = appDataStore.watchedHosts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** UID of the currently selected host, or null for "My" calendar. */
+    private val _selectedHostUid = MutableStateFlow<String?>(null)
+    val selectedHostUid: StateFlow<String?> = _selectedHostUid.asStateFlow()
+
+    init {
+        // Restore last selected host from DataStore
+        viewModelScope.launch {
+            appDataStore.selectedHostUid.collect { uid ->
+                _selectedHostUid.value = uid
+            }
+        }
+    }
+
+    fun selectHost(uid: String?) {
+        _selectedHostUid.value = uid
+        viewModelScope.launch { appDataStore.setSelectedHostUid(uid) }
+    }
+
     /**
      * Flat list of [CalendarDay] cells (always a multiple of 7) for the current month.
-     * Leading/trailing [CalendarDay.Empty] cells pad the grid to a full week-start alignment.
+     * Switches between local ShiftRepository and remote SpectatorRepository
+     * based on the selected host.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val calendarDays: StateFlow<List<CalendarDay>> = _currentYearMonth
-        .flatMapLatest { ym ->
+    val calendarDays: StateFlow<List<CalendarDay>> = combine(
+        _currentYearMonth,
+        _selectedHostUid,
+    ) { ym, hostUid -> ym to hostUid }
+        .flatMapLatest { (ym, hostUid) ->
             val start = ym.atDay(1)
             val end = ym.atEndOfMonth()
-            shiftRepository.getDayInfosForRange(start, end).map { dayInfos ->
-                buildCalendarDays(ym, dayInfos)
+            if (hostUid == null) {
+                // Own calendar
+                shiftRepository.getDayInfosForRange(start, end).map { dayInfos ->
+                    buildCalendarDays(ym, dayInfos)
+                }
+            } else {
+                // Spectated host's calendar (one-shot fetch wrapped in a flow)
+                flow {
+                    val dayInfos = try {
+                        spectatorRepository.getDayInfosForRange(hostUid, start, end)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    emit(buildCalendarDays(ym, dayInfos))
+                }
             }
         }
         .stateIn(

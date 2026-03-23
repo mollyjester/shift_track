@@ -32,6 +32,17 @@ class FirestoreUserDataSource @Inject constructor(
             .await()
     }
 
+    /** Persists the anchor date and cycle index in the user's Firestore doc. */
+    suspend fun saveAnchor(uid: String, anchorDate: String, anchorCycleIndex: Int) {
+        firestore.collection("users")
+            .document(uid)
+            .set(
+                mapOf("anchorDate" to anchorDate, "anchorCycleIndex" to anchorCycleIndex),
+                SetOptions.merge(),
+            )
+            .await()
+    }
+
     /**
      * Deletes all Firestore data owned by [uid]: sub-collections
      * (shifts, leaves, overtime) and the root user document.

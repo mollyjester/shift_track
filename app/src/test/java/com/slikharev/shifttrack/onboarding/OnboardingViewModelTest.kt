@@ -8,6 +8,7 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.model.LeaveType
+import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -63,7 +64,7 @@ class OnboardingViewModelTest {
         )
         appDataStore = AppDataStore(dataStore)
         fakeLeaveBalanceDao = FakeLeaveBalanceDao()
-        viewModel = OnboardingViewModel(appDataStore, fakeLeaveBalanceDao, fakeUserSession)
+        viewModel = OnboardingViewModel(appDataStore, fakeLeaveBalanceDao, fakeUserSession, mockk(relaxed = true))
     }
 
     @After

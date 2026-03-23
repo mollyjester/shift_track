@@ -21,6 +21,7 @@ class OnboardingViewModel @Inject constructor(
     private val appDataStore: AppDataStore,
     private val leaveBalanceDao: LeaveBalanceDao,
     private val userSession: UserSession,
+    private val firestoreUserDataSource: com.slikharev.shifttrack.data.remote.FirestoreUserDataSource,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
@@ -108,8 +109,16 @@ class OnboardingViewModel @Inject constructor(
                         date = state.anchorDate.toString(),
                         cycleIndex = state.selectedCycleIndex,
                     )
-
+                    // Sync anchor to Firestore so spectators can compute cadence
                     val userId = userSession.currentUserId.orEmpty()
+                    runCatching {
+                        firestoreUserDataSource.saveAnchor(
+                            userId,
+                            state.anchorDate.toString(),
+                            state.selectedCycleIndex,
+                        )
+                    }
+
                     val year = LocalDate.now().year
                     for ((leaveType, days) in state.leaveAllowances) {
                         leaveBalanceDao.upsert(

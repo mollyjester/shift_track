@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,6 +50,7 @@ import java.util.Locale
 @Composable
 fun DashboardScreen(navController: NavController) {
     val viewModel: DashboardViewModel = hiltViewModel()
+    val isSpectatorOnly by viewModel.isSpectatorOnly.collectAsStateWithLifecycle()
     val upcomingDays by viewModel.upcomingDays.collectAsStateWithLifecycle()
     val leaveBalances by viewModel.leaveBalances.collectAsStateWithLifecycle()
     val weeklyOvertimeHours by viewModel.weeklyOvertimeHours.collectAsStateWithLifecycle()
@@ -59,44 +61,61 @@ fun DashboardScreen(navController: NavController) {
             TopAppBar(title = { Text("Dashboard") })
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            val todayEntry = upcomingDays.firstOrNull { it.isToday }
-            if (todayEntry != null) {
-                TodayShiftCard(
-                    dayInfo = todayEntry.dayInfo,
-                    onClick = {
-                        navController.navigate(
-                            Screen.DayDetail.createRoute(todayEntry.dayInfo.date.toString()),
-                        )
-                    },
+        if (isSpectatorOnly) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "You are in spectator mode.\nSelect a schedule in the Calendar tab to view.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(32.dp),
                 )
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                val todayEntry = upcomingDays.firstOrNull { it.isToday }
+                if (todayEntry != null) {
+                    TodayShiftCard(
+                        dayInfo = todayEntry.dayInfo,
+                        onClick = {
+                            navController.navigate(
+                                Screen.DayDetail.createRoute(todayEntry.dayInfo.date.toString()),
+                            )
+                        },
+                    )
+                }
 
-            if (leaveBalances.isNotEmpty()) {
-                LeaveBalancesCard(balances = leaveBalances)
-            }
+                if (leaveBalances.isNotEmpty()) {
+                    LeaveBalancesCard(balances = leaveBalances)
+                }
 
-            if (weeklyOvertimeHours > 0f || yearlyOvertimeBalance != null) {
-                OvertimeCard(
-                    weeklyHours = weeklyOvertimeHours,
-                    balance = yearlyOvertimeBalance,
-                )
-            }
+                if (weeklyOvertimeHours > 0f || yearlyOvertimeBalance != null) {
+                    OvertimeCard(
+                        weeklyHours = weeklyOvertimeHours,
+                        balance = yearlyOvertimeBalance,
+                    )
+                }
 
-            if (upcomingDays.size > 1) {
-                UpcomingShiftsSection(
-                    days = upcomingDays.drop(1),
-                    onDayClick = { date ->
-                        navController.navigate(Screen.DayDetail.createRoute(date.toString()))
-                    },
-                )
+                if (upcomingDays.size > 1) {
+                    UpcomingShiftsSection(
+                        days = upcomingDays.drop(1),
+                        onDayClick = { date ->
+                            navController.navigate(Screen.DayDetail.createRoute(date.toString()))
+                        },
+                    )
+                }
             }
         }
     }

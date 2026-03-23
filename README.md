@@ -175,9 +175,25 @@ A viewer (spectator) can see the full calendar, dashboard, and all entries but c
 
 ## Spectator Mode
 
-During onboarding, toggle **Spectator Only** to skip shift anchor and leave setup. In spectator mode the calendar is read-only — the Day Detail screen shows shift information but hides all editing controls (override, leave, overtime, notes).
+During onboarding, toggle **Spectator Only** to skip shift anchor and leave setup. This mode is intended for users who only want to view someone else's schedule.
 
-Spectator mode is persisted in app preferences and applies until changed.
+### Viewing a Spectated Schedule
+
+After accepting an invite link, the host is saved to your **watched list**. Use the dropdown selector at the top of the **Calendar** tab to switch between schedules:
+
+- **My** — your own schedule (hidden in spectator-only mode)
+- **Host name** — any accepted invite's schedule, fetched from the cloud
+
+The last selected schedule is remembered when you reopen the app.
+
+### What's Different in Spectator Mode
+
+| Feature | Own schedule | Spectated schedule |
+|---------|-------------|-------------------|
+| Calendar view | Full month, colour-coded | Full month, colour-coded |
+| Day Detail | Can edit overrides, leave, overtime, notes | Read-only |
+| Dashboard | Shows your shifts, leave balance, overtime | Shows "spectator mode" message |
+| Settings | All sections visible | Only account section (sign out, delete) |
 
 ---
 
@@ -222,7 +238,7 @@ See the [docs/](docs/) folder for technical documentation:
 
 ```bash
 ./gradlew assembleDebug          # Build debug APK
-./gradlew testDebugUnitTest      # Run unit tests (196 tests)
+./gradlew testDebugUnitTest      # Run unit tests (203 tests)
 ./gradlew assembleRelease        # Build release APK
 ```
 

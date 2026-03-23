@@ -50,10 +50,15 @@ class SettingsViewModel @Inject constructor(
     private val userSession: UserSession,
     private val inviteRepository: InviteRepository,
     private val widgetUpdater: ShiftWidgetUpdater,
+    private val firestoreUserDataSource: com.slikharev.shifttrack.data.remote.FirestoreUserDataSource,
 ) : ViewModel() {
 
     private val uid get() = userSession.requireUserId()
     private val currentYear = LocalDate.now().year
+
+    /** True when the user is in spectator-only mode (no own schedule). */
+    val isSpectatorOnly: StateFlow<Boolean> = appDataStore.spectatorMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     // ─── Persisted anchor ────────────────────────────────────────────────────────
 
@@ -110,6 +115,8 @@ class SettingsViewModel @Inject constructor(
             _uiState.value = SettingsUiState(isSaving = true)
             try {
                 appDataStore.setAnchor(date.toString(), cycleIndex)
+                // Sync anchor to Firestore so spectators can compute cadence
+                runCatching { firestoreUserDataSource.saveAnchor(uid, date.toString(), cycleIndex) }
                 widgetUpdater.updateAll()
                 _uiState.value = SettingsUiState(savedMessage = "Schedule updated")
             } catch (e: Exception) {

@@ -116,8 +116,7 @@ Opening a day shows:
 
 ### What a Spectator Can See
 
-- The host's full shift calendar (all days, overrides, leave, overtime).
-- The host's dashboard (upcoming shifts, leave balance, overtime summary).
+- The host's full shift calendar (all days, overrides, leave, overtime) via the Calendar tab dropdown selector.
 
 ### What a Spectator Cannot Do
 
@@ -126,7 +125,21 @@ Opening a day shows:
 
 ### Spectator-Only Mode (Onboarding)
 
-During onboarding, toggle **Spectator Only** to skip shift anchor and leave balance setup entirely. In spectator mode the Day Detail screen shows shift information but hides all editing controls (override, leave, overtime, notes). The setting is persisted in app preferences.
+During onboarding, toggle **Spectator Only** to skip shift anchor and leave balance setup entirely. In spectator-only mode:
+
+- The **Dashboard** shows a message directing you to select a schedule in the Calendar tab.
+- The **Calendar** tab shows a dropdown selector with your watched hosts (no "My" option since you have no own schedule).
+- The **Settings** screen shows only the Account section (sign out, delete account); schedule, leave, overtime, widget, and invite sections are hidden.
+- The **Day Detail** screen shows shift information but hides all editing controls.
+
+### Switching Between Schedules
+
+After accepting one or more invite links, use the **dropdown** at the top of the Calendar tab to switch between:
+
+- **My** — your own schedule (not shown in spectator-only mode)
+- **Host names** — each accepted invite appears by name
+
+The last selected schedule is remembered across app restarts.
 
 ---
 

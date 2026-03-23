@@ -37,6 +37,10 @@ object PrefsKeys {
     val WIDGET_DAY_COUNT = intPreferencesKey("widget_day_count")
     // Spectator mode: calendar is view-only, no editing
     val SPECTATOR_MODE = booleanPreferencesKey("spectator_mode")
+    // Watched hosts (JSON serialized list)
+    val WATCHED_HOSTS = stringPreferencesKey("watched_hosts")
+    // Currently selected host UID for spectator calendar view
+    val SELECTED_HOST_UID = stringPreferencesKey("selected_host_uid")
 }
 
 /**
@@ -141,6 +145,35 @@ class AppDataStore @Inject constructor(
         dataStore.edit { it[PrefsKeys.SPECTATOR_MODE] = enabled }
     }
 
+    // ── Watched hosts (spectator feature) ─────────────────────────────────────
+
+    data class WatchedHost(val uid: String, val displayName: String)
+
+    val watchedHosts: Flow<List<WatchedHost>> = dataStore.data
+        .map { prefs ->
+            val raw = prefs[PrefsKeys.WATCHED_HOSTS] ?: return@map emptyList()
+            decodeWatchedHosts(raw)
+        }
+
+    suspend fun addWatchedHost(uid: String, displayName: String) {
+        dataStore.edit { prefs ->
+            val current = prefs[PrefsKeys.WATCHED_HOSTS]?.let { decodeWatchedHosts(it) } ?: emptyList()
+            if (current.none { it.uid == uid }) {
+                prefs[PrefsKeys.WATCHED_HOSTS] = encodeWatchedHosts(current + WatchedHost(uid, displayName))
+            }
+        }
+    }
+
+    val selectedHostUid: Flow<String?> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.SELECTED_HOST_UID] }
+
+    suspend fun setSelectedHostUid(uid: String?) {
+        dataStore.edit { prefs ->
+            if (uid != null) prefs[PrefsKeys.SELECTED_HOST_UID] = uid
+            else prefs.remove(PrefsKeys.SELECTED_HOST_UID)
+        }
+    }
+
     // ── Atomic snapshot for widget rendering ─────────────────────────────────────
 
     /**
@@ -183,5 +216,17 @@ class AppDataStore @Inject constructor(
         const val DEFAULT_WIDGET_DAY_COUNT = 4
         const val MIN_WIDGET_DAYS = 1
         const val MAX_WIDGET_DAYS = 7
+
+        /** Encode as "uid1|name1\nuid2|name2" */
+        internal fun encodeWatchedHosts(hosts: List<WatchedHost>): String =
+            hosts.joinToString("\n") { "${it.uid}|${it.displayName}" }
+
+        internal fun decodeWatchedHosts(raw: String): List<WatchedHost> =
+            raw.lines()
+                .filter { it.contains('|') }
+                .map { line ->
+                    val parts = line.split('|', limit = 2)
+                    WatchedHost(uid = parts[0], displayName = parts.getOrElse(1) { "" })
+                }
     }
 }

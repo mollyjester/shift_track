@@ -1,5 +1,6 @@
 package com.slikharev.shifttrack.dashboard
 
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
@@ -37,6 +38,7 @@ class DashboardViewModelTest {
     private lateinit var mockShiftRepository: ShiftRepository
     private lateinit var mockLeaveRepository: LeaveRepository
     private lateinit var mockOvertimeRepository: OvertimeRepository
+    private lateinit var mockAppDataStore: AppDataStore
     private lateinit var viewModel: DashboardViewModel
 
     @Before
@@ -45,6 +47,9 @@ class DashboardViewModelTest {
         mockShiftRepository = mockk(relaxed = true)
         mockLeaveRepository = mockk(relaxed = true)
         mockOvertimeRepository = mockk(relaxed = true)
+        mockAppDataStore = mockk(relaxed = true) {
+            every { spectatorMode } returns flowOf(false)
+        }
 
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(emptyList())
         every { mockLeaveRepository.observeAllBalancesForYear(any()) } returns
@@ -53,7 +58,7 @@ class DashboardViewModelTest {
         every { mockOvertimeRepository.observeBalanceForYear(any()) } returns
             flowOf<OvertimeBalanceEntity?>(null)
 
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
+        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository, mockAppDataStore)
     }
 
     @After
@@ -79,7 +84,7 @@ class DashboardViewModelTest {
             DayInfo(date = today.plusDays(1), shiftType = ShiftType.NIGHT),
         )
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(infos)
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
+        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository, mockAppDataStore)
 
         val job = launch { viewModel.upcomingDays.collect { } }
         advanceUntilIdle()
@@ -95,7 +100,7 @@ class DashboardViewModelTest {
         val today = LocalDate.now()
         val infos = (0L..6L).map { DayInfo(date = today.plusDays(it), shiftType = ShiftType.DAY) }
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(infos)
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
+        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository, mockAppDataStore)
 
         val job = launch { viewModel.upcomingDays.collect { } }
         advanceUntilIdle()
@@ -121,7 +126,7 @@ class DashboardViewModelTest {
             LeaveBalanceEntity(year = 2025, leaveType = "SICK", totalDays = 10f, usedDays = 2f, userId = "u1"),
         )
         every { mockLeaveRepository.observeAllBalancesForYear(any()) } returns flowOf(balances)
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
+        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository, mockAppDataStore)
 
         val job = launch { viewModel.leaveBalances.collect { } }
         advanceUntilIdle()
@@ -148,7 +153,7 @@ class DashboardViewModelTest {
             OvertimeEntity(date = today.plusDays(1).toString(), hours = 1.5f, userId = "u1"),
         )
         every { mockOvertimeRepository.getOvertimeForRange(any(), any()) } returns flowOf(entries)
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
+        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository, mockAppDataStore)
 
         val job = launch { viewModel.weeklyOvertimeHours.collect { } }
         advanceUntilIdle()
@@ -163,7 +168,7 @@ class DashboardViewModelTest {
     fun `yearlyOvertimeBalance reflects entity emitted by repository`() = testScope.runTest {
         val balance = OvertimeBalanceEntity(year = 2025, totalHours = 12f, userId = "u1")
         every { mockOvertimeRepository.observeBalanceForYear(any()) } returns flowOf(balance)
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
+        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository, mockAppDataStore)
 
         val job = launch { viewModel.yearlyOvertimeBalance.collect { } }
         advanceUntilIdle()

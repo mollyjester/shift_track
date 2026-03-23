@@ -2,7 +2,9 @@ package com.slikharev.shifttrack.invite
 
 import androidx.lifecycle.SavedStateHandle
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.remote.InviteDocument
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -29,6 +31,8 @@ class InviteViewModelTest {
     private val loggedInSession = object : UserSession { override val currentUserId = "guest-uid" }
     private val loggedOutSession = object : UserSession { override val currentUserId = null }
 
+    private val mockAppDataStore = mockk<AppDataStore>(relaxed = true)
+
     private fun buildViewModel(
         token: String = "test-token-abc",
         userSession: UserSession = loggedInSession,
@@ -36,6 +40,7 @@ class InviteViewModelTest {
         savedStateHandle = SavedStateHandle(mapOf("token" to token)),
         inviteRepository = fakeInviteRepository,
         userSession = userSession,
+        appDataStore = mockAppDataStore,
     )
 
     @Before

@@ -24,15 +24,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.slikharev.shifttrack.Screen
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
@@ -58,8 +65,14 @@ fun CalendarScreen(navController: NavController) {
     val viewModel: CalendarViewModel = hiltViewModel()
     val currentYearMonth by viewModel.currentYearMonth.collectAsStateWithLifecycle()
     val calendarDays by viewModel.calendarDays.collectAsStateWithLifecycle()
+    val isSpectatorOnly by viewModel.isSpectatorOnly.collectAsStateWithLifecycle()
+    val watchedHosts by viewModel.watchedHosts.collectAsStateWithLifecycle()
+    val selectedHostUid by viewModel.selectedHostUid.collectAsStateWithLifecycle()
 
     val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+
+    // Whether to show day-click navigation (only for own calendar)
+    val isViewingOwnCalendar = selectedHostUid == null
 
     Scaffold(
         topBar = {
@@ -97,16 +110,90 @@ fun CalendarScreen(navController: NavController) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState()),
         ) {
+            // ── Host selector dropdown ───────────────────────────────────────
+            if (watchedHosts.isNotEmpty()) {
+                HostSelector(
+                    isSpectatorOnly = isSpectatorOnly,
+                    watchedHosts = watchedHosts,
+                    selectedHostUid = selectedHostUid,
+                    onHostSelected = viewModel::selectHost,
+                )
+            }
+
             DayOfWeekHeader()
             CalendarGrid(
                 calendarDays = calendarDays,
                 onDayClick = { date ->
-                    navController.navigate(Screen.DayDetail.createRoute(date.toString()))
+                    if (isViewingOwnCalendar) {
+                        navController.navigate(Screen.DayDetail.createRoute(date.toString()))
+                    }
                 },
             )
             Spacer(modifier = Modifier.height(16.dp))
             ShiftLegend()
             Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun HostSelector(
+    isSpectatorOnly: Boolean,
+    watchedHosts: List<AppDataStore.WatchedHost>,
+    selectedHostUid: String?,
+    onHostSelected: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = when {
+        selectedHostUid == null && !isSpectatorOnly -> "My"
+        selectedHostUid != null -> watchedHosts.find { it.uid == selectedHostUid }?.displayName ?: "Unknown"
+        else -> "Select a schedule"
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(text = selectedLabel, style = MaterialTheme.typography.bodyMedium)
+            Text(text = " ▼", style = MaterialTheme.typography.bodySmall)
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            if (!isSpectatorOnly) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "My",
+                            fontWeight = if (selectedHostUid == null) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        onHostSelected(null)
+                        expanded = false
+                    },
+                )
+            }
+            watchedHosts.forEach { host ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = host.displayName,
+                            fontWeight = if (selectedHostUid == host.uid) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = {
+                        onHostSelected(host.uid)
+                        expanded = false
+                    },
+                )
+            }
         }
     }
 }

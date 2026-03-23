@@ -2,6 +2,7 @@ package com.slikharev.shifttrack.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
@@ -26,10 +27,15 @@ class DashboardViewModel @Inject constructor(
     shiftRepository: ShiftRepository,
     leaveRepository: LeaveRepository,
     overtimeRepository: OvertimeRepository,
+    appDataStore: AppDataStore,
 ) : ViewModel() {
 
     private val today: LocalDate = LocalDate.now()
     private val upcomingEnd: LocalDate = today.plusDays(6)
+
+    /** True when the user is in spectator-only mode (no own schedule). */
+    val isSpectatorOnly: StateFlow<Boolean> = appDataStore.spectatorMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val upcomingDays: StateFlow<List<UpcomingDay>> = shiftRepository
         .getDayInfosForRange(today, upcomingEnd)

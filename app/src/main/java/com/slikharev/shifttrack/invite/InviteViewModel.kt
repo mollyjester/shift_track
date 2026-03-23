@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.AppDataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +28,7 @@ class InviteViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val inviteRepository: InviteRepository,
     private val userSession: UserSession,
+    private val appDataStore: AppDataStore,
 ) : ViewModel() {
 
     @Suppress("UNCHECKED_CAST")
@@ -75,7 +77,15 @@ class InviteViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = InviteUiState.Redeeming
-            _uiState.value = when (val result = inviteRepository.redeemInvite(token, uid)) {
+            val result = inviteRepository.redeemInvite(token, uid)
+            if (result == RedeemResult.Success) {
+                appDataStore.addWatchedHost(
+                    currentState.invite.hostUid,
+                    currentState.invite.hostDisplayName,
+                )
+                appDataStore.setSelectedHostUid(currentState.invite.hostUid)
+            }
+            _uiState.value = when (result) {
                 RedeemResult.Success -> InviteUiState.Success(currentState.invite.hostDisplayName)
                 RedeemResult.AlreadyClaimed -> InviteUiState.AlreadyClaimed
                 RedeemResult.Expired -> InviteUiState.Expired
