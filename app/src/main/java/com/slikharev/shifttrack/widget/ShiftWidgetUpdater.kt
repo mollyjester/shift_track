@@ -1,21 +1,22 @@
 package com.slikharev.shifttrack.widget
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.util.Log
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Triggers a re-render of every pinned [ShiftWidget] instance.
+ * Triggers an immediate re-render of every pinned widget instance.
  *
- * Inject this where the underlying data changes (e.g. [SyncWorker] after a
- * successful sync, or [SettingsViewModel] after the anchor is updated) to
- * keep the widget up-to-date without waiting for the system's periodic update.
+ * Uses [AppWidgetManager] directly — no Glance middleware. The update is
+ * synchronous: [AppWidgetManager.updateAppWidget] pushes fresh [RemoteViews]
+ * to the launcher process immediately.
  *
- * Errors are swallowed via [runCatching] so a missing widget host (no instances
- * pinned, or running in a test JVM) never crashes the caller.
+ * Inject this wherever data changes (SettingsViewModel, SyncWorker, etc.).
+ * Errors are swallowed so a missing widget host never crashes the caller.
  */
 @Singleton
 class ShiftWidgetUpdater @Inject constructor(
@@ -23,9 +24,12 @@ class ShiftWidgetUpdater @Inject constructor(
 ) {
     suspend fun updateAll() {
         runCatching {
-            val manager = GlanceAppWidgetManager(context)
-            manager.getGlanceIds(ShiftWidget::class.java)
-                .forEach { id -> ShiftWidget().update(context, id) }
+            val manager = AppWidgetManager.getInstance(context)
+            val component = ComponentName(context, ShiftWidgetProvider::class.java)
+            val ids = manager.getAppWidgetIds(component)
+            for (id in ids) {
+                ShiftWidgetProvider.updateSingleWidget(context, manager, id)
+            }
         }.onFailure { Log.w(TAG, "Widget update failed (non-critical)", it) }
     }
 
