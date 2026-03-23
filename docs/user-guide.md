@@ -25,7 +25,7 @@ The app uses a rotating 5-day cycle (Day → Day → Night → Rest → Off). To
    - **Sick** — default 10 days
    - **Personal** — default 5 days
    - **Unpaid** — default 0 days
-   - **Other** — default 0 days
+   - **Study** — default 0 days
 2. Use the **+/−** buttons or type a number directly for each category.
 3. The app will track how many days you use per category as you record leave.
 4. Tap **Finish** to complete onboarding.
@@ -47,14 +47,14 @@ The bottom navigation bar has three sections:
 ### Dashboard
 
 - **Shift cards** — Each card shows the date, weekday, and shift type. Today's card is highlighted.
-- **Leave balance** — Shows per-category progress bars (Annual, Sick, Personal, Unpaid, Other). Each bar gradually fills as leave is consumed. Remaining days are shown as `remaining / total` next to each bar.
+- **Leave balance** — Shows per-category progress bars (Annual, Sick, Personal, Unpaid, Study). Each bar gradually fills as leave is consumed. Remaining days are shown as `remaining / total` next to each bar.
 - **Overtime summary** — Shows hours worked this week and the cumulative yearly total.
 
 ### Calendar
 
 - Tap any day to open the **Day Detail** screen for that day.
 - **Half-day leave** is shown as a split cell — the top half displays the shift colour and the bottom half uses a darker shade.
-- **Full-day leave** (non-half-day) shows a coloured dot matching the leave type: Annual (green), Sick (red), Personal (blue), Unpaid (orange), Other (purple).
+- **Full-day leave** (non-half-day) shows a coloured dot matching the leave type: Annual (green), Sick (red), Personal (blue), Unpaid (orange), Study (purple).
 - The **legend** below the calendar shows both shift types and leave types with large colour circles.
 - Days with overtime show an overtime indicator.
 - Manual overrides (days where you changed the computed shift) are visually distinguished.
@@ -75,7 +75,7 @@ Opening a day shows:
 |---|---|
 | Override shift | Tap a shift type button (Day / Night / Rest / Off / Leave) |
 | Clear override | Tap the current override to remove it and restore the computed shift |
-| Add leave | Tap **Add Leave**, choose leave type (Annual / Sick / Personal / Unpaid / Other), toggle **Half Day** if needed, optionally add a note |
+| Add leave | Tap **Add Leave**, choose leave type (Annual / Sick / Personal / Unpaid / Study), toggle **Half Day** if needed, optionally add a note |
 | Remove leave | Tap the leave entry and confirm removal |
 | Add overtime | Tap **Log Overtime**, enter hours, optionally add a note |
 | Remove overtime | Tap the overtime entry and confirm removal |
@@ -86,7 +86,7 @@ Opening a day shows:
 | Setting | Description |
 |---|---|
 | **Anchor date** | Change the reference date for the cadence engine. You may need to update this if your shift pattern was re-based. |
-| **Leave entitlement** | Per-category leave days for the current year (Annual, Sick, Personal, Unpaid, Other). The app resets automatically on the first launch of each new year, carrying over each category's total independently. |
+| **Leave entitlement** | Per-category leave days for the current year (Annual, Sick, Personal, Unpaid, Study). The app resets automatically on the first launch of each new year, carrying over each category's total independently. |
 | **Overtime compensation** | Mark hours as compensated (paid out or taken as time-off). This does not remove them from the history. |
 | **Shift colors** | Customise the colour for each shift type (Day, Night, Rest, Off, Leave) using a color picker with Hue, Saturation, and Brightness sliders. A preview swatch shows your selection in real time. Tap **Reset to default** to revert. Changes take effect immediately across the calendar, dashboard, day detail screens, and widget. |
 | **Widget** | Configure widget appearance by long-pressing the widget and tapping the pencil icon, or from **Settings → Widget**. |
@@ -150,14 +150,14 @@ The last selected schedule is remembered across app restarts.
 1. Long-press an empty area of your home screen.
 2. Tap **Widgets**.
 3. Find **ShiftTrack** in the list.
-4. Drag the **2×2** or **4×2** widget to your home screen.
+4. Drag the **4×1** widget to your home screen (or the **2×2** for a compact today-only view).
 
 ### What Each Size Shows
 
 | Size | Content |
 |---|---|
 | **2×2** | Today's shift |
-| **4×2** | Today's shift + upcoming days (configurable, 1–7) |
+| **4×1** | Today + upcoming days (1–7, configurable). Each day cell shows the day-of-month number and shift/leave type stacked vertically, matching calendar colours. Half-day leave renders as a split background; full-day leave shows a coloured dot. |
 
 ### Configuring the Widget
 
@@ -167,7 +167,7 @@ To configure the widget, long-press it on your home screen and tap the **pencil*
 |---|---|
 | **Background color** | Pick any colour using the color picker (Hue, Saturation, Brightness sliders). Default is a light surface tone. |
 | **Transparency** | Slider from 0% (fully transparent) to 100% (fully opaque). Default is 100%. |
-| **Days to show** | Number of days displayed in the wide (4×2) widget, from 1 to 7. Default is 4. |
+| **Days to show** | Number of days displayed in the wide (4×1) widget, from 1 to 7. Default is 4. |
 
 When you're finished, tap the **Done** button to save your settings and return to the home screen.
 

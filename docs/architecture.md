@@ -51,7 +51,7 @@ The Room database is the **single source of truth**. Every user action writes to
 
 ### Per-Category Leave Balance (v1.1)
 
-Leave balances are stored per leave type per year. The `leave_balance` table has a unique index on `(year, user_id, leave_type)`, resulting in one row per `LeaveType` per year. Onboarding creates rows for all five categories (ANNUAL, SICK, PERSONAL, UNPAID, OTHER). `AnnualResetUseCase` carries over `totalDays` from the previous year for each category independently. `LeaveRepository.refreshUsedDays()` recalculates used days per category via `sumLeaveDaysByType`.
+Leave balances are stored per leave type per year. The `leave_balance` table has a unique index on `(year, user_id, leave_type)`, resulting in one row per `LeaveType` per year. Onboarding creates rows for all five categories (ANNUAL, SICK, PERSONAL, UNPAID, STUDY). `AnnualResetUseCase` carries over `totalDays` from the previous year for each category independently. `LeaveRepository.refreshUsedDays()` recalculates used days per category via `sumLeaveDaysByType`.
 
 ### Configurable Shift Colors (v1.1, updated v1.3)
 

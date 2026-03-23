@@ -45,7 +45,7 @@ During onboarding, pick **any date** where you know which shift you worked, then
 
 ### Step 3 — Enter Your Leave Balance
 
-Set your yearly allowance for each leave category (Annual, Sick, Personal, Unpaid, Other). The app deducts from these as you record leave throughout the year.
+Set your yearly allowance for each leave category (Annual, Sick, Personal, Unpaid, Study). The app deducts from these as you record leave throughout the year.
 
 ### Step 4 — You're Ready
 
@@ -64,7 +64,7 @@ The bottom navigation bar has three tabs:
 The **Home** tab gives you a quick overview:
 
 - **Shift cards** — Today's shift (highlighted) and the next 6 days, each showing the date, weekday, and shift type.
-- **Leave balance** — Per-category progress bars (Annual, Sick, Personal, Unpaid, Other) showing remaining vs total days.
+- **Leave balance** — Per-category progress bars (Annual, Sick, Personal, Unpaid, Study) showing remaining vs total days.
 - **Overtime summary** — Hours worked this week and the cumulative annual total.
 
 ---
@@ -74,7 +74,7 @@ The **Home** tab gives you a quick overview:
 The **Calendar** tab shows a full month with each day colour-coded by shift type. Tap any day to open the **Day Detail** screen.
 
 - **Half-day leave** is shown as a split cell — the top half displays the shift colour and the bottom half uses a darker shade of the same colour.
-- **Leave type indicators** appear as coloured dots on days with full-day leave, using the leave type's designated colour (Annual = green, Sick = red, Personal = blue, Unpaid = orange, Other = purple).
+- **Leave type indicators** appear as coloured dots on days with full-day leave, using the leave type's designated colour (Annual = green, Sick = red, Personal = blue, Unpaid = orange, Study = purple).
 - The **legend** below the calendar shows both shift types and leave types with large, easy-to-read colour circles.
 
 On the Day Detail screen you can:
@@ -95,7 +95,7 @@ On the Day Detail screen you can:
 
 1. Open any day from the calendar.
 2. Tap **Add Leave**.
-3. Choose a leave type: Annual, Sick, Personal, Unpaid, or Other.
+3. Choose a leave type: Annual, Sick, Personal, Unpaid, or Study.
 4. Toggle **Half Day** if you only need half the day.
 5. Add an optional note (up to 500 characters).
 6. Tap **Save**.
@@ -137,9 +137,9 @@ ShiftTrack includes a home-screen widget that shows your upcoming shifts.
 | Size | Shows |
 |------|-------|
 | 2×2 | Today's shift |
-| 4×2 | Upcoming days (1–7, configurable) |
+| 4×1 | Upcoming days (1–7, configurable) with day number and shift type |
 
-The widget shows shift type chips only — day labels are omitted since the first day is always today, the second is tomorrow, and so on.
+Each widget day cell shows the day number and shift/leave type stacked vertically, using the same colours as the calendar. Half-day leave renders as a split background (top = shift colour, bottom = darker shade). Full-day leave shows the leave type colour and a dot indicator.
 
 **Setup:** Long-press an empty area of your home screen → Widgets → ShiftTrack. Drag the widget to your home screen. A configuration screen appears where you can set the background color, transparency, and number of days.
 
@@ -238,7 +238,7 @@ See the [docs/](docs/) folder for technical documentation:
 
 ```bash
 ./gradlew assembleDebug          # Build debug APK
-./gradlew testDebugUnitTest      # Run unit tests (203 tests)
+./gradlew testDebugUnitTest      # Run unit tests (206 tests)
 ./gradlew assembleRelease        # Build release APK
 ```
 

@@ -3,10 +3,10 @@
     android:id="@+id/widget_wide_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingStart="4dp"
+    android:paddingStart="2dp"
     android:paddingEnd="2dp"
-    android:paddingTop="6dp"
-    android:paddingBottom="6dp">
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
 
     <!-- Normal content: days -->
     <LinearLayout
@@ -22,8 +22,8 @@
             android:id="@+id/widget_day_0"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             android:visibility="gone">
 
@@ -45,13 +45,32 @@
                     android:layout_weight="1" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_day_shift_0"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_day_date_0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_day_shift_0"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/widget_day_dot_0"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="1dp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </FrameLayout>
 
         <!-- Day 1 -->
@@ -59,8 +78,8 @@
             android:id="@+id/widget_day_1"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             android:visibility="gone">
 
@@ -82,13 +101,32 @@
                     android:layout_weight="1" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_day_shift_1"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_day_date_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_day_shift_1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/widget_day_dot_1"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="1dp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </FrameLayout>
 
         <!-- Day 2 -->
@@ -96,8 +134,8 @@
             android:id="@+id/widget_day_2"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             android:visibility="gone">
 
@@ -119,13 +157,32 @@
                     android:layout_weight="1" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_day_shift_2"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_day_date_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_day_shift_2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/widget_day_dot_2"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="1dp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </FrameLayout>
 
         <!-- Day 3 -->
@@ -133,8 +190,8 @@
             android:id="@+id/widget_day_3"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             android:visibility="gone">
 
@@ -156,13 +213,32 @@
                     android:layout_weight="1" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_day_shift_3"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_day_date_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_day_shift_3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/widget_day_dot_3"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="1dp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </FrameLayout>
 
         <!-- Day 4 -->
@@ -170,8 +246,8 @@
             android:id="@+id/widget_day_4"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             android:visibility="gone">
 
@@ -193,13 +269,32 @@
                     android:layout_weight="1" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_day_shift_4"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_day_date_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_day_shift_4"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/widget_day_dot_4"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="1dp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </FrameLayout>
 
         <!-- Day 5 -->
@@ -207,8 +302,8 @@
             android:id="@+id/widget_day_5"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             android:visibility="gone">
 
@@ -230,13 +325,32 @@
                     android:layout_weight="1" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_day_shift_5"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_day_date_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_day_shift_5"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/widget_day_dot_5"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="1dp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </FrameLayout>
 
         <!-- Day 6 -->
@@ -244,8 +358,8 @@
             android:id="@+id/widget_day_6"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             android:visibility="gone">
 
@@ -267,13 +381,32 @@
                     android:layout_weight="1" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/widget_day_shift_6"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/widget_day_date_6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/widget_day_shift_6"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="9sp" />
+
+                <View
+                    android:id="@+id/widget_day_dot_6"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
+                    android:layout_marginTop="1dp"
+                    android:visibility="gone" />
+            </LinearLayout>
         </FrameLayout>
 
     </LinearLayout>

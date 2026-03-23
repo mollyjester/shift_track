@@ -29,7 +29,7 @@ val DEFAULT_LEAVE_ALLOWANCES: Map<LeaveType, Int> = mapOf(
     LeaveType.SICK to 10,
     LeaveType.PERSONAL to 5,
     LeaveType.UNPAID to 0,
-    LeaveType.OTHER to 0,
+    LeaveType.STUDY to 0,
 )
 
 /**

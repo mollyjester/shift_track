@@ -445,7 +445,7 @@ private fun LeaveBalancesCard(
                     balances.filter { it.totalDays > 0f || it.usedDays > 0f }.forEach { b ->
                         val label = b.leaveType.lowercase().replaceFirstChar { it.uppercase() }
                         val remaining = (b.totalDays - b.usedDays).coerceAtLeast(0f)
-                        val leaveType = try { LeaveType.valueOf(b.leaveType) } catch (_: Exception) { null }
+                        val leaveType = LeaveType.fromString(b.leaveType)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),

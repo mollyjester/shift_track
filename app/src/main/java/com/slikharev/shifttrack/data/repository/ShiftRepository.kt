@@ -94,7 +94,7 @@ class ShiftRepository @Inject constructor(
                         val leave = leaveByDate[dateStr]
                         val hasOt = dateStr in overtimeDates
                         val leaveType = leave?.let {
-                            runCatching { LeaveType.valueOf(it.leaveType) }.getOrNull()
+                            LeaveType.fromString(it.leaveType)
                         }
                         val dayInfo = when {
                             entity != null && entity.isManualOverride ->

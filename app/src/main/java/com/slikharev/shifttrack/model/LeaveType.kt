@@ -5,5 +5,14 @@ enum class LeaveType {
     SICK,
     PERSONAL,
     UNPAID,
-    OTHER,
+    STUDY,
+    ;
+
+    companion object {
+        /** Parses a [LeaveType] from its [name], treating legacy `"OTHER"` as [STUDY]. */
+        fun fromString(value: String): LeaveType? = when (value) {
+            "OTHER" -> STUDY
+            else -> runCatching { valueOf(value) }.getOrNull()
+        }
+    }
 }

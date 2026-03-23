@@ -9,14 +9,14 @@ object LeaveColors {
     val Sick = Color(0xFFEF5350.toInt())     // red
     val Personal = Color(0xFF42A5F5.toInt()) // blue
     val Unpaid = Color(0xFFFF7043.toInt())   // orange
-    val Other = Color(0xFFAB47BC.toInt())    // purple
+    val Study = Color(0xFFAB47BC.toInt())    // purple
 
     fun color(type: LeaveType): Color = when (type) {
         LeaveType.ANNUAL -> Annual
         LeaveType.SICK -> Sick
         LeaveType.PERSONAL -> Personal
         LeaveType.UNPAID -> Unpaid
-        LeaveType.OTHER -> Other
+        LeaveType.STUDY -> Study
     }
 
     fun label(type: LeaveType): String = when (type) {
@@ -24,6 +24,6 @@ object LeaveColors {
         LeaveType.SICK -> "Sick"
         LeaveType.PERSONAL -> "Personal"
         LeaveType.UNPAID -> "Unpaid"
-        LeaveType.OTHER -> "Other"
+        LeaveType.STUDY -> "Study"
     }
 }

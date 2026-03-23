@@ -80,16 +80,23 @@ class ShiftWidgetProvider : AppWidgetProvider() {
         private const val WIDE_THRESHOLD_DP = 200
 
         /** View IDs for each day slot in the wide layout. */
-        private data class DaySlotIds(val root: Int, val top: Int, val bottom: Int, val text: Int)
+        private data class DaySlotIds(
+            val root: Int,
+            val top: Int,
+            val bottom: Int,
+            val dateText: Int,
+            val shiftText: Int,
+            val dot: Int,
+        )
 
         private val DAY_SLOTS = arrayOf(
-            DaySlotIds(R.id.widget_day_0, R.id.widget_day_top_0, R.id.widget_day_bottom_0, R.id.widget_day_shift_0),
-            DaySlotIds(R.id.widget_day_1, R.id.widget_day_top_1, R.id.widget_day_bottom_1, R.id.widget_day_shift_1),
-            DaySlotIds(R.id.widget_day_2, R.id.widget_day_top_2, R.id.widget_day_bottom_2, R.id.widget_day_shift_2),
-            DaySlotIds(R.id.widget_day_3, R.id.widget_day_top_3, R.id.widget_day_bottom_3, R.id.widget_day_shift_3),
-            DaySlotIds(R.id.widget_day_4, R.id.widget_day_top_4, R.id.widget_day_bottom_4, R.id.widget_day_shift_4),
-            DaySlotIds(R.id.widget_day_5, R.id.widget_day_top_5, R.id.widget_day_bottom_5, R.id.widget_day_shift_5),
-            DaySlotIds(R.id.widget_day_6, R.id.widget_day_top_6, R.id.widget_day_bottom_6, R.id.widget_day_shift_6),
+            DaySlotIds(R.id.widget_day_0, R.id.widget_day_top_0, R.id.widget_day_bottom_0, R.id.widget_day_date_0, R.id.widget_day_shift_0, R.id.widget_day_dot_0),
+            DaySlotIds(R.id.widget_day_1, R.id.widget_day_top_1, R.id.widget_day_bottom_1, R.id.widget_day_date_1, R.id.widget_day_shift_1, R.id.widget_day_dot_1),
+            DaySlotIds(R.id.widget_day_2, R.id.widget_day_top_2, R.id.widget_day_bottom_2, R.id.widget_day_date_2, R.id.widget_day_shift_2, R.id.widget_day_dot_2),
+            DaySlotIds(R.id.widget_day_3, R.id.widget_day_top_3, R.id.widget_day_bottom_3, R.id.widget_day_date_3, R.id.widget_day_shift_3, R.id.widget_day_dot_3),
+            DaySlotIds(R.id.widget_day_4, R.id.widget_day_top_4, R.id.widget_day_bottom_4, R.id.widget_day_date_4, R.id.widget_day_shift_4, R.id.widget_day_dot_4),
+            DaySlotIds(R.id.widget_day_5, R.id.widget_day_top_5, R.id.widget_day_bottom_5, R.id.widget_day_date_5, R.id.widget_day_shift_5, R.id.widget_day_dot_5),
+            DaySlotIds(R.id.widget_day_6, R.id.widget_day_top_6, R.id.widget_day_bottom_6, R.id.widget_day_date_6, R.id.widget_day_shift_6, R.id.widget_day_dot_6),
         )
 
         /**
@@ -137,7 +144,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                     widgetState.days.map { day ->
                         val leave = leaveByDate[day.date.toString()]
                         if (leave != null) {
-                            val lt = try { LeaveType.valueOf(leave.leaveType) } catch (_: Exception) { null }
+                            val lt = LeaveType.fromString(leave.leaveType)
                             day.copy(
                                 hasLeave = true,
                                 halfDay = leave.halfDay,
@@ -259,35 +266,52 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                         val topColor: Int
                         val bottomColor: Int
                         val textColor: Int
-                        val text: String
+                        val typeLabel: String
+                        var dotColor: Int? = null
 
                         if (dayInfo.hasLeave && !dayInfo.halfDay && dayInfo.leaveType != null) {
-                            // Full-day leave: leave type color
+                            // Full-day leave: leave type color background + dot
                             val leaveColor = LeaveColors.color(dayInfo.leaveType).toArgb()
                             topColor = leaveColor
                             bottomColor = leaveColor
                             textColor = 0xFFFFFFFF.toInt()
-                            text = LeaveColors.label(dayInfo.leaveType).uppercase()
+                            typeLabel = LeaveColors.label(dayInfo.leaveType).uppercase()
+                            dotColor = leaveColor
                         } else if (dayInfo.hasLeave && dayInfo.halfDay) {
-                            // Half-day: shift color top, darker bottom
+                            // Half-day: shift color top, darker bottom + dot
                             val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
                             topColor = shiftColor
                             bottomColor = darkenArgb(shiftColor, 0.3f)
                             textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
-                            text = ShiftColors.label(dayInfo.shiftType).uppercase()
+                            typeLabel = ShiftColors.label(dayInfo.shiftType).uppercase()
+                            dotColor = ShiftColors.Leave.toArgb()
                         } else {
                             // Normal shift
                             val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
                             topColor = shiftColor
                             bottomColor = shiftColor
                             textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
-                            text = ShiftColors.label(dayInfo.shiftType).uppercase()
+                            typeLabel = ShiftColors.label(dayInfo.shiftType).uppercase()
                         }
 
                         views.setInt(slot.top, "setBackgroundColor", topColor)
                         views.setInt(slot.bottom, "setBackgroundColor", bottomColor)
-                        views.setTextViewText(slot.text, text)
-                        views.setTextColor(slot.text, textColor)
+
+                        // Day number
+                        views.setTextViewText(slot.dateText, dayInfo.date.dayOfMonth.toString())
+                        views.setTextColor(slot.dateText, textColor)
+
+                        // Shift/leave type label
+                        views.setTextViewText(slot.shiftText, typeLabel)
+                        views.setTextColor(slot.shiftText, textColor)
+
+                        // Leave indicator dot
+                        if (dotColor != null) {
+                            views.setViewVisibility(slot.dot, View.VISIBLE)
+                            views.setInt(slot.dot, "setBackgroundColor", dotColor)
+                        } else {
+                            views.setViewVisibility(slot.dot, View.GONE)
+                        }
 
                         // Tap → deep link to that day
                         val dayIntent = Intent(

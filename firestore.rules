@@ -92,7 +92,7 @@ service cloud.firestore {
         allow write: if isOwner(uid)
                      && date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
                      && request.resource.data.keys().hasOnly(["date", "leaveType", "halfDay", "note", "userId", "synced"])
-                     && request.resource.data.leaveType in ["ANNUAL", "SICK", "PERSONAL", "UNPAID", "OTHER"]
+                     && request.resource.data.leaveType in ["ANNUAL", "SICK", "PERSONAL", "UNPAID", "STUDY"]
                      && request.resource.data.date is string
                      && request.resource.data.userId == uid;
       }

@@ -69,7 +69,7 @@ class SpectatorRepository @Inject constructor(
 
             val isManualOverride = shiftDoc?.getBoolean("isManualOverride") == true
             val leaveType = leaveDoc?.getString("leaveType")?.let {
-                runCatching { LeaveType.valueOf(it) }.getOrNull()
+                LeaveType.fromString(it)
             }
             val halfDay = leaveDoc?.getBoolean("halfDay") == true
 
