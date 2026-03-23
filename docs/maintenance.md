@@ -13,7 +13,7 @@
 | DataStore | (via Compose BOM) | https://developer.android.com/jetpack/androidx/releases/datastore |
 | WorkManager | 2.10.0 | https://developer.android.com/jetpack/androidx/releases/work |
 | Firebase BOM | 33.10.0 | https://firebase.google.com/support/release-notes/android |
-| Glance | 1.1.1 | https://developer.android.com/jetpack/androidx/releases/glance |
+| Glance | *(removed in v2.0)* | No longer used — widget is built with raw RemoteViews |
 | MockK | 1.13.10 | https://github.com/mockk/mockk/releases |
 | kotlinx-coroutines-test | 1.9.0 | https://github.com/Kotlin/kotlinx.coroutines/releases |
 
@@ -41,7 +41,7 @@ Use this list when re-deploying ShiftTrack to a new Firebase project.
 | Area | Description | Impact |
 |---|---|---|
 | **Invite redemption** | The spectators-array update runs client-side in a Firestore transaction. A malicious client could bypass expiry checks by patching the local Firebase SDK. Mitigation: migrate redemption to a Cloud Function. | Low risk for personal/family use; address for public release. |
-| **Widget deep link cold start** | Tapping a widget row navigates to DayDetail only when the app is already running. Cold-launch deep link routing is not implemented. | Minor UX inconvenience on first tap. |
+| **Widget deep link cold start** | ~~Tapping a widget row navigates to DayDetail only when the app is already running.~~ **Fixed in v2.0.1** — deep links now work on both cold and warm launch via programmatic navigation in NavHost. | Resolved. |
 | **Layered calendar icons** | If a day has both leave and overtime, only the first indicator is shown on the calendar tile. | Cosmetic only; full detail is always visible on DayDetail. |
 | **Annual reset confirmation** | The leave roll-over fires silently. A user-facing confirmation dialog to adjust the new year's entitlement before accepting is deferred. | Users can manually correct the total in Settings. |
 | **Spectator read-only UI cues** | The UI does not visually distinguish a spectator session; edit actions are blocked by Firestore rules but the buttons remain visible. | Confusing but not harmful. |
@@ -74,8 +74,6 @@ When upgrading major dependencies:
 2. Run `./gradlew testDebugUnitTest` and verify the new schema JSON is generated.
 3. Since `fallbackToDestructiveMigration()` is active, missing migrations wipe data — only acceptable during pre-release.
 
-### Glance
+### Glance (removed)
 
-1. Glance widget APIs change frequently between minor versions.
-2. Test both 2×2 and 4×2 widget sizes after upgrading.
-3. Verify `ShiftWidgetUpdater.updateAll()` still works with the new `GlanceAppWidgetManager` API.
+Glance was removed in v2.0. The widget now uses raw `RemoteViews` + `AppWidgetProvider`. No Glance upgrade steps apply.

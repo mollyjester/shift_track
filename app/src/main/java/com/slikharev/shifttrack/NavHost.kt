@@ -1,5 +1,6 @@
 package com.slikharev.shifttrack
 
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
@@ -10,10 +11,16 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
+import androidx.core.util.Consumer
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavType
@@ -22,7 +29,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.navigation.navDeepLink
 import com.slikharev.shifttrack.auth.AuthScreen
 import com.slikharev.shifttrack.auth.AuthViewModel
 import com.slikharev.shifttrack.calendar.CalendarScreen
@@ -63,6 +69,27 @@ fun ShiftTrackNavHost() {
         !isLoggedIn -> Screen.Auth.route
         !onboardingComplete -> Screen.Onboarding.route
         else -> Screen.Calendar.route
+    }
+
+    // ── Deep-link handling ───────────────────────────────────────────────
+    val activity = androidx.compose.ui.platform.LocalContext.current as androidx.activity.ComponentActivity
+    var pendingDeepLink by remember { mutableStateOf(activity.intent?.data) }
+
+    // Listen for new intents (app already running → widget tap)
+    DisposableEffect(activity) {
+        val listener = Consumer<android.content.Intent> { intent ->
+            pendingDeepLink = intent.data
+        }
+        activity.addOnNewIntentListener(listener)
+        onDispose { activity.removeOnNewIntentListener(listener) }
+    }
+
+    // Navigate when auth is resolved and a deep link is pending
+    LaunchedEffect(pendingDeepLink, isLoggedIn, onboardingComplete) {
+        val uri = pendingDeepLink ?: return@LaunchedEffect
+        if (!isLoggedIn || !onboardingComplete) return@LaunchedEffect
+        pendingDeepLink = null
+        navigateDeepLink(navController, uri)
     }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -107,7 +134,6 @@ fun ShiftTrackNavHost() {
             composable(
                 route = Screen.DayDetail.route,
                 arguments = listOf(navArgument("date") { type = NavType.StringType }),
-                deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://day/{date}" })
             ) { backStackEntry ->
                 val dateStr = backStackEntry.arguments?.getString("date") ?: return@composable
                 // Validate ISO-8601 date format before navigating
@@ -118,7 +144,6 @@ fun ShiftTrackNavHost() {
             composable(
                 route = Screen.InviteRedemption.route,
                 arguments = listOf(navArgument("token") { type = NavType.StringType }),
-                deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://invite/{token}" })
             ) { backStackEntry ->
                 val token = backStackEntry.arguments?.getString("token") ?: return@composable
                 // Validate UUID token format
@@ -169,5 +194,24 @@ private fun BottomNav(navController: NavController, currentRoute: String?) {
             icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
             label = { Text("Settings") },
         )
+    }
+}
+
+private fun navigateDeepLink(navController: NavController, uri: Uri) {
+    when (uri.host) {
+        "day" -> {
+            val date = uri.pathSegments.firstOrNull() ?: return
+            if (!date.matches(Regex("^\\d{4}-\\d{2}-\\d{2}$"))) return
+            navController.navigate(Screen.DayDetail.createRoute(date)) {
+                launchSingleTop = true
+            }
+        }
+        "invite" -> {
+            val token = uri.pathSegments.firstOrNull() ?: return
+            if (!token.matches(Regex("^[0-9a-fA-F\\-]{36}$"))) return
+            navController.navigate(Screen.InviteRedemption.createRoute(token)) {
+                launchSingleTop = true
+            }
+        }
     }
 }

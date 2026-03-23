@@ -30,7 +30,10 @@ import java.util.Locale
  *
  * Two layouts:
  * - **Small** (< 200 dp wide): Shows today's shift.
- * - **Wide** (≥ 200 dp wide): Shows 1–7 upcoming days + a gear button for settings.
+ * - **Wide** (≥ 200 dp wide): Shows 1–7 upcoming days.
+ *
+ * Configuration is accessed via the system's long-press → Reconfigure menu
+ * (declared as `reconfigurable` in `shift_widget_info.xml`).
  *
  * All preferences are read via a single atomic [AppDataStore.readWidgetSnapshot].
  * Updates are immediate — [AppWidgetManager.updateAppWidget] is synchronous.
@@ -168,7 +171,10 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 )
 
                 // Tap → open day in app
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("shiftapp://day/${today.date}"))
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("shiftapp://day/${today.date}")).apply {
+                    setClassName(context, "com.slikharev.shifttrack.MainActivity")
+                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
                 val pi = PendingIntent.getActivity(
                     context, today.date.hashCode(),
                     intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -193,16 +199,6 @@ class ShiftWidgetProvider : AppWidgetProvider() {
         ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_wide)
             views.setInt(R.id.widget_wide_root, "setBackgroundColor", computeBgColor(snap))
-
-            // Gear button → open WidgetConfigActivity
-            val gearIntent = Intent(context, WidgetConfigActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            val gearPi = PendingIntent.getActivity(
-                context, Int.MAX_VALUE,
-                gearIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-            views.setOnClickPendingIntent(R.id.widget_gear, gearPi)
 
             if (state.isConfigured && state.days.isNotEmpty()) {
                 views.setViewVisibility(R.id.widget_wide_content, View.VISIBLE)
@@ -253,7 +249,10 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                         val dayIntent = Intent(
                             Intent.ACTION_VIEW,
                             Uri.parse("shiftapp://day/${dayInfo.date}"),
-                        )
+                        ).apply {
+                            setClassName(context, "com.slikharev.shifttrack.MainActivity")
+                            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
                         val dayPi = PendingIntent.getActivity(
                             context, dayInfo.date.hashCode(),
                             dayIntent,

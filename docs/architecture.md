@@ -6,7 +6,7 @@
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          Compose UI Layer                               │
 │  AuthScreen  OnboardingScreen  DashboardScreen  CalendarScreen          │
-│  DayDetailScreen  SettingsScreen  InviteRedemptionScreen  ShiftWidget   │
+│  DayDetailScreen  SettingsScreen  InviteRedemptionScreen                │
 └────────────────────────────┬────────────────────────────────────────────┘
                              │  observes StateFlow / calls methods
                              ▼
@@ -39,7 +39,7 @@
 │                         SyncWorker (WorkManager)                        │
 │  1. AnnualResetUseCase  →  LeaveBalanceDao                              │
 │  2. FirestoreSyncDataSource  →  Firestore (shifts, leaves, overtime)    │
-│  3. ShiftWidgetUpdater  →  Glance widget refresh                        │
+│  3. ShiftWidgetUpdater  →  RemoteViews widget refresh                   │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,7 +55,7 @@ Leave balances are stored per leave type per year. The `leave_balance` table has
 
 ### Configurable Shift Colors (v1.1, updated v1.3)
 
-Shift-type colors are user-configurable via Settings using an HSV color picker (Hue / Saturation / Brightness sliders) and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `ShiftColorConfig` is provided through `LocalShiftColors` (a `CompositionLocal`). All composable screens read colors from `LocalShiftColors.current`. The Glance widget reads user-configured colors from `AppDataStore` at render time (since `CompositionLocal` is unavailable in the widget context).
+Shift-type colors are user-configurable via Settings using an HSV color picker (Hue / Saturation / Brightness sliders) and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `ShiftColorConfig` is provided through `LocalShiftColors` (a `CompositionLocal`). All composable screens read colors from `LocalShiftColors.current`. The RemoteViews widget reads user-configured colors from `AppDataStore` at render time (since `CompositionLocal` is unavailable in the widget context).
 
 ### Widget Configuration (v1.2)
 
@@ -67,7 +67,9 @@ The home-screen widget supports three configurable properties, all stored in `Ap
 | Transparency | `widget_transparency` | Float (0.0–1.0) | `1.0` (fully opaque) |
 | Days to show | `widget_day_count` | Int (1–7) | `4` |
 
-Settings are applied at render time in `ShiftWidget.provideGlance()`. The widget also reads user-configured shift-type colors, so custom colors are consistent between the app and the widget. Changes are applied immediately via `ShiftWidgetUpdater.updateAll()`.
+Settings are applied at render time in `ShiftWidgetProvider.updateSingleWidget()`. The widget also reads user-configured shift-type colors, so custom colors are consistent between the app and the widget. Changes are applied immediately via `ShiftWidgetUpdater.updateAll()`.
+
+Widget configuration is accessed via the system's long-press → Reconfigure menu (declared as `reconfigurable` in `shift_widget_info.xml`). `WidgetConfigActivity` is a full-screen Compose activity with a "Done" button that sets `RESULT_OK` and returns the user to the home screen.
 
 ### Pure Cadence Engine
 

@@ -1,5 +1,7 @@
 package com.slikharev.shifttrack.widget
 
+import android.appwidget.AppWidgetManager
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,19 +13,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,7 +44,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.ui.theme.ShiftTrackTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -50,75 +56,102 @@ class WidgetConfigActivity : ComponentActivity() {
     @Inject lateinit var appDataStore: AppDataStore
     @Inject lateinit var widgetUpdater: ShiftWidgetUpdater
 
+    private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Default result = CANCELED so the widget isn't added if the user backs out
+        setResult(RESULT_CANCELED)
+
+        // Extract widget ID from the launching intent
+        appWidgetId = intent?.extras?.getInt(
+            AppWidgetManager.EXTRA_APPWIDGET_ID,
+            AppWidgetManager.INVALID_APPWIDGET_ID,
+        ) ?: AppWidgetManager.INVALID_APPWIDGET_ID
+
         setContent {
             ShiftTrackTheme {
-                WidgetConfigDialog(
+                WidgetConfigScreen(
                     appDataStore = appDataStore,
-                    onDismiss = { finish() },
-                    onSave = { finish() },
                     widgetUpdater = widgetUpdater,
+                    onDone = { confirmAndFinish() },
                 )
             }
         }
     }
+
+    private fun confirmAndFinish() {
+        // Update the widget with current settings
+        runBlocking { widgetUpdater.updateAll() }
+
+        // Return OK with the widget ID so the launcher keeps the widget
+        val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+        setResult(RESULT_OK, result)
+        finish()
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WidgetConfigDialog(
+private fun WidgetConfigScreen(
     appDataStore: AppDataStore,
-    onDismiss: () -> Unit,
-    onSave: () -> Unit,
     widgetUpdater: ShiftWidgetUpdater,
+    onDone: () -> Unit,
 ) {
     val bgColorArgb by appDataStore.widgetBgColor.collectAsState(initial = null)
     val transparency by appDataStore.widgetTransparency.collectAsState(initial = AppDataStore.DEFAULT_WIDGET_TRANSPARENCY)
     val dayCount by appDataStore.widgetDayCount.collectAsState(initial = AppDataStore.DEFAULT_WIDGET_DAY_COUNT)
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            tonalElevation = 6.dp,
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("Widget Settings", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(16.dp))
-
-                WidgetConfigContent(
-                    bgColorArgb = bgColorArgb,
-                    transparency = transparency,
-                    dayCount = dayCount,
-                    onBgColorChange = { argb ->
-                        runBlocking {
-                            appDataStore.setWidgetBgColor(argb)
-                            widgetUpdater.updateAll()
-                        }
-                    },
-                    onTransparencyChange = { alpha ->
-                        runBlocking {
-                            appDataStore.setWidgetTransparency(alpha)
-                            widgetUpdater.updateAll()
-                        }
-                    },
-                    onDayCountChange = { count ->
-                        runBlocking {
-                            appDataStore.setWidgetDayCount(count)
-                            widgetUpdater.updateAll()
-                        }
-                    },
-                )
-
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(onClick = onSave) {
-                        Text("Done")
-                    }
-                }
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Widget Settings") })
+        },
+        bottomBar = {
+            Button(
+                onClick = onDone,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            ) {
+                Text("Done")
             }
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Spacer(Modifier.height(8.dp))
+
+            WidgetConfigContent(
+                bgColorArgb = bgColorArgb,
+                transparency = transparency,
+                dayCount = dayCount,
+                onBgColorChange = { argb ->
+                    runBlocking {
+                        appDataStore.setWidgetBgColor(argb)
+                        widgetUpdater.updateAll()
+                    }
+                },
+                onTransparencyChange = { alpha ->
+                    runBlocking {
+                        appDataStore.setWidgetTransparency(alpha)
+                        widgetUpdater.updateAll()
+                    }
+                },
+                onDayCountChange = { count ->
+                    runBlocking {
+                        appDataStore.setWidgetDayCount(count)
+                        widgetUpdater.updateAll()
+                    }
+                },
+            )
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

@@ -227,15 +227,6 @@
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Gear button -->
-        <ImageView
-            android:id="@+id/widget_gear"
-            android:layout_width="28dp"
-            android:layout_height="match_parent"
-            android:contentDescription="Settings"
-            android:scaleType="center"
-            android:src="@drawable/ic_widget_settings" />
-
     </LinearLayout>
 
     <!-- Not-configured message -->

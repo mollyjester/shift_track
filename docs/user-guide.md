@@ -87,7 +87,7 @@ Opening a day shows:
 | **Leave entitlement** | Per-category leave days for the current year (Annual, Sick, Personal, Unpaid, Other). The app resets automatically on the first launch of each new year, carrying over each category's total independently. |
 | **Overtime compensation** | Mark hours as compensated (paid out or taken as time-off). This does not remove them from the history. |
 | **Shift colors** | Customise the colour for each shift type (Day, Night, Rest, Off, Leave) using a color picker with Hue, Saturation, and Brightness sliders. A preview swatch shows your selection in real time. Tap **Reset to default** to revert. Changes take effect immediately across the calendar, dashboard, day detail screens, and widget. |
-| **Widget** | Configure widget background color, transparency, and number of days to show (see *Widget Setup* below). |
+| **Widget** | Configure widget appearance by long-pressing the widget and tapping the pencil icon, or from **Settings → Widget**. |
 | **Invite a viewer** | Generate a 7-day invite link to share your schedule with a family member or manager (see *Invite Guide* below). |
 
 ---
@@ -142,18 +142,17 @@ Opening a day shows:
 
 ### Configuring the Widget
 
-You can configure the widget in two ways:
-
-1. **From the widget itself** — tap the **⚙** (gear) button on the right edge of the wide widget. A settings overlay opens directly over your home screen.
-2. **From the app** — go to **Settings → Widget**.
-
-Both methods provide the same options:
+To configure the widget, long-press it on your home screen and tap the **pencil** (Reconfigure) icon in the system menu. This opens the Widget Settings screen where you can adjust:
 
 | Option | Description |
 |---|---|
 | **Background color** | Pick any colour using the color picker (Hue, Saturation, Brightness sliders). Default is a light surface tone. |
 | **Transparency** | Slider from 0% (fully transparent) to 100% (fully opaque). Default is 100%. |
 | **Days to show** | Number of days displayed in the wide (4×2) widget, from 1 to 7. Default is 4. |
+
+When you're finished, tap the **Done** button to save your settings and return to the home screen.
+
+You can also adjust these settings from within the app at **Settings → Widget**.
 
 Changes are applied immediately — no need to remove and re-add the widget.
 

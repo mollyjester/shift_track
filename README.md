@@ -127,39 +127,18 @@ Customise the overtime indicator colour in the same section using the same color
 
 ## Home-Screen Widget
 
-### Adding the Widget
+ShiftTrack includes a home-screen widget that shows your upcoming shifts.
 
-1. Long-press an empty area of your home screen.
-2. Tap **Widgets**.
-3. Find **ShiftTrack** and drag it to your home screen.
+| Size | Shows |
+|------|-------|
+| 2×2 | Today's shift |
+| 4×2 | Upcoming days (1–7, configurable) |
 
-### Widget Sizes
+**Setup:** Long-press an empty area of your home screen → Widgets → ShiftTrack. Drag the widget to your home screen. A configuration screen appears where you can set the background color, transparency, and number of days.
 
-| Size | Content |
-|------|---------|
-| **2×2** | Today's shift |
-| **4×2** | Today + upcoming days |
+**Reconfigure:** Long-press the widget → tap the pencil (Reconfigure) icon → adjust settings → tap **Done** to save and return to the home screen.
 
-### Configuring the Widget
-
-You can configure the widget in two ways:
-
-- **From the widget itself** — tap the **⚙** (gear) button on the right edge of the wide widget to open a quick settings overlay.
-- **From the app** — go to **Settings → Widget**.
-
-Both give you the same options:
-
-| Option | Description |
-|--------|-------------|
-| **Background color** | Pick any colour via the color picker. Default is a light surface tone. |
-| **Transparency** | Slide from 0% (fully transparent) to 100% (fully opaque). |
-| **Days to show** | Number of upcoming days in the wide widget (1–7, default 4). |
-
-Changes apply immediately — no need to remove and re-add the widget. The widget also uses your custom shift colours, keeping everything consistent.
-
-### Tapping Widget Days
-
-Tap any day in the widget to open the Day Detail screen for that date in the app.
+Tap any day in the widget to open the Day Detail screen for that date.
 
 ### When Does the Widget Update?
 

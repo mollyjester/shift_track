@@ -53,12 +53,12 @@
                 android:resource="@xml/shift_widget_info" />
         </receiver>
 
-        <!-- Widget Configuration Overlay -->
+        <!-- Widget Configuration Screen -->
         <activity
             android:name=".widget.WidgetConfigActivity"
-            android:exported="false"
+            android:exported="true"
             android:excludeFromRecents="true"
-            android:theme="@style/Theme.ShiftTrack.WidgetConfig" />
+            android:theme="@style/Theme.ShiftTrack" />
 
         <!-- Remove default WorkManager initializer (app uses Configuration.Provider) -->
         <provider
