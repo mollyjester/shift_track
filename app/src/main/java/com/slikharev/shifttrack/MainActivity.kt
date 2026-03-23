@@ -41,11 +41,11 @@ class MainActivity : ComponentActivity() {
             val leaveColor by appDataStore.colorLeave.collectAsState(initial = null)
 
             val colorConfig = ShiftColorConfig(
-                dayColor = dayColor?.let { Color(it.toULong()) } ?: ShiftColors.Day,
-                nightColor = nightColor?.let { Color(it.toULong()) } ?: ShiftColors.Night,
-                restColor = restColor?.let { Color(it.toULong()) } ?: ShiftColors.Rest,
-                offColor = offColor?.let { Color(it.toULong()) } ?: ShiftColors.Off,
-                leaveColor = leaveColor?.let { Color(it.toULong()) } ?: ShiftColors.Leave,
+                dayColor = dayColor?.let { Color(it.toInt()) } ?: ShiftColors.Day,
+                nightColor = nightColor?.let { Color(it.toInt()) } ?: ShiftColors.Night,
+                restColor = restColor?.let { Color(it.toInt()) } ?: ShiftColors.Rest,
+                offColor = offColor?.let { Color(it.toInt()) } ?: ShiftColors.Off,
+                leaveColor = leaveColor?.let { Color(it.toInt()) } ?: ShiftColors.Leave,
             )
 
             ShiftTrackTheme {

@@ -53,9 +53,9 @@ The Room database is the **single source of truth**. Every user action writes to
 
 Leave balances are stored per leave type per year. The `leave_balance` table has a unique index on `(year, user_id, leave_type)`, resulting in one row per `LeaveType` per year. Onboarding creates rows for all five categories (ANNUAL, SICK, PERSONAL, UNPAID, OTHER). `AnnualResetUseCase` carries over `totalDays` from the previous year for each category independently. `LeaveRepository.refreshUsedDays()` recalculates used days per category via `sumLeaveDaysByType`.
 
-### Configurable Shift Colors (v1.1)
+### Configurable Shift Colors (v1.1, updated v1.3)
 
-Shift-type colors are user-configurable via Settings and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `ShiftColorConfig` is provided through `LocalShiftColors` (a `CompositionLocal`). All composable screens read colors from `LocalShiftColors.current`. The Glance widget reads user-configured colors from `AppDataStore` at render time (since `CompositionLocal` is unavailable in the widget context).
+Shift-type colors are user-configurable via Settings using an HSV color picker (Hue / Saturation / Brightness sliders) and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `ShiftColorConfig` is provided through `LocalShiftColors` (a `CompositionLocal`). All composable screens read colors from `LocalShiftColors.current`. The Glance widget reads user-configured colors from `AppDataStore` at render time (since `CompositionLocal` is unavailable in the widget context).
 
 ### Widget Configuration (v1.2)
 

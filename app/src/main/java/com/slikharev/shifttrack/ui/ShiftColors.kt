@@ -5,16 +5,16 @@ import com.slikharev.shifttrack.model.ShiftType
 
 // Fixed, theme-independent colors used consistently across Calendar, Dashboard, and Widget.
 object ShiftColors {
-    val Day = Color(0xFFFFF176)      // soft amber-yellow
-    val DayOnColor = Color(0xFF5F4C00) // dark brown text on Day
-    val Night = Color(0xFF1A237E)    // deep navy blue
-    val NightOnColor = Color(0xFFD5D9FF)
-    val Rest = Color(0xFF80DEEA)     // light cyan
-    val RestOnColor = Color(0xFF002A2E)
-    val Off = Color(0xFFBDBDBD)      // neutral grey
-    val OffOnColor = Color(0xFF212121)
-    val Leave = Color(0xFFA5D6A7)    // soft green
-    val LeaveOnColor = Color(0xFF003300)
+    val Day = Color(0xFFFFF176.toInt())      // soft amber-yellow
+    val DayOnColor = Color(0xFF5F4C00.toInt()) // dark brown text on Day
+    val Night = Color(0xFF1A237E.toInt())    // deep navy blue
+    val NightOnColor = Color(0xFFD5D9FF.toInt())
+    val Rest = Color(0xFF80DEEA.toInt())     // light cyan
+    val RestOnColor = Color(0xFF002A2E.toInt())
+    val Off = Color(0xFFBDBDBD.toInt())      // neutral grey
+    val OffOnColor = Color(0xFF212121.toInt())
+    val Leave = Color(0xFFA5D6A7.toInt())    // soft green
+    val LeaveOnColor = Color(0xFF003300.toInt())
 
     fun containerColor(type: ShiftType): Color = when (type) {
         ShiftType.DAY -> Day

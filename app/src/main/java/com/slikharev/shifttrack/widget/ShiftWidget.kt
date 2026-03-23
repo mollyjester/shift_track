@@ -41,7 +41,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val WidgetSubLabel = ColorProvider(Color(0xFF43474E))   // OnSurfaceVariant
+private val WidgetSubLabel = ColorProvider(Color(0xFF43474E.toInt()))   // OnSurfaceVariant
 
 /**
  * Home screen widget showing today's shift type (2×2) or the next four days
@@ -80,9 +80,9 @@ class ShiftWidget : GlanceAppWidget() {
         val dayCount = appDataStore?.widgetDayCount?.first() ?: AppDataStore.DEFAULT_WIDGET_DAY_COUNT
 
         val bgColor = if (bgColorArgb != null) {
-            Color(bgColorArgb).copy(alpha = transparency)
+            Color(bgColorArgb.toInt()).copy(alpha = transparency)
         } else {
-            Color(0xFFF8FDFF).copy(alpha = transparency)
+            Color(0xFFF8FDFF.toInt()).copy(alpha = transparency)
         }
 
         // Read user-configured shift-type colors
@@ -93,11 +93,11 @@ class ShiftWidget : GlanceAppWidget() {
             val cOff = appDataStore.colorOff.firstOrNull()
             val cLeave = appDataStore.colorLeave.firstOrNull()
             ShiftColorConfig(
-                dayColor = cDay?.let { Color(it) } ?: ShiftColors.Day,
-                nightColor = cNight?.let { Color(it) } ?: ShiftColors.Night,
-                restColor = cRest?.let { Color(it) } ?: ShiftColors.Rest,
-                offColor = cOff?.let { Color(it) } ?: ShiftColors.Off,
-                leaveColor = cLeave?.let { Color(it) } ?: ShiftColors.Leave,
+                dayColor = cDay?.let { Color(it.toInt()) } ?: ShiftColors.Day,
+                nightColor = cNight?.let { Color(it.toInt()) } ?: ShiftColors.Night,
+                restColor = cRest?.let { Color(it.toInt()) } ?: ShiftColors.Rest,
+                offColor = cOff?.let { Color(it.toInt()) } ?: ShiftColors.Off,
+                leaveColor = cLeave?.let { Color(it.toInt()) } ?: ShiftColors.Leave,
             )
         } else {
             ShiftColorConfig()

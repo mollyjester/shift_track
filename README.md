@@ -1,227 +1,226 @@
 # ShiftTrack
 
-ShiftTrack is an Android app for rotating-shift workers covering personal shift scheduling, leave management, overtime tracking, and cross-device calendar sharing with a designated viewer (spectator).
+A personal shift-scheduling app for rotating-shift workers. ShiftTrack automatically calculates your shift pattern, tracks leave and overtime, and lets you share your schedule with family or a manager.
 
 ---
 
 ## Table of Contents
 
-1. [Features](#features)
-2. [Architecture](#architecture)
-3. [Setup](#setup)
-4. [Building & Running](#building--running)
-5. [Running Tests](#running-tests)
-6. [Dependencies](#dependencies)
-7. [Firebase Configuration](#firebase-configuration)
-8. [Known Limitations](#known-limitations)
+1. [Getting Started](#getting-started)
+2. [Your Dashboard](#your-dashboard)
+3. [Calendar](#calendar)
+4. [Recording Leave](#recording-leave)
+5. [Logging Overtime](#logging-overtime)
+6. [Customising Colors](#customising-colors)
+7. [Home-Screen Widget](#home-screen-widget)
+8. [Sharing Your Schedule](#sharing-your-schedule)
+9. [Offline Use & Sync](#offline-use--sync)
+10. [Troubleshooting](#troubleshooting)
+11. [For Developers](#for-developers)
 
 ---
 
-## Features
+## Getting Started
 
-| Feature | Description |
-|---|---|
-| **Cadence engine** | Pure rotating-shift calculator (DAY → DAY → NIGHT → REST → OFF) with anchor-date-based positioning |
-| **Calendar** | Month view showing every day's shift; tap a day for leave/overtime entry or manual override |
-| **Dashboard** | Today's shift plus the next 6 days; leave balance; weekly/annual overtime summary |
-| **Leave management** | Record annual, sick, personal, unpaid, or other leave; half-day support; yearly balance tracking |
-| **Overtime** | Log extra hours per day; yearly accumulation with manual compensation recording |
-| **Annual reset** | On first launch of a new year the leave balance rolls over automatically, copying the previous year's entitlement |
-| **Invite & spectator** | Generate a 7-day deep-link invite token; share it with a family member or manager who then gets a read-only view of your schedule |
-| **Firestore sync** | Offline-first; all writes go to Room immediately and are synced to Firestore via WorkManager when connectivity is available |
-| **Home-screen widget** | Glance-based widget showing the next 7 days' shifts; refreshes after every local data change and every sync |
-| **Onboarding** | First-launch wizard to set the cadence anchor date and initial leave balance |
+### Step 1 — Sign In
 
----
+Open ShiftTrack and tap **Sign in with Google**. A Google account is required for cloud sync and schedule sharing.
 
-## Architecture
+### Step 2 — Set Your Anchor Date
 
-```
-UI (Compose screens)
-        │
-        ▼
-ViewModels (StateFlow / viewModelScope)
-        │
-        ├──▶ ShiftRepository ──▶ Room DB (ShiftDao, LeaveDao, OvertimeDao)
-        ├──▶ LeaveRepository ──▶ Room DB (LeaveDao, LeaveBalanceDao)
-        ├──▶ OvertimeRepository ──▶ Room DB (OvertimeDao, OvertimeBalanceDao)
-        └──▶ AppDataStore (anchor date, onboarding flag, last-reset year)
+ShiftTrack uses a repeating 5-day cycle:
 
-SyncWorker (WorkManager)
-        │
-        ├──▶ FirestoreSyncDataSource ──▶ Firestore (users/{uid}/shifts|leaves|overtime)
-        ├──▶ AnnualResetUseCase ──▶ Room DB (LeaveBalanceDao)
-        └──▶ ShiftWidgetUpdater ──▶ Glance widget
+| Position | Shift |
+|----------|-------|
+| 1 | Day |
+| 2 | Day |
+| 3 | Night |
+| 4 | Rest |
+| 5 | Off |
 
-InviteRepository (FirestoreInviteRepository)
-        └──▶ Firestore (invites/{token}, users/{uid}.spectators)
-```
+During onboarding, pick **any date** where you know which shift you worked, then select the matching position. The app calculates every other date from that single reference point.
 
-**Key design decisions:**
+> **Tip:** Use today's date and whatever shift you are on right now.
 
-- **Offline-first**: The Room database is the single source of truth. Firestore is written to asynchronously and the UI never waits for it.
-- **Pure cadence engine**: `CadenceEngine` is a pure Kotlin object with no Android dependencies, making it trivially unit-testable.
-- **Unidirectional data flow**: ViewModels expose `StateFlow`; screens only call methods (no shared mutable state).
-- **WorkManager for sync**: Handles retries, back-off, and battery-friendly scheduling automatically.
+### Step 3 — Enter Your Leave Balance
+
+Set your yearly allowance for each leave category (Annual, Sick, Personal, Unpaid, Other). The app deducts from these as you record leave throughout the year.
+
+### Step 4 — You're Ready
+
+The bottom navigation bar has three tabs:
+
+| Tab | What you'll find |
+|-----|-----------------|
+| **Home** | Today's shift, upcoming days, leave balance, overtime summary |
+| **Calendar** | Full month view with colour-coded shifts |
+| **Settings** | Anchor date, leave, overtime, colours, widget, and invites |
 
 ---
 
-## Setup
+## Your Dashboard
 
-### Prerequisites
+The **Home** tab gives you a quick overview:
 
-| Tool | Minimum version |
-|---|---|
-| Android Studio | Hedgehog (2023.1) or later |
-| JDK | 17 |
-| Android SDK | API 26 (minSdk) to API 35 (targetSdk) |
-| Firebase project | Any project with Authentication (Google sign-in) and Firestore enabled |
+- **Shift cards** — Today's shift (highlighted) and the next 6 days, each showing the date, weekday, and shift type.
+- **Leave balance** — Per-category progress bars (Annual, Sick, Personal, Unpaid, Other) showing remaining vs total days.
+- **Overtime summary** — Hours worked this week and the cumulative annual total.
 
-### 1. Clone the repository
+---
+
+## Calendar
+
+The **Calendar** tab shows a full month with each day colour-coded by shift type. Tap any day to open the **Day Detail** screen.
+
+On the Day Detail screen you can:
+
+| Action | How |
+|--------|-----|
+| Override a shift | Tap a shift-type button (Day / Night / Rest / Off / Leave) to replace the computed shift |
+| Clear an override | Tap the active override again to restore the automatic shift |
+| Add leave | Tap **Add Leave**, choose a category, toggle **Half Day** if needed, add an optional note |
+| Remove leave | Tap the leave entry and confirm |
+| Log overtime | Tap **Log Overtime**, enter hours, add an optional note |
+| Remove overtime | Tap the overtime entry and confirm |
+| Save a note | Type in the notes field and tap **Save note** |
+
+---
+
+## Recording Leave
+
+1. Open any day from the calendar.
+2. Tap **Add Leave**.
+3. Choose a leave type: Annual, Sick, Personal, Unpaid, or Other.
+4. Toggle **Half Day** if you only need half the day.
+5. Add an optional note (up to 500 characters).
+6. Tap **Save**.
+
+Your leave balance updates immediately on the Dashboard. At the start of each new year, balances roll over automatically — each category's total is carried forward independently.
+
+---
+
+## Logging Overtime
+
+1. Open any day from the calendar.
+2. Tap **Log Overtime**.
+3. Enter the number of hours.
+4. Add an optional note.
+5. Tap **Save**.
+
+To mark overtime as compensated (paid out or taken as time-off), go to **Settings → Overtime compensation**.
+
+---
+
+## Customising Colors
+
+### Shift Colors
+
+Go to **Settings → Shift Colors** to set a custom colour for each shift type (Day, Night, Rest, Off, Leave). Use the **color picker** to choose any colour by adjusting Hue, Saturation, and Brightness sliders. A preview swatch shows your selected colour in real time. Tap **Reset to default** to revert to the original colour.
+
+Your colour choices are applied everywhere — calendar, dashboard, day detail, and home-screen widget.
+
+### Overtime Color
+
+Customise the overtime indicator colour in the same section using the same color picker.
+
+---
+
+## Home-Screen Widget
+
+### Adding the Widget
+
+1. Long-press an empty area of your home screen.
+2. Tap **Widgets**.
+3. Find **ShiftTrack** and drag it to your home screen.
+
+### Widget Sizes
+
+| Size | Content |
+|------|---------|
+| **2×2** | Today's shift |
+| **4×2** | Today + upcoming days |
+
+### Configuring the Widget
+
+Go to **Settings → Widget** to adjust:
+
+| Option | Description |
+|--------|-------------|
+| **Background color** | Pick any colour via the color picker. Default is a light surface tone. |
+| **Transparency** | Slide from 0% (fully transparent) to 100% (fully opaque). |
+| **Days to show** | Number of upcoming days in the wide widget (1–7, default 4). |
+
+Changes apply immediately — no need to remove and re-add the widget. The widget also uses your custom shift colours, keeping everything consistent.
+
+### When Does the Widget Update?
+
+The widget refreshes automatically when you make any change (override, leave, overtime, settings) or when a background sync completes.
+
+---
+
+## Sharing Your Schedule
+
+### Inviting a Viewer
+
+1. Go to **Settings → Invite a viewer**.
+2. Tap **Generate invite link** — a unique link is copied to your clipboard.
+3. Send the link to a family member or manager via any messaging app.
+
+The link expires after **7 days** and can only be used once.
+
+### For the Recipient
+
+1. Tap the invite link.
+2. ShiftTrack opens to the invite screen showing who sent it.
+3. Tap **Accept** to get read-only access to their schedule.
+
+A viewer (spectator) can see the full calendar, dashboard, and all entries but cannot modify anything.
+
+---
+
+## Offline Use & Sync
+
+ShiftTrack works fully offline. Every change you make is saved to your device immediately. When you reconnect, data syncs to the cloud automatically in the background.
+
+- You never need to wait for a network connection to use the app.
+- If you use the app on multiple devices, the most recent change for each day wins.
+- Opening the app after being offline triggers an immediate sync.
+
+---
+
+## Troubleshooting
+
+### Widget not updating
+Remove and re-add the widget, or open the app to trigger a refresh. The system may delay widget updates to conserve battery.
+
+### Sync seems stuck
+All changes are saved locally first. Open the app while connected to trigger a sync. Background sync runs within a few minutes of reconnecting.
+
+### Leave balance looks wrong after New Year
+The annual roll-over happens automatically on the first launch of each new year. Check **Settings → Leave entitlement** and adjust if needed.
+
+### Sign-in not working
+An internet connection is required for the first sign-in. After that, your credentials are cached for offline use.
+
+### Invite link not working
+Links expire after 7 days and are single-use. Ask the sender to generate a new one. You must be signed in to accept an invite.
+
+---
+
+## For Developers
+
+See the [docs/](docs/) folder for technical documentation:
+
+- [Architecture overview](docs/architecture.md) — data flow, sync strategy, deep-link scheme
+- [Maintenance notes](docs/maintenance.md) — dependency versions, Firebase setup, upgrade checklist
+- [Full user guide](docs/user-guide.md) — detailed feature reference
+
+### Quick Commands
 
 ```bash
-git clone https://github.com/mollyjester/shift_track.git
-cd shift_track
+./gradlew assembleDebug          # Build debug APK
+./gradlew testDebugUnitTest      # Run unit tests (196 tests)
+./gradlew assembleRelease        # Build release APK
 ```
 
-### 2. Add `google-services.json`
-
-Download `google-services.json` from the Firebase console and place it at:
-
-```
-app/google-services.json
-```
-
-### 3. Configure EncryptedSharedPreferences key (optional)
-
-The app uses `EncryptedSharedPreferences` from AndroidX Security. No extra configuration is needed — the key is automatically generated on first launch.
-
-### 4. Deploy Firestore security rules
-
-```bash
-firebase deploy --only firestore:rules
-```
-
-The rules file is at `firestore.rules` in the project root.
-
----
-
-## Building & Running
-
-### From Android Studio
-
-Open the project, select the `app` run configuration, and click **Run ▶**.
-
-### From the command line (ADB install)
-
-```bash
-# Set environment variables
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export ANDROID_HOME=$HOME/Android/Sdk
-
-# Build the debug APK
-./gradlew assembleDebug
-
-# Install on a connected device
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
----
-
-## Running Tests
-
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export ANDROID_HOME=$HOME/Android/Sdk
-
-./gradlew testDebugUnitTest
-```
-
-HTML reports are written to `app/build/reports/tests/testDebugUnitTest/index.html`.
-
-### Test structure
-
-| Package | What is tested |
-|---|---|
-| `engine` | `CadenceEngine` — all cycle positions, before/after anchor, range calculations |
-| `data/repository` | `LeaveRepository`, `OvertimeRepository` — using in-memory fake DAOs |
-| `sync` | `AnnualResetUseCase` — same-year no-op, carry-over, multi-year gap |
-| `auth` | `AuthViewModel` — sign-in/out, error handling, onboarding state |
-| `calendar` | `CalendarViewModel`, `DayDetailViewModel` |
-| `dashboard` | `DashboardViewModel` |
-| `invite` | `InviteViewModel` — token loading, redemption, expiry, race conditions |
-| `settings` | `SettingsViewModel` |
-| `onboarding` | `OnboardingViewModel` |
-| `widget` | `WidgetShiftCalculator` |
-
----
-
-## Dependencies
-
-| Library | Version | Purpose |
-|---|---|---|
-| Kotlin | 2.0.21 | Language |
-| Android Gradle Plugin | 8.8.0 | Build tooling |
-| Jetpack Compose BOM | 2024.12.01 | UI framework |
-| Navigation Compose | 2.8.9 | In-app navigation |
-| Hilt | 2.54 | Dependency injection |
-| Room | 2.7.0 | Local SQLite database |
-| DataStore Preferences | (via BOM) | Settings / lightweight key-value storage |
-| WorkManager | 2.10.0 | Background sync scheduling |
-| Firebase BOM | 33.10.0 | Auth, Firestore, FCM |
-| Glance | 1.1.1 | Compose-based home-screen widgets |
-| MockK | 1.13.10 | Test mocking |
-| kotlinx-coroutines-test | 1.9.0 | Coroutine test utilities |
-
-For a complete list see `app/build.gradle.kts`.
-
----
-
-## Firebase Configuration
-
-### Required Firebase products
-
-| Product | Usage |
-|---|---|
-| Authentication | Google Sign-In; offline credential caching via EncryptedSharedPreferences |
-| Firestore | Shift overrides, leave, overtime sync; invite tokens; spectator list |
-| Cloud Messaging (FCM) | Reserved for future push notifications; token is stored but not yet used for actual pushes |
-
-### Firestore data model
-
-```
-users/{uid}
-    displayName: String
-    email: String
-    fcmToken: String
-    spectators: [String]  ← UIDs of viewers
-
-users/{uid}/shifts/{YYYY-MM-DD}
-users/{uid}/leaves/{YYYY-MM-DD}
-users/{uid}/overtime/{YYYY-MM-DD}
-
-invites/{token}           ← UUID token (7-day expiry, single-use)
-    hostUid, hostDisplayName, createdAt, expiresAt, claimed, claimedBy
-```
-
-### Re-deploying to a new environment
-
-1. Create a new Firebase project.
-2. Enable **Google sign-in** in Authentication > Sign-in methods.
-3. Create a **Firestore database** in production mode.
-4. Deploy `firestore.rules`: `firebase deploy --only firestore:rules`
-5. Register the Android app and download the new `google-services.json`.
-6. Replace `app/google-services.json` and rebuild.
-
----
-
-## Known Limitations
-
-| Area | Limitation |
-|---|---|
-| Invite redemption | The spectators-array update runs client-side inside a Firestore transaction. In production, migrating to a Cloud Function provides stronger isolation. |
-| Widget deep link | Tapping a widget row navigates to the DayDetail screen but requires the app to be running (cold-launch deep link not yet implemented). |
-| Layered calendar | Multiple overlapping leave/overtime icons on a single calendar day are not yet supported — only the first entry is shown. |
-| Annual reset prompt | The roll-over happens silently. A user-facing confirmation prompt (to adjust the new year's entitlement before accepting) is deferred. |
-| Spectator writes | Spectators are prevented from writing by Firestore rules, but there is no in-app indication telling a spectator that a given action is read-only. |
-| Notifications | FCM token is stored and uploaded, but push notifications for "shift updated by owner" are not yet triggered from the server. |
+Min SDK 26 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose

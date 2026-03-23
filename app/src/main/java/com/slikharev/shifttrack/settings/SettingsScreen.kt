@@ -1,5 +1,7 @@
 package com.slikharev.shifttrack.settings
 
+import android.content.Intent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,10 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import android.content.Intent
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -63,12 +64,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import androidx.compose.ui.graphics.Color
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
-import com.slikharev.shifttrack.ui.COLOR_PRESETS
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.LocalDate
@@ -665,31 +666,16 @@ private fun ColorSettingsSection(onColorChange: (ShiftType, Long) -> Unit) {
 
                 if (expanded) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    COLOR_PRESETS.chunked(6).forEach { row ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            row.forEach { color ->
-                                val isSelected = color.toArgb() == currentColor.toArgb()
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(color)
-                                        .then(
-                                            if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                                            else Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
-                                        )
-                                        .clickable {
-                                            onColorChange(type, color.toArgb().toLong())
-                                            expanded = false
-                                        },
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
+                    HsvColorPicker(
+                        initialColor = currentColor,
+                        onColorSelected = { color ->
+                            onColorChange(type, color.toArgb().toLong())
+                        },
+                        defaultColor = ShiftColors.containerColor(type),
+                        onReset = {
+                            onColorChange(type, ShiftColors.containerColor(type).toArgb().toLong())
+                        },
+                    )
                 }
             }
         }
@@ -705,8 +691,8 @@ private fun WidgetSettingsSection(
     onTransparencyChange: (Float) -> Unit,
     onDayCountChange: (Int) -> Unit,
 ) {
-    val defaultBg = androidx.compose.ui.graphics.Color(0xFFF8FDFF)
-    val currentBgColor = bgColorArgb?.let { androidx.compose.ui.graphics.Color(it) } ?: defaultBg
+    val defaultBg = Color(0xFFF8FDFF.toInt())
+    val currentBgColor = bgColorArgb?.let { Color(it.toInt()) } ?: defaultBg
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // ── Background color ─────────────────────────────────────────────────
@@ -733,57 +719,30 @@ private fun WidgetSettingsSection(
         }
         if (bgExpanded) {
             Spacer(modifier = Modifier.height(4.dp))
-            val bgPresets = listOf(
-                androidx.compose.ui.graphics.Color(0xFFF8FDFF), // default light
-                androidx.compose.ui.graphics.Color(0xFFFFFFFF), // white
-                androidx.compose.ui.graphics.Color(0xFF1C1B1F), // dark
-                androidx.compose.ui.graphics.Color(0xFF263238), // blue-grey dark
-                androidx.compose.ui.graphics.Color(0xFFE3F2FD), // light blue
-                androidx.compose.ui.graphics.Color(0xFFFFF3E0), // light orange
-                androidx.compose.ui.graphics.Color(0xFFE8F5E9), // light green
-                androidx.compose.ui.graphics.Color(0xFFF3E5F5), // light purple
-                androidx.compose.ui.graphics.Color(0xFFEEEEEE), // light grey
-                androidx.compose.ui.graphics.Color(0xFF424242), // dark grey
-                androidx.compose.ui.graphics.Color(0xFF37474F), // blue-grey
-                androidx.compose.ui.graphics.Color(0xFF000000), // black
+            HsvColorPicker(
+                initialColor = currentBgColor,
+                onColorSelected = { color ->
+                    onBgColorChange(color.toArgb().toLong())
+                },
+                defaultColor = defaultBg,
+                onReset = {
+                    onBgColorChange(defaultBg.toArgb().toLong())
+                },
             )
-            bgPresets.chunked(6).forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    row.forEach { color ->
-                        val isSelected = color.toArgb() == currentBgColor.toArgb()
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .then(
-                                    if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                                    else Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
-                                )
-                                .clickable {
-                                    onBgColorChange(color.toArgb().toLong())
-                                    bgExpanded = false
-                                },
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
         }
 
         // ── Transparency ─────────────────────────────────────────────────────
         Text("Transparency", style = MaterialTheme.typography.bodyMedium)
+        var localTransparency by remember(transparency) { mutableFloatStateOf(transparency) }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("${"%.0f".format(transparency * 100)}%", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(40.dp))
+            Text("${"%.0f".format(localTransparency * 100)}%", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(40.dp))
             Slider(
-                value = transparency,
-                onValueChange = onTransparencyChange,
+                value = localTransparency,
+                onValueChange = { localTransparency = it },
+                onValueChangeFinished = { onTransparencyChange(localTransparency) },
                 valueRange = 0f..1f,
                 steps = 9,
                 modifier = Modifier.weight(1f),
@@ -808,6 +767,84 @@ private fun WidgetSettingsSection(
         }
     }
 }
+
+// ── HSV Color Picker ─────────────────────────────────────────────────────────
+
+private fun colorToHsv(color: Color): FloatArray {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(color.toArgb(), hsv)
+    return hsv
+}
+
+private fun hsvToColor(hsv: FloatArray): Color {
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
+@Composable
+private fun HsvColorPicker(
+    initialColor: Color,
+    onColorSelected: (Color) -> Unit,
+    defaultColor: Color,
+    onReset: () -> Unit,
+) {
+    val initHsv = remember(initialColor) { colorToHsv(initialColor) }
+    var hue by remember(initialColor) { mutableFloatStateOf(initHsv[0]) }
+    var saturation by remember(initialColor) { mutableFloatStateOf(initHsv[1]) }
+    var value by remember(initialColor) { mutableFloatStateOf(initHsv[2]) }
+
+    val previewColor = remember(hue, saturation, value) {
+        hsvToColor(floatArrayOf(hue, saturation, value))
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Preview swatch
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(previewColor)
+                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp)),
+        )
+
+        // Hue slider with rainbow gradient track
+        Text("Hue", style = MaterialTheme.typography.labelSmall)
+        Slider(
+            value = hue,
+            onValueChange = { hue = it },
+            onValueChangeFinished = { onColorSelected(hsvToColor(floatArrayOf(hue, saturation, value))) },
+            valueRange = 0f..360f,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Saturation slider
+        Text("Saturation", style = MaterialTheme.typography.labelSmall)
+        Slider(
+            value = saturation,
+            onValueChange = { saturation = it },
+            onValueChangeFinished = { onColorSelected(hsvToColor(floatArrayOf(hue, saturation, value))) },
+            valueRange = 0f..1f,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Brightness slider
+        Text("Brightness", style = MaterialTheme.typography.labelSmall)
+        Slider(
+            value = value,
+            onValueChange = { value = it },
+            onValueChangeFinished = { onColorSelected(hsvToColor(floatArrayOf(hue, saturation, value))) },
+            valueRange = 0f..1f,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Reset button
+        OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
+            Text("Reset to default")
+        }
+    }
+}
+
+// ── Invite & Share ───────────────────────────────────────────────────────────
 
 @Composable
 private fun InviteCard(onGenerateClick: () -> Unit) {

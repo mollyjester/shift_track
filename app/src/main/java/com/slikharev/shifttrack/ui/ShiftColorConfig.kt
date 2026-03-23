@@ -26,26 +26,9 @@ data class ShiftColorConfig(
 
     fun onContainerColor(type: ShiftType): Color {
         val bg = containerColor(type)
-        // Compute readable text color: dark text on light backgrounds, light text on dark.
         val luminance = 0.299f * bg.red + 0.587f * bg.green + 0.114f * bg.blue
-        return if (luminance > 0.5f) Color(0xFF212121) else Color(0xFFEEEEEE)
+        return if (luminance > 0.5f) Color(0xFF212121.toInt()) else Color(0xFFEEEEEE.toInt())
     }
 }
 
 val LocalShiftColors = staticCompositionLocalOf { ShiftColorConfig() }
-
-/** Preset color choices for the color picker. */
-val COLOR_PRESETS: List<Color> = listOf(
-    Color(0xFFFFF176), // yellow
-    Color(0xFFFFCC80), // orange
-    Color(0xFFEF9A9A), // red
-    Color(0xFFCE93D8), // purple
-    Color(0xFF90CAF9), // blue
-    Color(0xFF80DEEA), // cyan
-    Color(0xFFA5D6A7), // green
-    Color(0xFFBDBDBD), // grey
-    Color(0xFF1A237E), // navy
-    Color(0xFF004D40), // teal dark
-    Color(0xFF3E2723), // brown dark
-    Color(0xFF263238), // blue-grey dark
-)
