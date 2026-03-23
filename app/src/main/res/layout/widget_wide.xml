@@ -35,13 +35,13 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#43474E"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_day_shift_0"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -65,13 +65,13 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#43474E"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_day_shift_1"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -95,13 +95,13 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#43474E"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_day_shift_2"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -125,13 +125,13 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#43474E"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_day_shift_3"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -155,13 +155,13 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#43474E"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_day_shift_4"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -185,13 +185,13 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#43474E"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_day_shift_5"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -215,13 +215,13 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:textColor="#43474E"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/widget_day_shift_6"
                 android:layout_width="match_parent"
                 android:layout_height="40dp"
-                android:layout_marginTop="4dp"
                 android:gravity="center"
                 android:textSize="13sp"
                 android:textStyle="bold" />

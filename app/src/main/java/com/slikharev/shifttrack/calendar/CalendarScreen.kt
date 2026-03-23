@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -178,14 +179,7 @@ private fun ShiftDayCell(
             .aspectRatio(1f)
             .padding(2.dp)
             .clip(shape)
-            .then(
-                if (day.dayInfo.halfDay) {
-                    // Half-day: top half is shift color, bottom half is darker shade
-                    Modifier.background(bgColor)
-                } else {
-                    Modifier.background(bgColor)
-                },
-            )
+            .background(bgColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -194,7 +188,7 @@ private fun ShiftDayCell(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxSize(0.5f)
+                    .fillMaxHeight(0.5f)
                     .align(Alignment.BottomCenter)
                     .background(
                         darkenColor(bgColor, 0.3f),

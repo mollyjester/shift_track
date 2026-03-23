@@ -70,6 +70,7 @@ import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.LeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.LocalDate
@@ -153,6 +154,12 @@ fun SettingsScreen(navController: NavController) {
             // ── Shift colors ─────────────────────────────────────────────────────
             SettingsSectionHeader("Shift Colors")
             ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
+
+            HorizontalDivider()
+
+            // ── Leave type colors ────────────────────────────────────────────────
+            SettingsSectionHeader("Leave Type Colors")
+            LeaveColorLegend()
 
             HorizontalDivider()
 
@@ -435,10 +442,24 @@ private fun LeaveBalancesCard(
                     balances.filter { it.totalDays > 0f || it.usedDays > 0f }.forEach { b ->
                         val label = b.leaveType.lowercase().replaceFirstChar { it.uppercase() }
                         val remaining = (b.totalDays - b.usedDays).coerceAtLeast(0f)
-                        Text(
-                            text = "$label: ${"%.0f".format(b.totalDays)} total · ${"%.1f".format(remaining)} left",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                        val leaveType = try { LeaveType.valueOf(b.leaveType) } catch (_: Exception) { null }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            if (leaveType != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(LeaveColors.color(leaveType)),
+                                )
+                            }
+                            Text(
+                                text = "$label: ${"%.0f".format(b.totalDays)} total · ${"%.1f".format(remaining)} left",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
@@ -570,6 +591,12 @@ private fun EditLeaveDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(LeaveColors.color(type)),
+                        )
                         Text(text = label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                         OutlinedButton(onClick = { if (daysState.floatValue > 0f) daysState.floatValue -= 1f }, enabled = daysState.floatValue > 0f) { Text("−") }
                         Text("${"%.0f".format(daysState.floatValue)}", style = MaterialTheme.typography.bodyLarge)
@@ -677,6 +704,30 @@ private fun ColorSettingsSection(onColorChange: (ShiftType, Long) -> Unit) {
                         },
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LeaveColorLegend() {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LeaveType.entries.forEach { type ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(LeaveColors.color(type))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                )
+                Text(
+                    text = LeaveColors.label(type),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         }
     }
