@@ -198,6 +198,16 @@ private fun BottomNav(navController: NavController, currentRoute: String?) {
 }
 
 private fun navigateDeepLink(navController: NavController, uri: Uri) {
+    // HTTPS links from GitHub Pages: extract token from query parameter
+    if (uri.scheme == "https" && uri.host == "mollyjester.github.io") {
+        val token = uri.getQueryParameter("token") ?: return
+        if (!token.matches(Regex("^[0-9a-fA-F\\-]{36}$"))) return
+        navController.navigate(Screen.InviteRedemption.createRoute(token)) {
+            launchSingleTop = true
+        }
+        return
+    }
+    // Custom scheme: shiftapp://day/{date} or shiftapp://invite/{token}
     when (uri.host) {
         "day" -> {
             val date = uri.pathSegments.firstOrNull() ?: return

@@ -257,7 +257,7 @@ class SettingsViewModelTest {
         viewModel.generateInvite()
         testScheduler.advanceUntilIdle()
 
-        assertEquals("shiftapp://invite/fake-token-123", viewModel.pendingInviteLink.value)
+        assertEquals("https://mollyjester.github.io/shift_track/invite.html?token=fake-token-123", viewModel.pendingInviteLink.value)
         assertNull(viewModel.uiState.value.error)
     }
 

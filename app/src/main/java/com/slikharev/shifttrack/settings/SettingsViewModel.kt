@@ -245,7 +245,7 @@ class SettingsViewModel @Inject constructor(
             _uiState.value = SettingsUiState(isSaving = true)
             try {
                 val token = inviteRepository.createInvite(uid, displayName)
-                _pendingInviteLink.value = "shiftapp://invite/$token"
+                _pendingInviteLink.value = "https://mollyjester.github.io/shift_track/invite.html?token=$token"
                 _uiState.value = SettingsUiState()
             } catch (e: Exception) {
                 _uiState.value = SettingsUiState(error = "Failed to generate invite: ${e.message}")

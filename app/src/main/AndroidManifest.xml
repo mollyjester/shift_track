@@ -23,12 +23,22 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Deep links -->
+            <!-- Deep links: custom scheme -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="shiftapp" />
+            </intent-filter>
+            <!-- Deep links: HTTPS (GitHub Pages invite redirect) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="mollyjester.github.io"
+                    android:pathPrefix="/shift_track/invite.html" />
             </intent-filter>
         </activity>
 
