@@ -52,12 +52,22 @@ service cloud.firestore {
              && after.hasAll([request.auth.uid]);
     }
 
+    // Returns true if a new user document contains only a spectators array
+    // with exactly the caller's own UID. (Fallback for invite redemption
+    // when the host document doesn't exist yet.)
+    function isNewDocWithOnlySelfAsSpectator() {
+      return request.resource.data.keys().hasOnly(["spectators"])
+             && request.resource.data.spectators.size() == 1
+             && request.resource.data.spectators.hasAll([request.auth.uid]);
+    }
+
     // ── Users ────────────────────────────────────────────────────────────────
 
     match /users/{uid} {
       // Owner: full access. Spectators: read-only.
       allow read:   if isOwner(uid) || isSpectator(uid);
-      allow create: if isOwner(uid);
+      allow create: if isOwner(uid)
+                    || (isSignedIn() && isNewDocWithOnlySelfAsSpectator());
       allow delete: if isOwner(uid);
 
       // Owner can update anything on their own document.

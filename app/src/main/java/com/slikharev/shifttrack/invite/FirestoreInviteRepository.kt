@@ -16,6 +16,10 @@ class FirestoreInviteRepository @Inject constructor(
 ) : InviteRepository {
 
     override suspend fun createInvite(hostUid: String, hostDisplayName: String): String {
+        // Ensure host user document exists so guests can append to spectators
+        firestore.collection(USERS).document(hostUid)
+            .set(emptyMap<String, Any>(), SetOptions.merge())
+            .await()
         val token = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         firestore.collection(INVITES).document(token).set(
