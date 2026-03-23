@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.auth.AuthRepository
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.auth.requireUserId
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
@@ -50,7 +51,7 @@ class SettingsViewModel @Inject constructor(
     private val widgetUpdater: ShiftWidgetUpdater,
 ) : ViewModel() {
 
-    private val uid get() = userSession.currentUserId.orEmpty()
+    private val uid get() = userSession.requireUserId()
     private val currentYear = LocalDate.now().year
 
     // ─── Persisted anchor ────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 package com.slikharev.shifttrack.sync
 
+import android.util.Log
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.remote.FirestoreUserDataSource
 import kotlinx.coroutines.flow.firstOrNull
@@ -33,6 +34,7 @@ class FcmTokenManager @Inject constructor(
         appDataStore.setPendingFcmToken(token)
         if (uid != null) {
             runCatching { firestoreUserDataSource.saveFcmToken(uid, token) }
+                .onFailure { Log.w(TAG, "Failed to upload FCM token", it) }
         }
     }
 
@@ -46,5 +48,10 @@ class FcmTokenManager @Inject constructor(
     suspend fun uploadPendingToken(uid: String) {
         val token = appDataStore.pendingFcmToken.firstOrNull() ?: return
         runCatching { firestoreUserDataSource.saveFcmToken(uid, token) }
+            .onFailure { Log.w(TAG, "Failed to upload pending FCM token", it) }
+    }
+
+    private companion object {
+        const val TAG = "FcmTokenManager"
     }
 }

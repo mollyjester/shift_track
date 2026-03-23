@@ -49,9 +49,8 @@ class AnnualResetUseCase @Inject constructor(
         if (leaveBalanceDao.getBalanceForYear(uid, currentYear) != null) return
 
         // Find the most recent prior year with a balance and copy its totalDays.
-        // Fall back to a sensible default (28 days) if this is a brand-new account.
         val previousBalance = leaveBalanceDao.getBalanceForYear(uid, previousYear)
-        val totalDays = previousBalance?.totalDays ?: DEFAULT_LEAVE_DAYS
+        val totalDays = previousBalance?.totalDays ?: appDataStore.defaultLeaveDays.first()
 
         leaveBalanceDao.upsert(
             LeaveBalanceEntity(
@@ -63,7 +62,5 @@ class AnnualResetUseCase @Inject constructor(
         )
     }
 
-    companion object {
-        const val DEFAULT_LEAVE_DAYS = 28f
-    }
+    companion object
 }

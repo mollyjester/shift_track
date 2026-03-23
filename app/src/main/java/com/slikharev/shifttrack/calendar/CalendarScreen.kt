@@ -135,7 +135,11 @@ private fun CalendarGrid(
                 week.forEach { cell ->
                     when (cell) {
                         CalendarDay.Empty -> {
-                            Box(modifier = Modifier.weight(1f).aspectRatio(1f))
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f),
+                            )
                         }
                         is CalendarDay.ShiftDay -> {
                             ShiftDayCell(

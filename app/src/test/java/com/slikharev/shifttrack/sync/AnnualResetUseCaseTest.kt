@@ -78,7 +78,7 @@ class AnnualResetUseCaseTest {
         assertTrue(result)
         val balance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
         assertNotNull(balance)
-        assertEquals(AnnualResetUseCase.DEFAULT_LEAVE_DAYS, balance!!.totalDays)
+        assertEquals(AppDataStore.DEFAULT_LEAVE_DAYS, balance!!.totalDays)
         assertEquals(0f, balance.usedDays)
         assertEquals(uid, balance.userId)
     }
@@ -164,7 +164,7 @@ class AnnualResetUseCaseTest {
 
             assertTrue(result)
             val balance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
-            assertEquals(AnnualResetUseCase.DEFAULT_LEAVE_DAYS, balance!!.totalDays)
+            assertEquals(AppDataStore.DEFAULT_LEAVE_DAYS, balance!!.totalDays)
         }
 
     // ── idempotency ───────────────────────────────────────────────────────────

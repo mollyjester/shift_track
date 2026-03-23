@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.auth.requireUserId
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
@@ -60,7 +61,7 @@ class DayDetailViewModel @Inject constructor(
             _error.value = null
             try {
                 shiftRepository.setManualOverride(
-                    userId = userSession.currentUserId.orEmpty(),
+                    userId = userSession.requireUserId(),
                     date = date,
                     shiftType = shiftType,
                 )
@@ -79,7 +80,7 @@ class DayDetailViewModel @Inject constructor(
             _error.value = null
             try {
                 shiftRepository.clearManualOverride(
-                    userId = userSession.currentUserId.orEmpty(),
+                    userId = userSession.requireUserId(),
                     date = date,
                 )
                 widgetUpdater.updateAll()
@@ -149,5 +150,9 @@ class DayDetailViewModel @Inject constructor(
                 _isSaving.value = false
             }
         }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 }

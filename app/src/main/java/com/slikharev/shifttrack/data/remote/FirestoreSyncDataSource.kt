@@ -24,43 +24,53 @@ import javax.inject.Singleton
 class FirestoreSyncDataSource @Inject constructor(
     private val firestore: FirebaseFirestore,
 ) {
-    /** Batch-writes a list of shift records for [uid]. */
+    /** Batch-writes a list of shift records for [uid], respecting Firestore's 500-op limit. */
     suspend fun syncShifts(uid: String, shifts: List<ShiftEntity>) {
         if (shifts.isEmpty()) return
-        val batch = firestore.batch()
-        shifts.forEach { entity ->
-            val ref = firestore
-                .collection("users").document(uid)
-                .collection("shifts").document(entity.date)
-            batch.set(ref, entity.toMap(), SetOptions.merge())
+        shifts.chunked(MAX_BATCH_SIZE).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { entity ->
+                val ref = firestore
+                    .collection("users").document(uid)
+                    .collection("shifts").document(entity.date)
+                batch.set(ref, entity.toMap(), SetOptions.merge())
+            }
+            batch.commit().await()
         }
-        batch.commit().await()
     }
 
-    /** Batch-writes a list of leave records for [uid]. */
+    /** Batch-writes a list of leave records for [uid], respecting Firestore's 500-op limit. */
     suspend fun syncLeaves(uid: String, leaves: List<LeaveEntity>) {
         if (leaves.isEmpty()) return
-        val batch = firestore.batch()
-        leaves.forEach { entity ->
-            val ref = firestore
-                .collection("users").document(uid)
-                .collection("leaves").document(entity.date)
-            batch.set(ref, entity.toMap(), SetOptions.merge())
+        leaves.chunked(MAX_BATCH_SIZE).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { entity ->
+                val ref = firestore
+                    .collection("users").document(uid)
+                    .collection("leaves").document(entity.date)
+                batch.set(ref, entity.toMap(), SetOptions.merge())
+            }
+            batch.commit().await()
         }
-        batch.commit().await()
     }
 
-    /** Batch-writes a list of overtime records for [uid]. */
+    /** Batch-writes a list of overtime records for [uid], respecting Firestore's 500-op limit. */
     suspend fun syncOvertimes(uid: String, overtimes: List<OvertimeEntity>) {
         if (overtimes.isEmpty()) return
-        val batch = firestore.batch()
-        overtimes.forEach { entity ->
-            val ref = firestore
-                .collection("users").document(uid)
-                .collection("overtime").document(entity.date)
-            batch.set(ref, entity.toMap(), SetOptions.merge())
+        overtimes.chunked(MAX_BATCH_SIZE).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { entity ->
+                val ref = firestore
+                    .collection("users").document(uid)
+                    .collection("overtime").document(entity.date)
+                batch.set(ref, entity.toMap(), SetOptions.merge())
+            }
+            batch.commit().await()
         }
-        batch.commit().await()
+    }
+
+    private companion object {
+        const val MAX_BATCH_SIZE = 500
     }
 
     // ── Serialisation helpers ─────────────────────────────────────────────────

@@ -1,6 +1,9 @@
 package com.slikharev.shifttrack.data.repository
 
+import androidx.room.withTransaction
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.auth.requireUserId
+import com.slikharev.shifttrack.data.local.db.ShiftTrackDatabase
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
@@ -23,11 +26,12 @@ import javax.inject.Singleton
  */
 @Singleton
 class OvertimeRepository @Inject constructor(
+    private val db: ShiftTrackDatabase,
     private val overtimeDao: OvertimeDao,
     private val overtimeBalanceDao: OvertimeBalanceDao,
     private val userSession: UserSession,
 ) {
-    private val uid get() = userSession.currentUserId.orEmpty()
+    private val uid get() = userSession.requireUserId()
 
     /** Reactive balance for [year] — null until the user records any overtime or sets a balance. */
     fun observeBalanceForYear(year: Int): Flow<OvertimeBalanceEntity?> =
@@ -47,22 +51,27 @@ class OvertimeRepository @Inject constructor(
      */
     suspend fun addOvertime(date: LocalDate, hours: Float, note: String? = null) {
         require(hours > 0f) { "Overtime hours must be positive" }
-        overtimeDao.upsert(
-            OvertimeEntity(
-                date = date.toString(),
-                hours = hours,
-                note = note,
-                userId = uid,
-                synced = false,
-            ),
-        )
-        refreshTotalHours(date.year)
+        val sanitizedNote = note?.take(MAX_NOTE_LENGTH)
+        db.withTransaction {
+            overtimeDao.upsert(
+                OvertimeEntity(
+                    date = date.toString(),
+                    hours = hours,
+                    note = sanitizedNote,
+                    userId = uid,
+                    synced = false,
+                ),
+            )
+            refreshTotalHours(date.year)
+        }
     }
 
     /** Removes overtime for [date] and recalculates the yearly total. */
     suspend fun removeOvertime(date: LocalDate) {
-        overtimeDao.deleteByDate(uid, date.toString())
-        refreshTotalHours(date.year)
+        db.withTransaction {
+            overtimeDao.deleteByDate(uid, date.toString())
+            refreshTotalHours(date.year)
+        }
     }
 
     /**
@@ -81,5 +90,9 @@ class OvertimeRepository @Inject constructor(
         } else {
             overtimeBalanceDao.update(existing.copy(totalHours = totalHours))
         }
+    }
+
+    companion object {
+        const val MAX_NOTE_LENGTH = 500
     }
 }

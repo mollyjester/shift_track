@@ -40,7 +40,7 @@ class FirestoreInviteRepository @Inject constructor(
             hostUid = snap.getString("hostUid") ?: "",
             hostDisplayName = snap.getString("hostDisplayName") ?: "",
             createdAt = snap.getLong("createdAt") ?: 0L,
-            expiresAt = snap.getLong("expiresAt") ?: 0L,
+            expiresAt = snap.getLong("expiresAt") ?: Long.MAX_VALUE,
             claimed = snap.getBoolean("claimed") ?: false,
             claimedBy = snap.getString("claimedBy"),
         )

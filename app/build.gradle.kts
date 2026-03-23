@@ -12,6 +12,15 @@ android {
     namespace = "com.slikharev.shifttrack"
     compileSdk = 35
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getProperty("user.home") + "/shifttrack-release.keystore")
+            storePassword = "shifttrack123"
+            keyAlias = "shifttrack"
+            keyPassword = "shifttrack123"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.slikharev.shifttrack"
         minSdk = 26
@@ -29,6 +38,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -43,6 +53,10 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
     }
 
     buildFeatures {

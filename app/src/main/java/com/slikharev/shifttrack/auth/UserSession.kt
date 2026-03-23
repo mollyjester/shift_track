@@ -7,3 +7,7 @@ package com.slikharev.shifttrack.auth
 interface UserSession {
     val currentUserId: String?
 }
+
+/** Returns the current user ID or throws if not authenticated. */
+fun UserSession.requireUserId(): String =
+    currentUserId ?: throw IllegalStateException("User not authenticated")

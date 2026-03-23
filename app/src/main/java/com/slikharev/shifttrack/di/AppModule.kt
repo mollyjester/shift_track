@@ -66,6 +66,7 @@ object AppModule {
     @Singleton
     fun provideShiftTrackDatabase(@ApplicationContext context: Context): ShiftTrackDatabase =
         Room.databaseBuilder(context, ShiftTrackDatabase::class.java, "shift_track.db")
+            .fallbackToDestructiveMigration()
             .build()
 
     @Provides

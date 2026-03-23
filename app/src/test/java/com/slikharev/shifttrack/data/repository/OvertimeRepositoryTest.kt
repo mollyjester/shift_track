@@ -1,10 +1,16 @@
 package com.slikharev.shifttrack.data.repository
 
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.db.ShiftTrackDatabase
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
+import androidx.room.withTransaction
+import io.mockk.coEvery
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -128,6 +134,7 @@ class OvertimeRepositoryTest {
     private val fakeUserSession = object : UserSession {
         override val currentUserId = "test-uid"
     }
+    private lateinit var mockDb: ShiftTrackDatabase
     private lateinit var overtimeDao: FakeOvertimeDao
     private lateinit var overtimeBalanceDao: FakeOvertimeBalanceDao
     private lateinit var repository: OvertimeRepository
@@ -138,7 +145,13 @@ class OvertimeRepositoryTest {
     fun setUp() {
         overtimeDao = FakeOvertimeDao()
         overtimeBalanceDao = FakeOvertimeBalanceDao()
-        repository = OvertimeRepository(overtimeDao, overtimeBalanceDao, fakeUserSession)
+        mockDb = mockk(relaxed = true)
+        mockkStatic("androidx.room.RoomDatabaseKt")
+        val transactionLambda = slot<suspend () -> Any?>()
+        coEvery { mockDb.withTransaction(capture(transactionLambda)) } coAnswers {
+            transactionLambda.captured.invoke()
+        }
+        repository = OvertimeRepository(mockDb, overtimeDao, overtimeBalanceDao, fakeUserSession)
     }
 
     // ─── addOvertime ─────────────────────────────────────────────────────────────

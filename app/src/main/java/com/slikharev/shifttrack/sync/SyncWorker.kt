@@ -48,10 +48,15 @@ class SyncWorker @AssistedInject constructor(
 
         return try {
             annualResetUseCase.runIfNeeded(uid)
-            syncShifts(uid)
-            syncLeaves(uid)
-            syncOvertimes(uid)
-            widgetUpdater.updateAll()
+            // Sync each entity type independently so one failure doesn't block others.
+            val failures = listOfNotNull(
+                runCatching { syncShifts(uid) }.exceptionOrNull(),
+                runCatching { syncLeaves(uid) }.exceptionOrNull(),
+                runCatching { syncOvertimes(uid) }.exceptionOrNull(),
+            )
+            // Widget update is non-critical — never fails the sync.
+            runCatching { widgetUpdater.updateAll() }
+            if (failures.isNotEmpty()) throw failures.first()
             Result.success()
         } catch (e: Exception) {
             if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()

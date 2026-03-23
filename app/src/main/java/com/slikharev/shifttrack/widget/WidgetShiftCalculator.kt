@@ -36,7 +36,11 @@ object WidgetShiftCalculator {
         if (anchorDateStr == null || anchorCycleIndex < 0) {
             return WidgetUiState(isConfigured = false, days = emptyList())
         }
-        val anchorDate = LocalDate.parse(anchorDateStr)
+        val anchorDate = try {
+            LocalDate.parse(anchorDateStr)
+        } catch (_: Exception) {
+            return WidgetUiState(isConfigured = false, days = emptyList())
+        }
         val days = (0 until dayCount).map { offset ->
             val date = today.plusDays(offset.toLong())
             val shiftType = CadenceEngine.shiftTypeForDate(date, anchorDate, anchorCycleIndex)

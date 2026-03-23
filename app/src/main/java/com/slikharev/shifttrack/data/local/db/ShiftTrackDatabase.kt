@@ -22,7 +22,7 @@ import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
         OvertimeBalanceEntity::class,
     ],
     version = 1,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class ShiftTrackDatabase : RoomDatabase() {
     abstract fun shiftDao(): ShiftDao

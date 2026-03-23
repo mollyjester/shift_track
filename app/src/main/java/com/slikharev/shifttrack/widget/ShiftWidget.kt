@@ -31,6 +31,7 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.ShiftColors
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
@@ -55,14 +56,18 @@ class ShiftWidget : GlanceAppWidget() {
     )
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val appDataStore = EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            ShiftWidgetEntryPoint::class.java,
-        ).appDataStore()
+        val widgetState = try {
+            val appDataStore = EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                ShiftWidgetEntryPoint::class.java,
+            ).appDataStore()
 
-        val anchorDateStr = appDataStore.anchorDate.firstOrNull()
-        val anchorCycleIndex = appDataStore.anchorCycleIndex.first()
-        val widgetState = WidgetShiftCalculator.compute(anchorDateStr, anchorCycleIndex)
+            val anchorDateStr = appDataStore.anchorDate.firstOrNull()
+            val anchorCycleIndex = appDataStore.anchorCycleIndex.first()
+            WidgetShiftCalculator.compute(anchorDateStr, anchorCycleIndex)
+        } catch (_: Exception) {
+            WidgetUiState(isConfigured = false, days = emptyList())
+        }
 
         provideContent {
             ShiftWidgetContent(widgetState)
@@ -203,7 +208,7 @@ private fun ShiftChip(shiftType: ShiftType, modifier: GlanceModifier = GlanceMod
         Text(
             text = shiftType.widgetLabel(),
             style = TextStyle(
-                color = ColorProvider(Color.White),
+                color = ColorProvider(shiftType.widgetOnColor()),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
@@ -226,21 +231,11 @@ private fun NotConfiguredContent() {
 
 // ── ShiftType → widget display ───────────────────────────────────────────────
 
-private fun ShiftType.widgetColor(): Color = when (this) {
-    ShiftType.DAY -> Color(0xFFFFC107)    // Amber — matches ShiftDayDefault
-    ShiftType.NIGHT -> Color(0xFF3F51B5)  // Indigo — matches ShiftNightDefault
-    ShiftType.REST -> Color(0xFF009688)   // Teal — matches ShiftRestDefault
-    ShiftType.OFF -> Color(0xFF9E9E9E)    // Grey — matches ShiftOffDefault
-    ShiftType.LEAVE -> Color(0xFF4CAF50)  // Green — matches LeaveVacationDefault
-}
+private fun ShiftType.widgetColor(): Color = ShiftColors.containerColor(this)
 
-private fun ShiftType.widgetLabel(): String = when (this) {
-    ShiftType.DAY -> "DAY"
-    ShiftType.NIGHT -> "NIGHT"
-    ShiftType.REST -> "REST"
-    ShiftType.OFF -> "OFF"
-    ShiftType.LEAVE -> "LEAVE"
-}
+private fun ShiftType.widgetOnColor(): Color = ShiftColors.onContainerColor(this)
+
+private fun ShiftType.widgetLabel(): String = ShiftColors.label(this).uppercase()
 
 // ── Receiver ─────────────────────────────────────────────────────────────────
 

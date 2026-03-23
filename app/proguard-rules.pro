@@ -17,3 +17,10 @@
 
 # Keep data classes used by Firestore
 -keep class com.slikharev.shifttrack.data.remote.** { *; }
+
+# WorkManager workers (HiltWorker + AssistedInject)
+-keep class * extends androidx.work.ListenableWorker { *; }
+
+# Glance widget receivers and providers
+-keep class * extends androidx.glance.appwidget.GlanceAppWidget { *; }
+-keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver { *; }

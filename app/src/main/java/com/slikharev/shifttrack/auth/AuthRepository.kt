@@ -86,11 +86,14 @@ open class AuthRepository @Inject constructor(
      */
     suspend fun deleteAccount() {
         val uid = currentUserId ?: return
-        // Delete the Firebase Auth account first. Throws if re-auth is needed,
-        // which means no local data has been touched yet.
-        firebaseAuth.currentUser?.delete()?.await()
-        // Auth deletion succeeded — clean up Firestore and local credentials.
+        val user = firebaseAuth.currentUser
+            ?: throw IllegalStateException("No current Firebase user")
+        // Delete Firestore data first — safe to orphan cloud data if auth
+        // deletion later fails, but losing auth with data still present
+        // would create unreachable records.
         runCatching { firestoreUserDataSource.deleteUserData(uid) }
+        // Delete the Firebase Auth account. Throws if re-auth is needed.
+        user.delete().await()
         encryptedPrefs.edit().clear().apply()
     }
 

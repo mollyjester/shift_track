@@ -8,7 +8,9 @@ import com.slikharev.shifttrack.data.remote.FirestoreUserDataSource
 import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,6 +44,8 @@ class FcmTokenManagerTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.w(any<String>(), any<String>(), any()) } returns 0
         dataStore = PreferenceDataStoreFactory.create(
             scope = CoroutineScope(testDispatcher),
             produceFile = { tempFolder.newFile("fcm_token_test_prefs.preferences_pb") },

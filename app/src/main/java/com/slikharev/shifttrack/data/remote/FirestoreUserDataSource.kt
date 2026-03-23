@@ -40,10 +40,11 @@ class FirestoreUserDataSource @Inject constructor(
     suspend fun deleteUserData(uid: String) {
         val userRef = firestore.collection("users").document(uid)
         for (sub in listOf("shifts", "leaves", "overtime")) {
-            val snapshot = userRef.collection(sub).get().await()
-            snapshot.documents.chunked(500).forEach { chunk ->
+            while (true) {
+                val snapshot = userRef.collection(sub).limit(500).get().await()
+                if (snapshot.isEmpty) break
                 val batch = firestore.batch()
-                chunk.forEach { batch.delete(it.reference) }
+                snapshot.documents.forEach { batch.delete(it.reference) }
                 batch.commit().await()
             }
         }

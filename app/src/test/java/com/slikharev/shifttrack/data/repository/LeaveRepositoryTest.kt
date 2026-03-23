@@ -1,11 +1,17 @@
 package com.slikharev.shifttrack.data.repository
 
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.db.ShiftTrackDatabase
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.LeaveEntity
 import com.slikharev.shifttrack.model.LeaveType
+import androidx.room.withTransaction
+import io.mockk.coEvery
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +36,7 @@ class LeaveRepositoryTest {
 
     private lateinit var fakeLeaveDao: FakeLeaveDao
     private lateinit var fakeLeaveBalanceDao: FakeLeaveBalanceDao
+    private lateinit var mockDb: ShiftTrackDatabase
     private lateinit var repository: LeaveRepository
 
     private val userSession = object : UserSession {
@@ -40,7 +47,13 @@ class LeaveRepositoryTest {
     fun setUp() {
         fakeLeaveDao = FakeLeaveDao()
         fakeLeaveBalanceDao = FakeLeaveBalanceDao()
-        repository = LeaveRepository(fakeLeaveDao, fakeLeaveBalanceDao, userSession)
+        mockDb = mockk(relaxed = true)
+        mockkStatic("androidx.room.RoomDatabaseKt")
+        val transactionLambda = slot<suspend () -> Any?>()
+        coEvery { mockDb.withTransaction(capture(transactionLambda)) } coAnswers {
+            transactionLambda.captured.invoke()
+        }
+        repository = LeaveRepository(mockDb, fakeLeaveDao, fakeLeaveBalanceDao, userSession)
     }
 
     // ── addLeave — storage ────────────────────────────────────────────────────
@@ -105,12 +118,14 @@ class LeaveRepositoryTest {
     }
 
     @Test
-    fun `addLeave does not fail and entry is stored when no balance row exists`() = runTest {
-        // No balance row — refreshUsedDays should be a no-op (early return)
+    fun `addLeave creates balance row when none exists`() = runTest {
+        // No balance row — refreshUsedDays should create one
         repository.addLeave(today, LeaveType.ANNUAL, halfDay = false, note = null)
 
         assertNotNull(fakeLeaveDao.getLeaveForDate(uid, today.toString()))
-        assertNull(fakeLeaveBalanceDao.getBalanceForYear(uid, today.year))
+        val balance = fakeLeaveBalanceDao.getBalanceForYear(uid, today.year)
+        assertNotNull(balance)
+        assertEquals(1.0f, balance!!.usedDays)
     }
 
     // ── removeLeave ───────────────────────────────────────────────────────────

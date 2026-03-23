@@ -48,6 +48,7 @@ Use this list when re-deploying ShiftTrack to a new Firebase project.
 | **Push notifications** | FCM token is stored and uploaded, but the server never sends shift-update notifications to spectators. | Spectators must open the app to see the latest data. |
 | **Multi-year leave history** | If the app is not opened for more than one year, intermediate years' leave data is not created. The new-year balance is created correctly from the most recent available year. | Leave history gap in the DB; no user impact if they don't query historical years. |
 | **Offline spectator view** | Spectator data is not cached locally; spectators cannot view the schedule while offline. | Acceptable for the current audience. |
+| **Database migrations** | Room version 1 with `fallbackToDestructiveMigration()`. Schema export enabled for future migration tooling but no written migrations exist yet. Adding columns requires a proper migration or accepts data loss. | Users lose local data on schema-breaking upgrades until migrations are added. |
 
 ---
 
@@ -69,8 +70,9 @@ When upgrading major dependencies:
 
 ### Room
 
-1. If the schema changes, add a migration in `AppDatabase.kt` or increment `exportSchema`.
-2. Run the Room migration tests (if any) before release.
+1. If the schema changes, add a migration in `AppModule.kt` (or a dedicated `Migrations.kt`). Schema JSON is exported to `app/schemas/`.
+2. Run `./gradlew testDebugUnitTest` and verify the new schema JSON is generated.
+3. Since `fallbackToDestructiveMigration()` is active, missing migrations wipe data — only acceptable during pre-release.
 
 ### Glance
 

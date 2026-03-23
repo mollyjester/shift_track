@@ -69,7 +69,10 @@ fun DayDetailScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(error) {
-        if (error != null) snackbarHostState.showSnackbar(error!!)
+        if (error != null) {
+            snackbarHostState.showSnackbar(error!!)
+            viewModel.clearError()
+        }
     }
 
     val dateFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())

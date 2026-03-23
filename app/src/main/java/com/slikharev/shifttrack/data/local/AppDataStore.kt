@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,7 @@ object PrefsKeys {
     val LAST_RESET_YEAR = intPreferencesKey("last_reset_year")
     // Phase 2.10: FCM registration token (persisted so it survives sign-in)
     val FCM_TOKEN = stringPreferencesKey("fcm_token")
+    val DEFAULT_LEAVE_DAYS = floatPreferencesKey("default_leave_days")
 }
 
 /**
@@ -53,6 +55,13 @@ class AppDataStore @Inject constructor(
     val pendingFcmToken: Flow<String?> = dataStore.data
         .map { prefs -> prefs[PrefsKeys.FCM_TOKEN] }
 
+    val defaultLeaveDays: Flow<Float> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.DEFAULT_LEAVE_DAYS] ?: DEFAULT_LEAVE_DAYS }
+
+    suspend fun setDefaultLeaveDays(days: Float) {
+        dataStore.edit { it[PrefsKeys.DEFAULT_LEAVE_DAYS] = days }
+    }
+
     suspend fun setOnboardingComplete(complete: Boolean) {
         dataStore.edit { it[PrefsKeys.ONBOARDING_COMPLETE] = complete }
     }
@@ -77,5 +86,9 @@ class AppDataStore @Inject constructor(
 
     suspend fun clearAll() {
         dataStore.edit { it.clear() }
+    }
+
+    companion object {
+        const val DEFAULT_LEAVE_DAYS = 28f
     }
 }

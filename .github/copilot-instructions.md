@@ -60,11 +60,16 @@ Min SDK 26 · Target/Compile SDK 35 · Kotlin 2.0.21 · Java 17
 
 ## Key Gotchas
 
-- **Database schema**: version 1, `exportSchema=false` — no Room migrations exist yet. Adding columns requires a migration or destructive fallback.
-- **Firestore sync**: fire-and-forget writes. Conflict resolution is last-write-wins by date key.
-- **Widget updates**: `ShiftWidgetUpdater.updateAll()` must be called after every local data mutation and settings change.
+- **Database schema**: version 1, `exportSchema=true`, schema JSON exported to `app/schemas/`. `fallbackToDestructiveMigration()` is active — no manual migrations exist yet.
+- **Firestore sync**: fire-and-forget writes. Conflict resolution is last-write-wins by date key. Batch writes are chunked to 500 operations.
+- **Widget updates**: `ShiftWidgetUpdater.updateAll()` must be called after every local data mutation and settings change. Widget errors are swallowed.
 - **Invite validation**: currently client-side only (known limitation — migrate to Cloud Function).
 - **5-day shift cycle**: hardcoded as [DAY, DAY, NIGHT, REST, OFF] in `CadenceEngine`. Anchor date + cycle index determine all shifts.
+- **User authentication**: `UserSession.requireUserId()` throws `IllegalStateException` if no user is signed in — all repository methods use this instead of `orEmpty()`.
+- **Transactions**: `LeaveRepository` and `OvertimeRepository` wrap mutations in `db.withTransaction` for atomicity.
+- **Input limits**: Leave/overtime notes are truncated to 500 characters.
+- **Default leave days**: configurable via `AppDataStore.defaultLeaveDays` (default 28 days), used by `AnnualResetUseCase`.
+- **Deep links**: `shiftapp://day/{date}` and `shiftapp://invite/{token}` are validated (ISO date format and UUID format) before navigation.
 
 ## Documentation
 

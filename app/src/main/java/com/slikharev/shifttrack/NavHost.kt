@@ -109,7 +109,10 @@ fun ShiftTrackNavHost() {
                 arguments = listOf(navArgument("date") { type = NavType.StringType }),
                 deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://day/{date}" })
             ) { backStackEntry ->
-                if (backStackEntry.arguments?.getString("date") == null) return@composable
+                val dateStr = backStackEntry.arguments?.getString("date") ?: return@composable
+                // Validate ISO-8601 date format before navigating
+                val validDate = dateStr.matches(Regex("^\\d{4}-\\d{2}-\\d{2}$"))
+                if (!validDate) return@composable
                 DayDetailScreen(navController = navController)
             }
             composable(
@@ -118,6 +121,9 @@ fun ShiftTrackNavHost() {
                 deepLinks = listOf(navDeepLink { uriPattern = "shiftapp://invite/{token}" })
             ) { backStackEntry ->
                 val token = backStackEntry.arguments?.getString("token") ?: return@composable
+                // Validate UUID token format
+                val validToken = token.matches(Regex("^[0-9a-fA-F\\-]{36}$"))
+                if (!validToken) return@composable
                 InviteRedemptionScreen(token = token, navController = navController)
             }
         }

@@ -1,6 +1,7 @@
 package com.slikharev.shifttrack.data.repository
 
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.auth.requireUserId
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
@@ -10,8 +11,10 @@ import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.ShiftType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -37,8 +40,9 @@ class ShiftRepository @Inject constructor(
      *
      * Emits an empty list if the anchor is not configured yet (anchorCycleIndex == -1).
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     fun getDayInfosForRange(startDate: LocalDate, endDate: LocalDate): Flow<List<DayInfo>> {
+        require(!startDate.isAfter(endDate)) { "startDate must not be after endDate" }
         val startStr = startDate.toString()
         val endStr = endDate.toString()
 
@@ -46,6 +50,7 @@ class ShiftRepository @Inject constructor(
             appDataStore.anchorDate,
             appDataStore.anchorCycleIndex,
         ) { anchorDateStr, cycleIndex -> anchorDateStr to cycleIndex }
+            .debounce(100)
             .flatMapLatest { (anchorDateStr, cycleIndex) ->
                 if (anchorDateStr == null || cycleIndex < 0) {
                     return@flatMapLatest flowOf(emptyList())
@@ -58,19 +63,20 @@ class ShiftRepository @Inject constructor(
                     anchorCycleIndex = cycleIndex,
                 )
 
+                val uid = userSession.requireUserId()
                 combine(
                     shiftDao.getShiftsForRange(
-                        userId = userSession.currentUserId.orEmpty(),
+                        userId = uid,
                         startDate = startStr,
                         endDate = endStr,
                     ),
                     leaveDao.getLeavesForRange(
-                        userId = userSession.currentUserId.orEmpty(),
+                        userId = uid,
                         startDate = startStr,
                         endDate = endStr,
                     ),
                     overtimeDao.getOvertimeForRange(
-                        userId = userSession.currentUserId.orEmpty(),
+                        userId = uid,
                         startDate = startStr,
                         endDate = endStr,
                     ),
