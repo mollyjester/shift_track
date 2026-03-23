@@ -1,5 +1,6 @@
 package com.slikharev.shifttrack.widget
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -7,8 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -21,6 +25,7 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxHeight
@@ -28,19 +33,19 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.slikharev.shifttrack.R
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.ShiftColorConfig
 import com.slikharev.shifttrack.ui.ShiftColors
 import dagger.hilt.android.EntryPointAccessors
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -52,7 +57,8 @@ private val WIDE_THRESHOLD = 200.dp
  * in a row (wide) with a gear button to open widget configuration.
  *
  * Uses [SizeMode.Exact] so [LocalSize] reflects the real widget dimensions.
- * Data is read from [AppDataStore] via a Hilt [EntryPoint] at render time.
+ * All preferences are read in a single atomic [AppDataStore.readWidgetSnapshot]
+ * call to avoid stale/mixed values.
  * Call [ShiftWidgetUpdater.updateAll] to force a re-render when data changes.
  */
 class ShiftWidget : GlanceAppWidget() {
@@ -69,41 +75,38 @@ class ShiftWidget : GlanceAppWidget() {
             null
         }
 
-        // Always compute max days; rendering takes what it needs.
-        val widgetState = try {
-            val anchorDateStr = appDataStore!!.anchorDate.firstOrNull()
-            val anchorCycleIndex = appDataStore.anchorCycleIndex.first()
+        // Read ALL widget-related preferences in a single atomic snapshot.
+        val snap = try {
+            appDataStore!!.readWidgetSnapshot()
+        } catch (_: Exception) {
+            null
+        }
+
+        val widgetState = if (snap != null) {
             WidgetShiftCalculator.compute(
-                anchorDateStr, anchorCycleIndex,
+                snap.anchorDate, snap.anchorCycleIndex,
                 dayCount = AppDataStore.MAX_WIDGET_DAYS,
             )
-        } catch (_: Exception) {
+        } else {
             WidgetUiState(isConfigured = false, days = emptyList())
         }
 
-        val bgColorArgb = appDataStore?.widgetBgColor?.firstOrNull()
-        val transparency = appDataStore?.widgetTransparency?.first() ?: AppDataStore.DEFAULT_WIDGET_TRANSPARENCY
-        val dayCount = appDataStore?.widgetDayCount?.first() ?: AppDataStore.DEFAULT_WIDGET_DAY_COUNT
+        val dayCount = snap?.dayCount ?: AppDataStore.DEFAULT_WIDGET_DAY_COUNT
+        val transparency = snap?.transparency ?: AppDataStore.DEFAULT_WIDGET_TRANSPARENCY
 
-        val bgColor = if (bgColorArgb != null) {
-            Color(bgColorArgb.toInt()).copy(alpha = transparency)
+        val bgColor = if (snap?.bgColor != null) {
+            Color(snap.bgColor.toInt()).copy(alpha = transparency)
         } else {
             Color(0xFFF8FDFF.toInt()).copy(alpha = transparency)
         }
 
-        // Read user-configured shift-type colors
-        val colorConfig = if (appDataStore != null) {
-            val cDay = appDataStore.colorDay.firstOrNull()
-            val cNight = appDataStore.colorNight.firstOrNull()
-            val cRest = appDataStore.colorRest.firstOrNull()
-            val cOff = appDataStore.colorOff.firstOrNull()
-            val cLeave = appDataStore.colorLeave.firstOrNull()
+        val colorConfig = if (snap != null) {
             ShiftColorConfig(
-                dayColor = cDay?.let { Color(it.toInt()) } ?: ShiftColors.Day,
-                nightColor = cNight?.let { Color(it.toInt()) } ?: ShiftColors.Night,
-                restColor = cRest?.let { Color(it.toInt()) } ?: ShiftColors.Rest,
-                offColor = cOff?.let { Color(it.toInt()) } ?: ShiftColors.Off,
-                leaveColor = cLeave?.let { Color(it.toInt()) } ?: ShiftColors.Leave,
+                dayColor = snap.colorDay?.let { Color(it.toInt()) } ?: ShiftColors.Day,
+                nightColor = snap.colorNight?.let { Color(it.toInt()) } ?: ShiftColors.Night,
+                restColor = snap.colorRest?.let { Color(it.toInt()) } ?: ShiftColors.Rest,
+                offColor = snap.colorOff?.let { Color(it.toInt()) } ?: ShiftColors.Off,
+                leaveColor = snap.colorLeave?.let { Color(it.toInt()) } ?: ShiftColors.Leave,
             )
         } else {
             ShiftColorConfig()
@@ -218,24 +221,27 @@ private fun WideContent(
 private fun GearButton() {
     Box(
         modifier = GlanceModifier
-            .width(24.dp)
+            .width(28.dp)
             .fillMaxHeight()
             .clickable(
-                actionStartActivity(Intent().apply {
-                    setClassName(
-                        "com.slikharev.shifttrack",
-                        "com.slikharev.shifttrack.widget.WidgetConfigActivity",
-                    )
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }),
+                actionStartActivity(
+                    Intent().apply {
+                        component = ComponentName(
+                            "com.slikharev.shifttrack",
+                            "com.slikharev.shifttrack.widget.WidgetConfigActivity",
+                        )
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    },
+                ),
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = "⚙",
-            style = TextStyle(
-                fontSize = 16.sp,
-            ),
+        Image(
+            provider = ImageProvider(R.drawable.ic_widget_settings),
+            contentDescription = "Widget settings",
+            modifier = GlanceModifier.size(18.dp),
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(WidgetSubLabel),
         )
     }
 }

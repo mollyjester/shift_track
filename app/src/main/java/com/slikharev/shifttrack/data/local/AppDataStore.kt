@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -128,6 +129,42 @@ class AppDataStore @Inject constructor(
     suspend fun setWidgetDayCount(count: Int) {
         dataStore.edit { it[PrefsKeys.WIDGET_DAY_COUNT] = count.coerceIn(MIN_WIDGET_DAYS, MAX_WIDGET_DAYS) }
     }
+
+    // ── Atomic snapshot for widget rendering ─────────────────────────────────────
+
+    /**
+     * Reads all widget-related preferences in a single [DataStore] access,
+     * guaranteeing a consistent snapshot. Use this in [provideGlance] instead of
+     * multiple separate [Flow.first] calls.
+     */
+    suspend fun readWidgetSnapshot(): WidgetSnapshot {
+        val prefs = dataStore.data.first()
+        return WidgetSnapshot(
+            anchorDate = prefs[PrefsKeys.ANCHOR_DATE],
+            anchorCycleIndex = prefs[PrefsKeys.ANCHOR_CYCLE_INDEX] ?: -1,
+            bgColor = prefs[PrefsKeys.WIDGET_BG_COLOR],
+            transparency = prefs[PrefsKeys.WIDGET_TRANSPARENCY] ?: DEFAULT_WIDGET_TRANSPARENCY,
+            dayCount = prefs[PrefsKeys.WIDGET_DAY_COUNT] ?: DEFAULT_WIDGET_DAY_COUNT,
+            colorDay = prefs[PrefsKeys.COLOR_DAY],
+            colorNight = prefs[PrefsKeys.COLOR_NIGHT],
+            colorRest = prefs[PrefsKeys.COLOR_REST],
+            colorOff = prefs[PrefsKeys.COLOR_OFF],
+            colorLeave = prefs[PrefsKeys.COLOR_LEAVE],
+        )
+    }
+
+    data class WidgetSnapshot(
+        val anchorDate: String?,
+        val anchorCycleIndex: Int,
+        val bgColor: Long?,
+        val transparency: Float,
+        val dayCount: Int,
+        val colorDay: Long?,
+        val colorNight: Long?,
+        val colorRest: Long?,
+        val colorOff: Long?,
+        val colorLeave: Long?,
+    )
 
     companion object {
         const val DEFAULT_LEAVE_DAYS = 28f
