@@ -49,7 +49,7 @@ object WidgetShiftCalculator {
                 1 -> "Tomorrow"
                 else -> date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
             }
-            WidgetDayInfo(date = date, shiftType = shiftType, label = label)
+            WidgetDayInfo(date = date, shiftType = shiftType, label = label, isToday = offset == 0)
         }
         return WidgetUiState(isConfigured = true, days = days)
     }

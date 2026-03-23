@@ -20,4 +20,5 @@ data class WidgetDayInfo(
     val shiftType: ShiftType,
     /** Human-friendly label: "Today", "Tomorrow", or a short weekday name. */
     val label: String,
+    val isToday: Boolean = false,
 )
