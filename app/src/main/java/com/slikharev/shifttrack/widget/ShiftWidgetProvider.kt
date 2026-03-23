@@ -5,11 +5,8 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
-import android.text.SpannableString
-import android.text.style.StyleSpan
 import android.view.View
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.Color
@@ -211,24 +208,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                     if (i < days.size) {
                         val dayInfo = days[i]
                         views.setViewVisibility(slot.root, View.VISIBLE)
-
-                        // Label — bold if today
-                        val labelText: CharSequence = if (dayInfo.isToday) {
-                            SpannableString(dayInfo.label).apply {
-                                setSpan(StyleSpan(Typeface.BOLD), 0, length, 0)
-                            }
-                        } else {
-                            dayInfo.label
-                        }
-                        views.setTextViewText(slot.label, labelText)
-
-                        // Label color — inverted shift color for today
-                        val labelColor = if (dayInfo.isToday) {
-                            colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
-                        } else {
-                            0xFF43474E.toInt()
-                        }
-                        views.setTextColor(slot.label, labelColor)
+                        views.setViewVisibility(slot.label, View.GONE)
 
                         // Shift chip
                         views.setTextViewText(

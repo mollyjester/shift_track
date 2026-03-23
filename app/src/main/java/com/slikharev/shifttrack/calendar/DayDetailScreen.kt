@@ -67,6 +67,7 @@ fun DayDetailScreen(navController: NavController) {
     val overtimeEntry by viewModel.overtimeEntry.collectAsStateWithLifecycle()
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val isSpectator by viewModel.isSpectator.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -105,6 +106,7 @@ fun DayDetailScreen(navController: NavController) {
                 dayInfo = dayInfo!!,
                 overtimeEntry = overtimeEntry,
                 isSaving = isSaving,
+                isSpectator = isSpectator,
                 onOverride = { viewModel.setManualOverride(it) },
                 onClearOverride = viewModel::clearManualOverride,
                 onAddLeave = viewModel::addLeave,
@@ -123,6 +125,7 @@ private fun DayDetailContent(
     dayInfo: DayInfo,
     overtimeEntry: OvertimeEntity?,
     isSaving: Boolean,
+    isSpectator: Boolean,
     onOverride: (ShiftType) -> Unit,
     onClearOverride: () -> Unit,
     onAddLeave: (LeaveType, Boolean, String?) -> Unit,
@@ -143,50 +146,58 @@ private fun DayDetailContent(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Shift type card
+        // Shift type card (always visible)
         ShiftTypeCard(shiftType = dayInfo.shiftType, isManualOverride = dayInfo.isManualOverride)
 
-        // Note section
-        NoteSection(
-            noteText = noteText,
-            isSaving = isSaving,
-            onNoteChange = { noteText = it },
-            onSave = { onSaveNote(noteText.takeIf { it.isNotBlank() }) },
-        )
+        if (isSpectator) {
+            Text(
+                text = "Spectator mode — calendar is read-only",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            // Note section
+            NoteSection(
+                noteText = noteText,
+                isSaving = isSaving,
+                onNoteChange = { noteText = it },
+                onSave = { onSaveNote(noteText.takeIf { it.isNotBlank() }) },
+            )
 
-        // Manual override section
-        OverrideSection(
-            currentType = dayInfo.shiftType,
-            isManualOverride = dayInfo.isManualOverride,
-            isSaving = isSaving,
-            showMenu = showOverrideMenu,
-            onToggleMenu = { showOverrideMenu = !showOverrideMenu },
-            onDismissMenu = { showOverrideMenu = false },
-            onOverride = { type ->
-                showOverrideMenu = false
-                onOverride(type)
-            },
-            onClearOverride = onClearOverride,
-        )
+            // Manual override section
+            OverrideSection(
+                currentType = dayInfo.shiftType,
+                isManualOverride = dayInfo.isManualOverride,
+                isSaving = isSaving,
+                showMenu = showOverrideMenu,
+                onToggleMenu = { showOverrideMenu = !showOverrideMenu },
+                onDismissMenu = { showOverrideMenu = false },
+                onOverride = { type ->
+                    showOverrideMenu = false
+                    onOverride(type)
+                },
+                onClearOverride = onClearOverride,
+            )
 
-        // Leave section
-        LeaveSection(
-            hasLeave = dayInfo.hasLeave,
-            isSaving = isSaving,
-            onAddLeaveClick = { showLeaveDialog = true },
-            onRemoveLeave = onRemoveLeave,
-        )
+            // Leave section
+            LeaveSection(
+                hasLeave = dayInfo.hasLeave,
+                isSaving = isSaving,
+                onAddLeaveClick = { showLeaveDialog = true },
+                onRemoveLeave = onRemoveLeave,
+            )
 
-        // Overtime section
-        OvertimeSection(
-            overtimeEntry = overtimeEntry,
-            isSaving = isSaving,
-            onAddOvertimeClick = { showOvertimeDialog = true },
-            onRemoveOvertime = onRemoveOvertime,
-        )
+            // Overtime section
+            OvertimeSection(
+                overtimeEntry = overtimeEntry,
+                isSaving = isSaving,
+                onAddOvertimeClick = { showOvertimeDialog = true },
+                onRemoveOvertime = onRemoveOvertime,
+            )
+        }
     }
 
-    if (showLeaveDialog) {
+    if (!isSpectator && showLeaveDialog) {
         AddLeaveDialog(
             onConfirm = { leaveType, halfDay ->
                 showLeaveDialog = false
@@ -196,7 +207,7 @@ private fun DayDetailContent(
         )
     }
 
-    if (showOvertimeDialog) {
+    if (!isSpectator && showOvertimeDialog) {
         AddOvertimeDialog(
             onConfirm = { hours ->
                 showOvertimeDialog = false

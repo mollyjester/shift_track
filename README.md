@@ -14,9 +14,10 @@ A personal shift-scheduling app for rotating-shift workers. ShiftTrack automatic
 6. [Customising Colors](#customising-colors)
 7. [Home-Screen Widget](#home-screen-widget)
 8. [Sharing Your Schedule](#sharing-your-schedule)
-9. [Offline Use & Sync](#offline-use--sync)
-10. [Troubleshooting](#troubleshooting)
-11. [For Developers](#for-developers)
+9. [Spectator Mode](#spectator-mode)
+10. [Offline Use & Sync](#offline-use--sync)
+11. [Troubleshooting](#troubleshooting)
+12. [For Developers](#for-developers)
 
 ---
 
@@ -71,6 +72,10 @@ The **Home** tab gives you a quick overview:
 ## Calendar
 
 The **Calendar** tab shows a full month with each day colour-coded by shift type. Tap any day to open the **Day Detail** screen.
+
+- **Half-day leave** is shown as a split cell — the top half displays the shift colour and the bottom half uses a darker shade of the same colour.
+- **Leave type indicators** appear as coloured dots on days with full-day leave, using the leave type's designated colour (Annual = green, Sick = red, Personal = blue, Unpaid = orange, Other = purple).
+- The **legend** below the calendar shows both shift types and leave types with large, easy-to-read colour circles.
 
 On the Day Detail screen you can:
 
@@ -134,6 +139,8 @@ ShiftTrack includes a home-screen widget that shows your upcoming shifts.
 | 2×2 | Today's shift |
 | 4×2 | Upcoming days (1–7, configurable) |
 
+The widget shows shift type chips only — day labels are omitted since the first day is always today, the second is tomorrow, and so on.
+
 **Setup:** Long-press an empty area of your home screen → Widgets → ShiftTrack. Drag the widget to your home screen. A configuration screen appears where you can set the background color, transparency, and number of days.
 
 **Reconfigure:** Long-press the widget → tap the pencil (Reconfigure) icon → adjust settings → tap **Done** to save and return to the home screen.
@@ -163,6 +170,14 @@ The link expires after **7 days** and can only be used once.
 3. Tap **Accept** to get read-only access to their schedule.
 
 A viewer (spectator) can see the full calendar, dashboard, and all entries but cannot modify anything.
+
+---
+
+## Spectator Mode
+
+During onboarding, toggle **Spectator Only** to skip shift anchor and leave setup. In spectator mode the calendar is read-only — the Day Detail screen shows shift information but hides all editing controls (override, leave, overtime, notes).
+
+Spectator mode is persisted in app preferences and applies until changed.
 
 ---
 
@@ -211,4 +226,4 @@ See the [docs/](docs/) folder for technical documentation:
 ./gradlew assembleRelease        # Build release APK
 ```
 
-Min SDK 26 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose
+Min SDK 34 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose

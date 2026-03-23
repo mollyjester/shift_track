@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -33,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,7 +43,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.slikharev.shifttrack.Screen
+import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.LeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.format.DateTimeFormatter
@@ -98,8 +103,9 @@ fun CalendarScreen(navController: NavController) {
                     navController.navigate(Screen.DayDetail.createRoute(date.toString()))
                 },
             )
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
             ShiftLegend()
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
@@ -162,8 +168,9 @@ private fun ShiftDayCell(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val bgColor = LocalShiftColors.current.containerColor(day.shiftType)
-    val contentColor = LocalShiftColors.current.onContainerColor(day.shiftType)
+    val colors = LocalShiftColors.current
+    val bgColor = colors.containerColor(day.shiftType)
+    val contentColor = colors.onContainerColor(day.shiftType)
     val shape = RoundedCornerShape(8.dp)
 
     Box(
@@ -171,11 +178,32 @@ private fun ShiftDayCell(
             .aspectRatio(1f)
             .padding(2.dp)
             .clip(shape)
-            .background(bgColor)
+            .then(
+                if (day.dayInfo.halfDay) {
+                    // Half-day: top half is shift color, bottom half is darker shade
+                    Modifier.background(bgColor)
+                } else {
+                    Modifier.background(bgColor)
+                },
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        // Today indicator: inner square at half the cell size
+        // Half-day: darker bottom half
+        if (day.dayInfo.halfDay) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxSize(0.5f)
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        darkenColor(bgColor, 0.3f),
+                        RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
+                    ),
+            )
+        }
+
+        // Today indicator
         if (day.isToday) {
             Box(
                 modifier = Modifier
@@ -183,6 +211,7 @@ private fun ShiftDayCell(
                     .border(2.dp, contentColor, RoundedCornerShape(4.dp)),
             )
         }
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = day.date.dayOfMonth.toString(),
@@ -190,7 +219,15 @@ private fun ShiftDayCell(
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Normal,
             )
-            if (day.dayInfo.hasLeave) {
+            // Leave type indicator (non-half-day leaves show leave type color dot)
+            if (day.dayInfo.hasLeave && !day.dayInfo.halfDay && day.dayInfo.leaveType != null) {
+                Spacer(modifier = Modifier.height(1.dp))
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .background(LeaveColors.color(day.dayInfo.leaveType!!), CircleShape),
+                )
+            } else if (day.dayInfo.hasLeave) {
                 Spacer(modifier = Modifier.height(1.dp))
                 Box(
                     modifier = Modifier
@@ -202,35 +239,55 @@ private fun ShiftDayCell(
     }
 }
 
+/** Darkens a color by reducing brightness by the given [factor] (0..1). */
+private fun darkenColor(color: Color, factor: Float): Color {
+    return Color(
+        red = (color.red * (1f - factor)).coerceIn(0f, 1f),
+        green = (color.green * (1f - factor)).coerceIn(0f, 1f),
+        blue = (color.blue * (1f - factor)).coerceIn(0f, 1f),
+        alpha = color.alpha,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ShiftLegend() {
-    Row(
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         ShiftType.entries.forEach { type ->
-            LegendChip(type = type)
+            LegendChip(
+                color = LocalShiftColors.current.containerColor(type),
+                label = ShiftColors.label(type),
+            )
+        }
+        LeaveType.entries.forEach { type ->
+            LegendChip(
+                color = LeaveColors.color(type),
+                label = LeaveColors.label(type),
+            )
         }
     }
 }
 
 @Composable
-private fun LegendChip(type: ShiftType) {
+private fun LegendChip(color: Color, label: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(10.dp)
-                .background(LocalShiftColors.current.containerColor(type), CircleShape),
+                .size(30.dp)
+                .background(color, CircleShape),
         )
         Text(
-            text = ShiftColors.label(type),
-            style = MaterialTheme.typography.labelSmall,
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }

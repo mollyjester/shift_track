@@ -125,6 +125,7 @@ class OnboardingViewModel @Inject constructor(
                     appDataStore.setLastResetYear(year)
                 }
 
+                appDataStore.setSpectatorMode(state.spectatorOnly)
                 appDataStore.setOnboardingComplete(true)
 
                 _uiState.update { it.copy(isSaving = false) }

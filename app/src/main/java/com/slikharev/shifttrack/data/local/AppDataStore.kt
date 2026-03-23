@@ -35,6 +35,8 @@ object PrefsKeys {
     val WIDGET_BG_COLOR = longPreferencesKey("widget_bg_color")
     val WIDGET_TRANSPARENCY = floatPreferencesKey("widget_transparency")
     val WIDGET_DAY_COUNT = intPreferencesKey("widget_day_count")
+    // Spectator mode: calendar is view-only, no editing
+    val SPECTATOR_MODE = booleanPreferencesKey("spectator_mode")
 }
 
 /**
@@ -128,6 +130,15 @@ class AppDataStore @Inject constructor(
 
     suspend fun setWidgetDayCount(count: Int) {
         dataStore.edit { it[PrefsKeys.WIDGET_DAY_COUNT] = count.coerceIn(MIN_WIDGET_DAYS, MAX_WIDGET_DAYS) }
+    }
+
+    // ── Spectator mode ───────────────────────────────────────────────────────────
+
+    val spectatorMode: Flow<Boolean> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.SPECTATOR_MODE] ?: false }
+
+    suspend fun setSpectatorMode(enabled: Boolean) {
+        dataStore.edit { it[PrefsKeys.SPECTATOR_MODE] = enabled }
     }
 
     // ── Atomic snapshot for widget rendering ─────────────────────────────────────

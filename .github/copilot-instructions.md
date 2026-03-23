@@ -28,7 +28,7 @@ See [docs/architecture.md](docs/architecture.md) for data flow details, sync str
 | `widget/` | RemoteViews-based home-screen widget |
 | `model/` | Shared enums and UI models (`ShiftType`, `LeaveType`, `DayInfo`) |
 | `di/` | Hilt modules (`AppModule`, `AuthModule`, `InviteModule`) |
-| `ui/` | Theme, colors, shared composables, `ShiftColorConfig` + `LocalShiftColors` |
+| `ui/` | Theme, colors, shared composables, `ShiftColorConfig` + `LocalShiftColors`, `LeaveColors` |
 
 ## Build & Test
 
@@ -63,7 +63,10 @@ Min SDK 34 · Target/Compile SDK 35 · Kotlin 2.0.21 · Java 17
 - **Database schema**: version 2, `exportSchema=true`, schema JSON exported to `app/schemas/`. `fallbackToDestructiveMigration()` is active — no manual migrations exist yet. v1.1 added `leave_type` column to `leave_balance` with unique index `(year, user_id, leave_type)`.
 - **Per-category leave**: Leave balances are stored per leave type per year. `LeaveRepository.refreshUsedDays()` calculates used days per category. `AnnualResetUseCase` carries over each category independently.
 - **Configurable colors**: Per-shift-type colors stored as `Long` (ARGB) in `AppDataStore`, provided via `LocalShiftColors` (`CompositionLocal`). Widget reads user-configured colors from `AppDataStore` at render time. Colors are selected via an HSV color picker (Hue/Saturation/Brightness sliders).
-- **Widget configuration**: Background color (`Long` ARGB), transparency (`Float` 0–1), and day count (`Int` 1–7) stored in `AppDataStore`. Applied in `ShiftWidgetProvider.updateSingleWidget()`. Widget configuration is accessed via the system's long-press → Reconfigure menu (`widgetFeatures="reconfigurable"` in `shift_widget_info.xml`). `WidgetConfigActivity` is a full-screen Compose activity with a "Done" button that returns the user to the home screen.
+- **Widget configuration**: Background color (`Long` ARGB), transparency (`Float` 0–1), and day count (`Int` 1–7) stored in `AppDataStore`. Applied in `ShiftWidgetProvider.updateSingleWidget()`. Widget configuration is accessed via the system's long-press → Reconfigure menu (`widgetFeatures="reconfigurable"` in `shift_widget_info.xml`). `WidgetConfigActivity` is a full-screen Compose activity with a "Done" button that returns the user to the home screen. Widget day labels are hidden — the first day is always today, second is tomorrow, etc.
+- **Spectator mode**: `spectator_mode` boolean preference in `AppDataStore`. Set during onboarding via "Spectator Only" toggle. `DayDetailViewModel.isSpectator` StateFlow drives UI — `DayDetailScreen` hides all editing controls when true.
+- **Half-day leave rendering**: `DayInfo.halfDay` and `DayInfo.leaveType` are populated from `LeaveEntity` by `ShiftRepository`. Calendar cells render half-day as split background (top = shift color, bottom = 30% darker). Half-day leaves keep the original shift type rather than LEAVE.
+- **Leave type colors**: `LeaveColors` object maps each `LeaveType` to a fixed color. Calendar legend includes leave types alongside shift types. Non-half-day leave cells show a colored dot matching the leave type.
 - **Firestore sync**: fire-and-forget writes. Conflict resolution is last-write-wins by date key. Batch writes are chunked to 500 operations.
 - **Widget updates**: `ShiftWidgetUpdater.updateAll()` must be called after every local data mutation and settings change. Widget errors are swallowed.
 - **Invite validation**: currently client-side only (known limitation — migrate to Cloud Function).

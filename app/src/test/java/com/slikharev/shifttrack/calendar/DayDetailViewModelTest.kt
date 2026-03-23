@@ -2,6 +2,7 @@ package com.slikharev.shifttrack.calendar
 
 import androidx.lifecycle.SavedStateHandle
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
@@ -47,6 +48,7 @@ class DayDetailViewModelTest {
     private lateinit var mockOvertimeRepository: OvertimeRepository
     private lateinit var mockUserSession: UserSession
     private lateinit var mockWidgetUpdater: ShiftWidgetUpdater
+    private lateinit var mockAppDataStore: AppDataStore
     private lateinit var viewModel: DayDetailViewModel
 
     @Before
@@ -59,6 +61,9 @@ class DayDetailViewModelTest {
             every { currentUserId } returns "test-uid"
         }
         mockWidgetUpdater = mockk(relaxed = true)
+        mockAppDataStore = mockk {
+            every { spectatorMode } returns flowOf(false)
+        }
 
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(emptyList())
         every { mockOvertimeRepository.getOvertimeForRange(any(), any()) } returns
@@ -71,6 +76,7 @@ class DayDetailViewModelTest {
             overtimeRepository = mockOvertimeRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
+            appDataStore = mockAppDataStore,
         )
     }
 
@@ -105,6 +111,7 @@ class DayDetailViewModelTest {
             overtimeRepository = mockOvertimeRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
+            appDataStore = mockAppDataStore,
         )
 
         val job = launch { viewModel.dayInfo.collect { } }
@@ -133,6 +140,7 @@ class DayDetailViewModelTest {
             overtimeRepository = mockOvertimeRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
+            appDataStore = mockAppDataStore,
         )
 
         val job = launch { viewModel.overtimeEntry.collect { } }
@@ -263,5 +271,35 @@ class DayDetailViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.isSaving.value)
+    }
+
+    // ── spectator mode ───────────────────────────────────────────────────────
+
+    @Test
+    fun `isSpectator is false by default`() = testScope.runTest {
+        val job = launch { viewModel.isSpectator.collect { } }
+        advanceUntilIdle()
+        assertFalse(viewModel.isSpectator.value)
+        job.cancel()
+    }
+
+    @Test
+    fun `isSpectator reflects AppDataStore spectatorMode`() = testScope.runTest {
+        val spectatorDataStore = mockk<AppDataStore> {
+            every { spectatorMode } returns flowOf(true)
+        }
+        val vm = DayDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("date" to "2025-06-15")),
+            shiftRepository = mockShiftRepository,
+            leaveRepository = mockLeaveRepository,
+            overtimeRepository = mockOvertimeRepository,
+            userSession = mockUserSession,
+            widgetUpdater = mockWidgetUpdater,
+            appDataStore = spectatorDataStore,
+        )
+        val job = launch { vm.isSpectator.collect { } }
+        advanceUntilIdle()
+        assertTrue(vm.isSpectator.value)
+        job.cancel()
     }
 }

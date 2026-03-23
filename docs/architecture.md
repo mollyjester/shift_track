@@ -21,7 +21,7 @@
 │       Repository Layer           │  │         AppDataStore              │
 │  ShiftRepository                 │  │  (anchor date, onboarding flag,   │
 │  LeaveRepository                 │  │   last reset year, FCM token,     │
-│  OvertimeRepository              │  │   shift color preferences)        │
+│  OvertimeRepository              │  │   shift color prefs, spectator)  │
 │  InviteRepository (interface)    │  └───────────────────────────────────┘
 └────────────┬─────────────────────┘
              │
@@ -70,6 +70,18 @@ The home-screen widget supports three configurable properties, all stored in `Ap
 Settings are applied at render time in `ShiftWidgetProvider.updateSingleWidget()`. The widget also reads user-configured shift-type colors, so custom colors are consistent between the app and the widget. Changes are applied immediately via `ShiftWidgetUpdater.updateAll()`.
 
 Widget configuration is accessed via the system's long-press → Reconfigure menu (declared as `reconfigurable` in `shift_widget_info.xml`). `WidgetConfigActivity` is a full-screen Compose activity with a "Done" button that sets `RESULT_OK` and returns the user to the home screen.
+
+### Spectator Mode (v2.2)
+
+A `spectator_mode` boolean preference in `AppDataStore` controls whether the calendar is read-only. Set during onboarding when the user toggles "Spectator Only" (skipping anchor/leave setup). `DayDetailViewModel` exposes `isSpectator: StateFlow<Boolean>`, and `DayDetailScreen` hides all editing controls (override, leave, overtime, notes) when true.
+
+### Half-Day Leave & Leave-Type Colors (v2.2)
+
+`DayInfo` carries `halfDay: Boolean` and `leaveType: LeaveType?`, populated by `ShiftRepository.getDayInfosForRange()` from `LeaveEntity`. On the calendar:
+
+- **Half-day** cells render with a split background — the top half uses the shift color, the bottom half uses a darker shade (30% darkened).
+- **Full-day leave** cells (non-half-day) display a leave-type-colored dot using `LeaveColors.color(type)`.
+- The calendar legend shows both shift types and all leave types with 30 dp colour circles.
 
 ### Pure Cadence Engine
 

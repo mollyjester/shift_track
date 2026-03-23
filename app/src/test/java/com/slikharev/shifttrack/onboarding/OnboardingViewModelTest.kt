@@ -264,6 +264,46 @@ class OnboardingViewModelTest {
         testScheduler.advanceUntilIdle()
         assertEquals(0, fakeLeaveBalanceDao.upserted.size)
     }
+
+    // ── spectator mode ────────────────────────────────────────────────────────
+
+    @Test
+    fun `setSpectatorOnly updates state`() {
+        viewModel.setSpectatorOnly(true)
+        assertTrue(viewModel.uiState.value.spectatorOnly)
+        viewModel.setSpectatorOnly(false)
+        assertFalse(viewModel.uiState.value.spectatorOnly)
+    }
+
+    @Test
+    fun `completeOnboarding as spectator persists spectatorMode and skips anchor`() = testScope.runTest {
+        viewModel.setSpectatorOnly(true)
+
+        var callbackCalled = false
+        viewModel.completeOnboarding { callbackCalled = true }
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(callbackCalled)
+        assertTrue(appDataStore.onboardingComplete.first())
+        assertTrue(appDataStore.spectatorMode.first())
+        // Anchor should NOT have been set
+        assertNull(appDataStore.anchorDate.first())
+        // No leave balances written
+        assertEquals(0, fakeLeaveBalanceDao.upserted.size)
+    }
+
+    @Test
+    fun `completeOnboarding as non-spectator sets spectatorMode to false`() = testScope.runTest {
+        viewModel.selectCycleIndex(0)
+        viewModel.setSpectatorOnly(false)
+
+        var callbackCalled = false
+        viewModel.completeOnboarding { callbackCalled = true }
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(callbackCalled)
+        assertFalse(appDataStore.spectatorMode.first())
+    }
 }
 
 // ── Fake collaborators ────────────────────────────────────────────────────────

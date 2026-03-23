@@ -15,6 +15,8 @@ data class DayInfo(
     /** True when the user has explicitly overridden the cadence-computed type. */
     val isManualOverride: Boolean = false,
     val hasLeave: Boolean = false,
+    val halfDay: Boolean = false,
+    val leaveType: LeaveType? = null,
     val hasOvertime: Boolean = false,
     val note: String? = null,
 )

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.auth.requireUserId
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
@@ -32,11 +33,15 @@ class DayDetailViewModel @Inject constructor(
     private val overtimeRepository: OvertimeRepository,
     private val userSession: UserSession,
     private val widgetUpdater: ShiftWidgetUpdater,
+    appDataStore: AppDataStore,
 ) : ViewModel() {
 
     val date: LocalDate = LocalDate.parse(
         requireNotNull(savedStateHandle.get<String>("date")) { "date argument missing" },
     )
+
+    val isSpectator: StateFlow<Boolean> = appDataStore.spectatorMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val dayInfo: StateFlow<DayInfo?> = shiftRepository
         .getDayInfosForRange(date, date)

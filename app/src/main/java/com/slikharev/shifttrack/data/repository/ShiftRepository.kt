@@ -9,6 +9,7 @@ import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.DayInfo
+import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -82,7 +83,7 @@ class ShiftRepository @Inject constructor(
                     ),
                 ) { shifts, leaves, overtimes ->
                     val shiftByDate = shifts.associateBy { it.date }
-                    val leaveDates = leaves.map { it.date }.toSet()
+                    val leaveByDate = leaves.associateBy { it.date }
                     val overtimeDates = overtimes.map { it.date }.toSet()
 
                     var current = startDate
@@ -90,22 +91,34 @@ class ShiftRepository @Inject constructor(
                     while (!current.isAfter(endDate)) {
                         val dateStr = current.toString()
                         val entity = shiftByDate[dateStr]
+                        val leave = leaveByDate[dateStr]
                         val hasOt = dateStr in overtimeDates
+                        val leaveType = leave?.let {
+                            runCatching { LeaveType.valueOf(it.leaveType) }.getOrNull()
+                        }
                         val dayInfo = when {
                             entity != null && entity.isManualOverride ->
                                 DayInfo(
                                     date = current,
                                     shiftType = ShiftType.valueOf(entity.shiftType),
                                     isManualOverride = true,
-                                    hasLeave = dateStr in leaveDates,
+                                    hasLeave = leave != null,
+                                    halfDay = leave?.halfDay == true,
+                                    leaveType = leaveType,
                                     hasOvertime = hasOt,
                                     note = entity.note,
                                 )
-                            dateStr in leaveDates ->
+                            leave != null ->
                                 DayInfo(
                                     date = current,
-                                    shiftType = ShiftType.LEAVE,
+                                    shiftType = if (leave.halfDay) {
+                                        cadenceMap[current] ?: ShiftType.OFF
+                                    } else {
+                                        ShiftType.LEAVE
+                                    },
                                     hasLeave = true,
+                                    halfDay = leave.halfDay,
+                                    leaveType = leaveType,
                                     hasOvertime = hasOt,
                                 )
                             else ->

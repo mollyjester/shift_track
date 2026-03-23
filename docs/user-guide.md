@@ -53,7 +53,9 @@ The bottom navigation bar has three sections:
 ### Calendar
 
 - Tap any day to open the **Day Detail** screen for that day.
-- Days with leave are shown with a leave indicator.
+- **Half-day leave** is shown as a split cell — the top half displays the shift colour and the bottom half uses a darker shade.
+- **Full-day leave** (non-half-day) shows a coloured dot matching the leave type: Annual (green), Sick (red), Personal (blue), Unpaid (orange), Other (purple).
+- The **legend** below the calendar shows both shift types and leave types with large colour circles.
 - Days with overtime show an overtime indicator.
 - Manual overrides (days where you changed the computed shift) are visually distinguished.
 
@@ -121,6 +123,10 @@ Opening a day shows:
 
 - Add, change, or remove any shifts, leave, or overtime entries.
 - Modify any settings for the host's account.
+
+### Spectator-Only Mode (Onboarding)
+
+During onboarding, toggle **Spectator Only** to skip shift anchor and leave balance setup entirely. In spectator mode the Day Detail screen shows shift information but hides all editing controls (override, leave, overtime, notes). The setting is persisted in app preferences.
 
 ---
 
