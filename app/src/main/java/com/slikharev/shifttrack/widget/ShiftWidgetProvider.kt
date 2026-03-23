@@ -11,14 +11,20 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import com.google.firebase.auth.FirebaseAuth
 import com.slikharev.shifttrack.R
 import com.slikharev.shifttrack.data.local.AppDataStore
+import com.slikharev.shifttrack.model.LeaveType
+import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.LeaveColors
 import com.slikharev.shifttrack.ui.ShiftColorConfig
 import com.slikharev.shifttrack.ui.ShiftColors
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -73,15 +79,17 @@ class ShiftWidgetProvider : AppWidgetProvider() {
     companion object {
         private const val WIDE_THRESHOLD_DP = 200
 
-        // View IDs for the 7 day shift TextViews in the wide layout.
-        private val DAY_SHIFT_IDS = intArrayOf(
-            R.id.widget_day_shift_0,
-            R.id.widget_day_shift_1,
-            R.id.widget_day_shift_2,
-            R.id.widget_day_shift_3,
-            R.id.widget_day_shift_4,
-            R.id.widget_day_shift_5,
-            R.id.widget_day_shift_6,
+        /** View IDs for each day slot in the wide layout. */
+        private data class DaySlotIds(val root: Int, val top: Int, val bottom: Int, val text: Int)
+
+        private val DAY_SLOTS = arrayOf(
+            DaySlotIds(R.id.widget_day_0, R.id.widget_day_top_0, R.id.widget_day_bottom_0, R.id.widget_day_shift_0),
+            DaySlotIds(R.id.widget_day_1, R.id.widget_day_top_1, R.id.widget_day_bottom_1, R.id.widget_day_shift_1),
+            DaySlotIds(R.id.widget_day_2, R.id.widget_day_top_2, R.id.widget_day_bottom_2, R.id.widget_day_shift_2),
+            DaySlotIds(R.id.widget_day_3, R.id.widget_day_top_3, R.id.widget_day_bottom_3, R.id.widget_day_shift_3),
+            DaySlotIds(R.id.widget_day_4, R.id.widget_day_top_4, R.id.widget_day_bottom_4, R.id.widget_day_shift_4),
+            DaySlotIds(R.id.widget_day_5, R.id.widget_day_top_5, R.id.widget_day_bottom_5, R.id.widget_day_shift_5),
+            DaySlotIds(R.id.widget_day_6, R.id.widget_day_top_6, R.id.widget_day_bottom_6, R.id.widget_day_shift_6),
         )
 
         /**
@@ -93,14 +101,16 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             manager: AppWidgetManager,
             appWidgetId: Int,
         ) {
-            val appDataStore = try {
+            val entryPoint = try {
                 EntryPointAccessors.fromApplication(
                     context.applicationContext,
                     ShiftWidgetEntryPoint::class.java,
-                ).appDataStore()
+                )
             } catch (_: Exception) {
                 return
             }
+
+            val appDataStore = entryPoint.appDataStore()
 
             val snap = try {
                 appDataStore.readWidgetSnapshot()
@@ -114,6 +124,35 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 dayCount = AppDataStore.MAX_WIDGET_DAYS,
             )
 
+            // Enrich with leave data from Room
+            val enrichedDays = try {
+                val userId = FirebaseAuth.getInstance().currentUser?.uid
+                if (userId != null && widgetState.days.isNotEmpty()) {
+                    val leaveDao = entryPoint.leaveDao()
+                    val startDate = widgetState.days.first().date.toString()
+                    val endDate = widgetState.days.last().date.toString()
+                    val leaves = leaveDao.getLeavesForRange(userId, startDate, endDate).first()
+                    val leaveByDate = leaves.associateBy { it.date }
+
+                    widgetState.days.map { day ->
+                        val leave = leaveByDate[day.date.toString()]
+                        if (leave != null) {
+                            val lt = try { LeaveType.valueOf(leave.leaveType) } catch (_: Exception) { null }
+                            day.copy(
+                                hasLeave = true,
+                                halfDay = leave.halfDay,
+                                leaveType = lt,
+                                shiftType = if (leave.halfDay) day.shiftType else ShiftType.LEAVE,
+                            )
+                        } else day
+                    }
+                } else widgetState.days
+            } catch (_: Exception) {
+                widgetState.days
+            }
+
+            val enrichedState = widgetState.copy(days = enrichedDays)
+
             val colorConfig = ShiftColorConfig(
                 dayColor = snap.colorDay?.let { Color(it.toInt()) } ?: ShiftColors.Day,
                 nightColor = snap.colorNight?.let { Color(it.toInt()) } ?: ShiftColors.Night,
@@ -126,9 +165,9 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 110)
 
             val views = if (minWidth >= WIDE_THRESHOLD_DP) {
-                buildWideLayout(context, widgetState, snap, colorConfig)
+                buildWideLayout(context, enrichedState, snap, colorConfig)
             } else {
-                buildSmallLayout(context, widgetState, snap, colorConfig)
+                buildSmallLayout(context, enrichedState, snap, colorConfig)
             }
 
             manager.updateAppWidget(appWidgetId, views)
@@ -151,19 +190,29 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                     R.id.widget_small_date,
                     today.date.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault())),
                 )
-                views.setTextViewText(
-                    R.id.widget_small_shift,
-                    ShiftColors.label(today.shiftType).uppercase(),
-                )
-                views.setInt(
-                    R.id.widget_small_shift,
-                    "setBackgroundColor",
-                    colorConfig.containerColor(today.shiftType).toArgb(),
-                )
-                views.setTextColor(
-                    R.id.widget_small_shift,
-                    colorConfig.onContainerColor(today.shiftType).toArgb(),
-                )
+
+                val bgColor: Int
+                val textColor: Int
+                val text: String
+                if (today.hasLeave && !today.halfDay && today.leaveType != null) {
+                    // Full-day leave: show leave type color
+                    bgColor = LeaveColors.color(today.leaveType).toArgb()
+                    textColor = 0xFFFFFFFF.toInt()
+                    text = LeaveColors.label(today.leaveType).uppercase()
+                } else if (today.hasLeave && today.halfDay) {
+                    // Half-day leave: shift color + indicator
+                    bgColor = colorConfig.containerColor(today.shiftType).toArgb()
+                    textColor = colorConfig.onContainerColor(today.shiftType).toArgb()
+                    text = ShiftColors.label(today.shiftType).uppercase() + " ½"
+                } else {
+                    bgColor = colorConfig.containerColor(today.shiftType).toArgb()
+                    textColor = colorConfig.onContainerColor(today.shiftType).toArgb()
+                    text = ShiftColors.label(today.shiftType).uppercase()
+                }
+
+                views.setTextViewText(R.id.widget_small_shift, text)
+                views.setInt(R.id.widget_small_shift, "setBackgroundColor", bgColor)
+                views.setTextColor(R.id.widget_small_shift, textColor)
 
                 // Tap → open day in app
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("shiftapp://day/${today.date}")).apply {
@@ -201,25 +250,44 @@ class ShiftWidgetProvider : AppWidgetProvider() {
 
                 val days = state.days.take(snap.dayCount)
 
-                for (i in DAY_SHIFT_IDS.indices) {
-                    val viewId = DAY_SHIFT_IDS[i]
+                for (i in DAY_SLOTS.indices) {
+                    val slot = DAY_SLOTS[i]
                     if (i < days.size) {
                         val dayInfo = days[i]
-                        views.setViewVisibility(viewId, View.VISIBLE)
+                        views.setViewVisibility(slot.root, View.VISIBLE)
 
-                        views.setTextViewText(
-                            viewId,
-                            ShiftColors.label(dayInfo.shiftType).uppercase(),
-                        )
-                        views.setInt(
-                            viewId,
-                            "setBackgroundColor",
-                            colorConfig.containerColor(dayInfo.shiftType).toArgb(),
-                        )
-                        views.setTextColor(
-                            viewId,
-                            colorConfig.onContainerColor(dayInfo.shiftType).toArgb(),
-                        )
+                        val topColor: Int
+                        val bottomColor: Int
+                        val textColor: Int
+                        val text: String
+
+                        if (dayInfo.hasLeave && !dayInfo.halfDay && dayInfo.leaveType != null) {
+                            // Full-day leave: leave type color
+                            val leaveColor = LeaveColors.color(dayInfo.leaveType).toArgb()
+                            topColor = leaveColor
+                            bottomColor = leaveColor
+                            textColor = 0xFFFFFFFF.toInt()
+                            text = LeaveColors.label(dayInfo.leaveType).uppercase()
+                        } else if (dayInfo.hasLeave && dayInfo.halfDay) {
+                            // Half-day: shift color top, darker bottom
+                            val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
+                            topColor = shiftColor
+                            bottomColor = darkenArgb(shiftColor, 0.3f)
+                            textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
+                            text = ShiftColors.label(dayInfo.shiftType).uppercase()
+                        } else {
+                            // Normal shift
+                            val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
+                            topColor = shiftColor
+                            bottomColor = shiftColor
+                            textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
+                            text = ShiftColors.label(dayInfo.shiftType).uppercase()
+                        }
+
+                        views.setInt(slot.top, "setBackgroundColor", topColor)
+                        views.setInt(slot.bottom, "setBackgroundColor", bottomColor)
+                        views.setTextViewText(slot.text, text)
+                        views.setTextColor(slot.text, textColor)
 
                         // Tap → deep link to that day
                         val dayIntent = Intent(
@@ -234,9 +302,9 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                             dayIntent,
                             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                         )
-                        views.setOnClickPendingIntent(viewId, dayPi)
+                        views.setOnClickPendingIntent(slot.root, dayPi)
                     } else {
-                        views.setViewVisibility(viewId, View.GONE)
+                        views.setViewVisibility(slot.root, View.GONE)
                     }
                 }
             } else {
@@ -256,6 +324,15 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             val baseColor = snap.bgColor?.toInt() ?: 0xFFF8FDFF.toInt()
             val alpha = (snap.transparency * 255).toInt().coerceIn(0, 255)
             return (baseColor and 0x00FFFFFF) or (alpha shl 24)
+        }
+
+        /** Darkens an ARGB color by reducing RGB channels by [factor] (0..1). */
+        private fun darkenArgb(argb: Int, factor: Float): Int {
+            val a = (argb shr 24) and 0xFF
+            val r = ((argb shr 16) and 0xFF).let { (it * (1f - factor)).toInt().coerceIn(0, 255) }
+            val g = ((argb shr 8) and 0xFF).let { (it * (1f - factor)).toInt().coerceIn(0, 255) }
+            val b = (argb and 0xFF).let { (it * (1f - factor)).toInt().coerceIn(0, 255) }
+            return (a shl 24) or (r shl 16) or (g shl 8) or b
         }
     }
 }
