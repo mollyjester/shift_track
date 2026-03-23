@@ -142,7 +142,12 @@ Customise the overtime indicator colour in the same section using the same color
 
 ### Configuring the Widget
 
-Go to **Settings → Widget** to adjust:
+You can configure the widget in two ways:
+
+- **From the widget itself** — tap the **⚙** (gear) button on the right edge of the wide widget to open a quick settings overlay.
+- **From the app** — go to **Settings → Widget**.
+
+Both give you the same options:
 
 | Option | Description |
 |--------|-------------|
@@ -151,6 +156,10 @@ Go to **Settings → Widget** to adjust:
 | **Days to show** | Number of upcoming days in the wide widget (1–7, default 4). |
 
 Changes apply immediately — no need to remove and re-add the widget. The widget also uses your custom shift colours, keeping everything consistent.
+
+### Tapping Widget Days
+
+Tap any day in the widget to open the Day Detail screen for that date in the app.
 
 ### When Does the Widget Update?
 

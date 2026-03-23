@@ -5,8 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -25,6 +23,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -35,11 +34,10 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.ShiftColorConfig
 import com.slikharev.shifttrack.ui.ShiftColors
-import com.slikharev.shifttrack.data.local.AppDataStore
-import com.slikharev.shifttrack.data.local.PrefsKeys
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
@@ -47,19 +45,19 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private val WidgetSubLabel = ColorProvider(Color(0xFF43474E.toInt()))   // OnSurfaceVariant
+private val WIDE_THRESHOLD = 200.dp
 
 /**
- * Home screen widget showing today's shift type (2×2) or the next four days
- * in a row (4×2).
+ * Home screen widget showing today's shift type (small) or the next N days
+ * in a row (wide) with a gear button to open widget configuration.
  *
+ * Uses [SizeMode.Exact] so [LocalSize] reflects the real widget dimensions.
  * Data is read from [AppDataStore] via a Hilt [EntryPoint] at render time.
  * Call [ShiftWidgetUpdater.updateAll] to force a re-render when data changes.
  */
 class ShiftWidget : GlanceAppWidget() {
 
-    override val sizeMode: SizeMode = SizeMode.Responsive(
-        setOf(SmallSize, WideSize, ExtraWideSize),
-    )
+    override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val appDataStore = try {
@@ -71,11 +69,14 @@ class ShiftWidget : GlanceAppWidget() {
             null
         }
 
+        // Always compute max days; rendering takes what it needs.
         val widgetState = try {
             val anchorDateStr = appDataStore!!.anchorDate.firstOrNull()
             val anchorCycleIndex = appDataStore.anchorCycleIndex.first()
-            val dayCount = appDataStore.widgetDayCount.first()
-            WidgetShiftCalculator.compute(anchorDateStr, anchorCycleIndex, dayCount = dayCount)
+            WidgetShiftCalculator.compute(
+                anchorDateStr, anchorCycleIndex,
+                dayCount = AppDataStore.MAX_WIDGET_DAYS,
+            )
         } catch (_: Exception) {
             WidgetUiState(isConfigured = false, days = emptyList())
         }
@@ -112,12 +113,6 @@ class ShiftWidget : GlanceAppWidget() {
             ShiftWidgetContent(widgetState, bgColor, dayCount, colorConfig)
         }
     }
-
-    companion object {
-        val SmallSize = DpSize(110.dp, 110.dp)   // 2×2
-        val WideSize = DpSize(230.dp, 110.dp)    // 4×2
-        val ExtraWideSize = DpSize(350.dp, 110.dp) // 6–7×2
-    }
 }
 
 @Composable
@@ -128,7 +123,7 @@ private fun ShiftWidgetContent(
     colorConfig: ShiftColorConfig,
 ) {
     val size = LocalSize.current
-    if (size.width >= ShiftWidget.WideSize.width) {
+    if (size.width >= WIDE_THRESHOLD) {
         WideContent(state, bgColor, dayCount, colorConfig)
     } else {
         SmallContent(state, bgColor, colorConfig)
@@ -179,9 +174,7 @@ private fun SmallContent(state: WidgetUiState, bgColor: Color, colorConfig: Shif
     }
 }
 
-// ── Wide layout (4×2+) ────────────────────────────────────────────────────────────────────
-
-private val GapWidth = 6.dp
+// ── Wide layout ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun WideContent(
@@ -190,37 +183,60 @@ private fun WideContent(
     dayCount: Int,
     colorConfig: ShiftColorConfig,
 ) {
-    val size = LocalSize.current
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(bgColor))
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         if (!state.isConfigured || state.days.isEmpty()) {
             NotConfiguredContent()
         } else {
             val days = state.days.take(dayCount)
-            val totalGaps = GapWidth * (days.size - 1)
-            val columnWidth = (size.width - 16.dp - totalGaps) / days.size
             Row(
                 modifier = GlanceModifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 days.forEachIndexed { index, dayInfo ->
-                    if (index > 0) {
-                        Spacer(GlanceModifier.width(GapWidth))
-                    }
+                    if (index > 0) Spacer(GlanceModifier.width(4.dp))
                     DayColumn(
                         dayInfo = dayInfo,
                         colorConfig = colorConfig,
-                        columnWidth = columnWidth,
+                        modifier = GlanceModifier.defaultWeight(),
                     )
                 }
+
+                Spacer(GlanceModifier.width(2.dp))
+                GearButton()
             }
         }
+    }
+}
+
+@Composable
+private fun GearButton() {
+    Box(
+        modifier = GlanceModifier
+            .width(24.dp)
+            .fillMaxHeight()
+            .clickable(
+                actionStartActivity(Intent().apply {
+                    setClassName(
+                        "com.slikharev.shifttrack",
+                        "com.slikharev.shifttrack.widget.WidgetConfigActivity",
+                    )
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "⚙",
+            style = TextStyle(
+                fontSize = 16.sp,
+            ),
+        )
     }
 }
 
@@ -228,7 +244,7 @@ private fun WideContent(
 private fun DayColumn(
     dayInfo: WidgetDayInfo,
     colorConfig: ShiftColorConfig,
-    columnWidth: Dp,
+    modifier: GlanceModifier = GlanceModifier,
 ) {
     val labelColor = if (dayInfo.isToday) {
         ColorProvider(colorConfig.onContainerColor(dayInfo.shiftType))
@@ -236,8 +252,7 @@ private fun DayColumn(
         WidgetSubLabel
     }
     Column(
-        modifier = GlanceModifier
-            .width(columnWidth)
+        modifier = modifier
             .clickable(actionStartActivity(
                 Intent(Intent.ACTION_VIEW, Uri.parse("shiftapp://day/${dayInfo.date}"))
             )),

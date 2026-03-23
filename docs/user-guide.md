@@ -142,7 +142,12 @@ Opening a day shows:
 
 ### Configuring the Widget
 
-Go to **Settings → Widget** to customise:
+You can configure the widget in two ways:
+
+1. **From the widget itself** — tap the **⚙** (gear) button on the right edge of the wide widget. A settings overlay opens directly over your home screen.
+2. **From the app** — go to **Settings → Widget**.
+
+Both methods provide the same options:
 
 | Option | Description |
 |---|---|
@@ -153,6 +158,10 @@ Go to **Settings → Widget** to customise:
 Changes are applied immediately — no need to remove and re-add the widget.
 
 > **Note:** The widget also uses your custom shift colors from **Settings → Shift Colors**, so the calendar, dashboard, and widget all stay consistent.
+
+### Tapping Widget Days
+
+Tap any day shown in the widget to open ShiftTrack directly to the Day Detail screen for that date. This uses the deep-link `shiftapp://day/{date}`.
 
 ### Widget Refresh
 

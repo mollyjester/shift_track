@@ -108,4 +108,32 @@ class WidgetShiftCalculatorTest {
             state.days[1].shiftType,
         )
     }
+
+    // ── isToday flag ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `compute first day has isToday true and subsequent days have isToday false`() {
+        val today = LocalDate.parse(anchorDate)
+        val state = WidgetShiftCalculator.compute(anchorDate, anchorIndex, today, dayCount = 5)
+
+        assertTrue("first day should be today", state.days[0].isToday)
+        for (i in 1 until state.days.size) {
+            assertFalse("day at offset $i should not be today", state.days[i].isToday)
+        }
+    }
+
+    // ── max day count ────────────────────────────────────────────────────────
+
+    @Test
+    fun `compute returns 7 days when dayCount is 7`() {
+        val today = LocalDate.parse(anchorDate)
+        val state = WidgetShiftCalculator.compute(anchorDate, anchorIndex, today, dayCount = 7)
+
+        assertEquals(7, state.days.size)
+        // Verify the last two days (index 5, 6) wrap the cycle correctly
+        // offset 5 → (0+5) % 5 = 0 → DAY
+        // offset 6 → (0+6) % 5 = 1 → DAY
+        assertEquals(ShiftType.DAY, state.days[5].shiftType)
+        assertEquals(ShiftType.DAY, state.days[6].shiftType)
+    }
 }

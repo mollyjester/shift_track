@@ -180,7 +180,7 @@ private fun ShiftDayCell(
             Box(
                 modifier = Modifier
                     .fillMaxSize(0.5f)
-                    .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)),
+                    .border(2.dp, contentColor, RoundedCornerShape(4.dp)),
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
