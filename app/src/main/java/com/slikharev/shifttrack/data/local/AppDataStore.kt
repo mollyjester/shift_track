@@ -30,6 +30,10 @@ object PrefsKeys {
     val COLOR_REST = longPreferencesKey("color_rest")
     val COLOR_OFF = longPreferencesKey("color_off")
     val COLOR_LEAVE = longPreferencesKey("color_leave")
+    // Widget configuration
+    val WIDGET_BG_COLOR = longPreferencesKey("widget_bg_color")
+    val WIDGET_TRANSPARENCY = floatPreferencesKey("widget_transparency")
+    val WIDGET_DAY_COUNT = intPreferencesKey("widget_day_count")
 }
 
 /**
@@ -107,7 +111,29 @@ class AppDataStore @Inject constructor(
         dataStore.edit { it[key] = argb }
     }
 
+    // ── Widget configuration ─────────────────────────────────────────────────────
+
+    val widgetBgColor: Flow<Long?> = dataStore.data.map { it[PrefsKeys.WIDGET_BG_COLOR] }
+    val widgetTransparency: Flow<Float> = dataStore.data.map { it[PrefsKeys.WIDGET_TRANSPARENCY] ?: DEFAULT_WIDGET_TRANSPARENCY }
+    val widgetDayCount: Flow<Int> = dataStore.data.map { it[PrefsKeys.WIDGET_DAY_COUNT] ?: DEFAULT_WIDGET_DAY_COUNT }
+
+    suspend fun setWidgetBgColor(argb: Long) {
+        dataStore.edit { it[PrefsKeys.WIDGET_BG_COLOR] = argb }
+    }
+
+    suspend fun setWidgetTransparency(alpha: Float) {
+        dataStore.edit { it[PrefsKeys.WIDGET_TRANSPARENCY] = alpha.coerceIn(0f, 1f) }
+    }
+
+    suspend fun setWidgetDayCount(count: Int) {
+        dataStore.edit { it[PrefsKeys.WIDGET_DAY_COUNT] = count.coerceIn(MIN_WIDGET_DAYS, MAX_WIDGET_DAYS) }
+    }
+
     companion object {
         const val DEFAULT_LEAVE_DAYS = 28f
+        const val DEFAULT_WIDGET_TRANSPARENCY = 1f
+        const val DEFAULT_WIDGET_DAY_COUNT = 4
+        const val MIN_WIDGET_DAYS = 1
+        const val MAX_WIDGET_DAYS = 7
     }
 }

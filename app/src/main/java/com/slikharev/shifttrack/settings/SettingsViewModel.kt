@@ -197,6 +197,38 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ─── Widget configuration ─────────────────────────────────────────────────
+
+    val widgetBgColor: StateFlow<Long?> = appDataStore.widgetBgColor
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val widgetTransparency: StateFlow<Float> = appDataStore.widgetTransparency
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDataStore.DEFAULT_WIDGET_TRANSPARENCY)
+
+    val widgetDayCount: StateFlow<Int> = appDataStore.widgetDayCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDataStore.DEFAULT_WIDGET_DAY_COUNT)
+
+    fun setWidgetBgColor(argb: Long) {
+        viewModelScope.launch {
+            appDataStore.setWidgetBgColor(argb)
+            widgetUpdater.updateAll()
+        }
+    }
+
+    fun setWidgetTransparency(alpha: Float) {
+        viewModelScope.launch {
+            appDataStore.setWidgetTransparency(alpha)
+            widgetUpdater.updateAll()
+        }
+    }
+
+    fun setWidgetDayCount(count: Int) {
+        viewModelScope.launch {
+            appDataStore.setWidgetDayCount(count)
+            widgetUpdater.updateAll()
+        }
+    }
+
     // ─── Invite ───────────────────────────────────────────────────────────────────
 
     /** Deep link ready to be shared, e.g. `shiftapp://invite/{token}`. Null when idle. */

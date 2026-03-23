@@ -37,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -62,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.LeaveType
@@ -84,6 +86,9 @@ fun SettingsScreen(navController: NavController) {
     val overtimeBalance by viewModel.overtimeBalance.collectAsStateWithLifecycle()
     val todayShiftLabel by viewModel.todayShiftLabel.collectAsStateWithLifecycle()
     val pendingInviteLink by viewModel.pendingInviteLink.collectAsStateWithLifecycle()
+    val widgetBgColor by viewModel.widgetBgColor.collectAsStateWithLifecycle()
+    val widgetTransparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
+    val widgetDayCount by viewModel.widgetDayCount.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.savedMessage, uiState.error) {
@@ -147,6 +152,19 @@ fun SettingsScreen(navController: NavController) {
             // ── Shift colors ─────────────────────────────────────────────────────
             SettingsSectionHeader("Shift Colors")
             ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
+
+            HorizontalDivider()
+
+            // ── Widget settings ──────────────────────────────────────────────────
+            SettingsSectionHeader("Widget")
+            WidgetSettingsSection(
+                bgColorArgb = widgetBgColor,
+                transparency = widgetTransparency,
+                dayCount = widgetDayCount,
+                onBgColorChange = viewModel::setWidgetBgColor,
+                onTransparencyChange = viewModel::setWidgetTransparency,
+                onDayCountChange = viewModel::setWidgetDayCount,
+            )
 
             HorizontalDivider()
 
@@ -674,6 +692,119 @@ private fun ColorSettingsSection(onColorChange: (ShiftType, Long) -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun WidgetSettingsSection(
+    bgColorArgb: Long?,
+    transparency: Float,
+    dayCount: Int,
+    onBgColorChange: (Long) -> Unit,
+    onTransparencyChange: (Float) -> Unit,
+    onDayCountChange: (Int) -> Unit,
+) {
+    val defaultBg = androidx.compose.ui.graphics.Color(0xFFF8FDFF)
+    val currentBgColor = bgColorArgb?.let { androidx.compose.ui.graphics.Color(it) } ?: defaultBg
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // ── Background color ─────────────────────────────────────────────────
+        Text("Background color", style = MaterialTheme.typography.bodyMedium)
+        var bgExpanded by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { bgExpanded = !bgExpanded },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(currentBgColor)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+            )
+            Text(
+                text = if (bgExpanded) "▲" else "▼",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        if (bgExpanded) {
+            Spacer(modifier = Modifier.height(4.dp))
+            val bgPresets = listOf(
+                androidx.compose.ui.graphics.Color(0xFFF8FDFF), // default light
+                androidx.compose.ui.graphics.Color(0xFFFFFFFF), // white
+                androidx.compose.ui.graphics.Color(0xFF1C1B1F), // dark
+                androidx.compose.ui.graphics.Color(0xFF263238), // blue-grey dark
+                androidx.compose.ui.graphics.Color(0xFFE3F2FD), // light blue
+                androidx.compose.ui.graphics.Color(0xFFFFF3E0), // light orange
+                androidx.compose.ui.graphics.Color(0xFFE8F5E9), // light green
+                androidx.compose.ui.graphics.Color(0xFFF3E5F5), // light purple
+                androidx.compose.ui.graphics.Color(0xFFEEEEEE), // light grey
+                androidx.compose.ui.graphics.Color(0xFF424242), // dark grey
+                androidx.compose.ui.graphics.Color(0xFF37474F), // blue-grey
+                androidx.compose.ui.graphics.Color(0xFF000000), // black
+            )
+            bgPresets.chunked(6).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    row.forEach { color ->
+                        val isSelected = color.toArgb() == currentBgColor.toArgb()
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .then(
+                                    if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                    else Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                                )
+                                .clickable {
+                                    onBgColorChange(color.toArgb().toLong())
+                                    bgExpanded = false
+                                },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+
+        // ── Transparency ─────────────────────────────────────────────────────
+        Text("Transparency", style = MaterialTheme.typography.bodyMedium)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("${"%.0f".format(transparency * 100)}%", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(40.dp))
+            Slider(
+                value = transparency,
+                onValueChange = onTransparencyChange,
+                valueRange = 0f..1f,
+                steps = 9,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        // ── Days to show ─────────────────────────────────────────────────────
+        Text("Days to show", style = MaterialTheme.typography.bodyMedium)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(
+                onClick = { if (dayCount > AppDataStore.MIN_WIDGET_DAYS) onDayCountChange(dayCount - 1) },
+                enabled = dayCount > AppDataStore.MIN_WIDGET_DAYS,
+            ) { Text("−") }
+            Text("$dayCount", style = MaterialTheme.typography.bodyLarge)
+            OutlinedButton(
+                onClick = { if (dayCount < AppDataStore.MAX_WIDGET_DAYS) onDayCountChange(dayCount + 1) },
+                enabled = dayCount < AppDataStore.MAX_WIDGET_DAYS,
+            ) { Text("+") }
         }
     }
 }

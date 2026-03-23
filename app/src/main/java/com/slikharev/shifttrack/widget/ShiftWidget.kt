@@ -31,15 +31,16 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.ShiftColorConfig
 import com.slikharev.shifttrack.ui.ShiftColors
+import com.slikharev.shifttrack.data.local.AppDataStore
+import com.slikharev.shifttrack.data.local.PrefsKeys
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// Fixed colours matching the in-app theme (Color.kt)
-private val WidgetBackground = ColorProvider(Color(0xFFF8FDFF))
 private val WidgetSubLabel = ColorProvider(Color(0xFF43474E))   // OnSurfaceVariant
 
 /**
@@ -56,21 +57,54 @@ class ShiftWidget : GlanceAppWidget() {
     )
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val widgetState = try {
-            val appDataStore = EntryPointAccessors.fromApplication(
+        val appDataStore = try {
+            EntryPointAccessors.fromApplication(
                 context.applicationContext,
                 ShiftWidgetEntryPoint::class.java,
             ).appDataStore()
+        } catch (_: Exception) {
+            null
+        }
 
-            val anchorDateStr = appDataStore.anchorDate.firstOrNull()
+        val widgetState = try {
+            val anchorDateStr = appDataStore!!.anchorDate.firstOrNull()
             val anchorCycleIndex = appDataStore.anchorCycleIndex.first()
-            WidgetShiftCalculator.compute(anchorDateStr, anchorCycleIndex)
+            val dayCount = appDataStore.widgetDayCount.first()
+            WidgetShiftCalculator.compute(anchorDateStr, anchorCycleIndex, dayCount = dayCount)
         } catch (_: Exception) {
             WidgetUiState(isConfigured = false, days = emptyList())
         }
 
+        val bgColorArgb = appDataStore?.widgetBgColor?.firstOrNull()
+        val transparency = appDataStore?.widgetTransparency?.first() ?: AppDataStore.DEFAULT_WIDGET_TRANSPARENCY
+        val dayCount = appDataStore?.widgetDayCount?.first() ?: AppDataStore.DEFAULT_WIDGET_DAY_COUNT
+
+        val bgColor = if (bgColorArgb != null) {
+            Color(bgColorArgb).copy(alpha = transparency)
+        } else {
+            Color(0xFFF8FDFF).copy(alpha = transparency)
+        }
+
+        // Read user-configured shift-type colors
+        val colorConfig = if (appDataStore != null) {
+            val cDay = appDataStore.colorDay.firstOrNull()
+            val cNight = appDataStore.colorNight.firstOrNull()
+            val cRest = appDataStore.colorRest.firstOrNull()
+            val cOff = appDataStore.colorOff.firstOrNull()
+            val cLeave = appDataStore.colorLeave.firstOrNull()
+            ShiftColorConfig(
+                dayColor = cDay?.let { Color(it) } ?: ShiftColors.Day,
+                nightColor = cNight?.let { Color(it) } ?: ShiftColors.Night,
+                restColor = cRest?.let { Color(it) } ?: ShiftColors.Rest,
+                offColor = cOff?.let { Color(it) } ?: ShiftColors.Off,
+                leaveColor = cLeave?.let { Color(it) } ?: ShiftColors.Leave,
+            )
+        } else {
+            ShiftColorConfig()
+        }
+
         provideContent {
-            ShiftWidgetContent(widgetState)
+            ShiftWidgetContent(widgetState, bgColor, dayCount, colorConfig)
         }
     }
 
@@ -81,23 +115,28 @@ class ShiftWidget : GlanceAppWidget() {
 }
 
 @Composable
-private fun ShiftWidgetContent(state: WidgetUiState) {
+private fun ShiftWidgetContent(
+    state: WidgetUiState,
+    bgColor: Color,
+    dayCount: Int,
+    colorConfig: ShiftColorConfig,
+) {
     val size = LocalSize.current
     if (size.width >= ShiftWidget.WideSize.width) {
-        WideContent(state)
+        WideContent(state, bgColor, dayCount, colorConfig)
     } else {
-        SmallContent(state)
+        SmallContent(state, bgColor, colorConfig)
     }
 }
 
 // ── Small layout (2×2) ───────────────────────────────────────────────────────
 
 @Composable
-private fun SmallContent(state: WidgetUiState) {
+private fun SmallContent(state: WidgetUiState, bgColor: Color, colorConfig: ShiftColorConfig) {
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(WidgetBackground)
+            .background(ColorProvider(bgColor))
             .padding(12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -123,6 +162,7 @@ private fun SmallContent(state: WidgetUiState) {
                 Spacer(GlanceModifier.height(6.dp))
                 ShiftChip(
                     shiftType = today.shiftType,
+                    colorConfig = colorConfig,
                     modifier = GlanceModifier.fillMaxWidth().height(44.dp),
                 )
             }
@@ -136,35 +176,33 @@ private fun SmallContent(state: WidgetUiState) {
 private val DayColumnWidth = 50.dp
 
 @Composable
-private fun WideContent(state: WidgetUiState) {
+private fun WideContent(
+    state: WidgetUiState,
+    bgColor: Color,
+    dayCount: Int,
+    colorConfig: ShiftColorConfig,
+) {
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(WidgetBackground)
+            .background(ColorProvider(bgColor))
             .padding(horizontal = 8.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         if (!state.isConfigured || state.days.isEmpty()) {
             NotConfiguredContent()
         } else {
-            val days = state.days.take(4)
+            val days = state.days.take(dayCount)
             Row(
                 modifier = GlanceModifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                DayColumn(dayInfo = days[0])
-                if (days.size > 1) {
-                    Spacer(GlanceModifier.width(6.dp))
-                    DayColumn(dayInfo = days[1])
-                }
-                if (days.size > 2) {
-                    Spacer(GlanceModifier.width(6.dp))
-                    DayColumn(dayInfo = days[2])
-                }
-                if (days.size > 3) {
-                    Spacer(GlanceModifier.width(6.dp))
-                    DayColumn(dayInfo = days[3])
+                days.forEachIndexed { index, dayInfo ->
+                    if (index > 0) {
+                        Spacer(GlanceModifier.width(6.dp))
+                    }
+                    DayColumn(dayInfo = dayInfo, colorConfig = colorConfig)
                 }
             }
         }
@@ -172,7 +210,7 @@ private fun WideContent(state: WidgetUiState) {
 }
 
 @Composable
-private fun DayColumn(dayInfo: WidgetDayInfo) {
+private fun DayColumn(dayInfo: WidgetDayInfo, colorConfig: ShiftColorConfig) {
     Column(
         modifier = GlanceModifier.width(DayColumnWidth),
         verticalAlignment = Alignment.CenterVertically,
@@ -190,6 +228,7 @@ private fun DayColumn(dayInfo: WidgetDayInfo) {
         Spacer(GlanceModifier.height(4.dp))
         ShiftChip(
             shiftType = dayInfo.shiftType,
+            colorConfig = colorConfig,
             modifier = GlanceModifier.fillMaxWidth().height(40.dp),
         )
     }
@@ -198,17 +237,21 @@ private fun DayColumn(dayInfo: WidgetDayInfo) {
 // ── Shared composables ───────────────────────────────────────────────────────
 
 @Composable
-private fun ShiftChip(shiftType: ShiftType, modifier: GlanceModifier = GlanceModifier) {
+private fun ShiftChip(
+    shiftType: ShiftType,
+    colorConfig: ShiftColorConfig,
+    modifier: GlanceModifier = GlanceModifier,
+) {
     Box(
         modifier = modifier
-            .background(ColorProvider(shiftType.widgetColor()))
+            .background(ColorProvider(colorConfig.containerColor(shiftType)))
             .cornerRadius(6.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = shiftType.widgetLabel(),
             style = TextStyle(
-                color = ColorProvider(shiftType.widgetOnColor()),
+                color = ColorProvider(colorConfig.onContainerColor(shiftType)),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
@@ -230,10 +273,6 @@ private fun NotConfiguredContent() {
 }
 
 // ── ShiftType → widget display ───────────────────────────────────────────────
-
-private fun ShiftType.widgetColor(): Color = ShiftColors.containerColor(this)
-
-private fun ShiftType.widgetOnColor(): Color = ShiftColors.onContainerColor(this)
 
 private fun ShiftType.widgetLabel(): String = ShiftColors.label(this).uppercase()
 

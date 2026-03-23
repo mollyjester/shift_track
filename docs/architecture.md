@@ -55,7 +55,19 @@ Leave balances are stored per leave type per year. The `leave_balance` table has
 
 ### Configurable Shift Colors (v1.1)
 
-Shift-type colors are user-configurable via Settings and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `ShiftColorConfig` is provided through `LocalShiftColors` (a `CompositionLocal`). All composable screens read colors from `LocalShiftColors.current`. The Glance widget continues to use default `ShiftColors` since `CompositionLocal` is unavailable in the widget context.
+Shift-type colors are user-configurable via Settings and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `ShiftColorConfig` is provided through `LocalShiftColors` (a `CompositionLocal`). All composable screens read colors from `LocalShiftColors.current`. The Glance widget reads user-configured colors from `AppDataStore` at render time (since `CompositionLocal` is unavailable in the widget context).
+
+### Widget Configuration (v1.2)
+
+The home-screen widget supports three configurable properties, all stored in `AppDataStore`:
+
+| Preference | Key | Type | Default |
+|---|---|---|---|
+| Background color | `widget_bg_color` | Long (ARGB) | `0xFFF8FDFF` (light surface) |
+| Transparency | `widget_transparency` | Float (0.0–1.0) | `1.0` (fully opaque) |
+| Days to show | `widget_day_count` | Int (1–7) | `4` |
+
+Settings are applied at render time in `ShiftWidget.provideGlance()`. The widget also reads user-configured shift-type colors, so custom colors are consistent between the app and the widget. Changes are applied immediately via `ShiftWidgetUpdater.updateAll()`.
 
 ### Pure Cadence Engine
 

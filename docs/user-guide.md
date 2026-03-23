@@ -86,7 +86,8 @@ Opening a day shows:
 | **Anchor date** | Change the reference date for the cadence engine. You may need to update this if your shift pattern was re-based. |
 | **Leave entitlement** | Per-category leave days for the current year (Annual, Sick, Personal, Unpaid, Other). The app resets automatically on the first launch of each new year, carrying over each category's total independently. |
 | **Overtime compensation** | Mark hours as compensated (paid out or taken as time-off). This does not remove them from the history. |
-| **Shift colors** | Customise the colour for each shift type (Day, Night, Rest, Off, Leave) from 12 preset colours. Changes take effect immediately across the calendar, dashboard, and day detail screens. |
+| **Shift colors** | Customise the colour for each shift type (Day, Night, Rest, Off, Leave) from 12 preset colours. Changes take effect immediately across the calendar, dashboard, day detail screens, and widget. |
+| **Widget** | Configure widget background color, transparency, and number of days to show (see *Widget Setup* below). |
 | **Invite a viewer** | Generate a 7-day invite link to share your schedule with a family member or manager (see *Invite Guide* below). |
 
 ---
@@ -136,8 +137,22 @@ Opening a day shows:
 
 | Size | Content |
 |---|---|
-| **2×2** | Today's shift + the next 2 days |
-| **4×2** | Today's shift + the next 6 days (full week) |
+| **2×2** | Today's shift |
+| **4×2** | Today's shift + upcoming days (configurable, 1–7) |
+
+### Configuring the Widget
+
+Go to **Settings → Widget** to customise:
+
+| Option | Description |
+|---|---|
+| **Background color** | Choose from 12 preset colors (light and dark options). Default is a light surface tone. |
+| **Transparency** | Slider from 0% (fully transparent) to 100% (fully opaque). Default is 100%. |
+| **Days to show** | Number of days displayed in the wide (4×2) widget, from 1 to 7. Default is 4. |
+
+Changes are applied immediately — no need to remove and re-add the widget.
+
+> **Note:** The widget also uses your custom shift colors from **Settings → Shift Colors**, so the calendar, dashboard, and widget all stay consistent.
 
 ### Widget Refresh
 
