@@ -68,6 +68,7 @@ fun CalendarScreen(navController: NavController) {
     val isSpectatorOnly by viewModel.isSpectatorOnly.collectAsStateWithLifecycle()
     val watchedHosts by viewModel.watchedHosts.collectAsStateWithLifecycle()
     val selectedHostUid by viewModel.selectedHostUid.collectAsStateWithLifecycle()
+    val spectatorError by viewModel.spectatorError.collectAsStateWithLifecycle()
 
     val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
 
@@ -117,6 +118,19 @@ fun CalendarScreen(navController: NavController) {
                     watchedHosts = watchedHosts,
                     selectedHostUid = selectedHostUid,
                     onHostSelected = viewModel::selectHost,
+                )
+            }
+
+            // ── Spectator error banner ───────────────────────────────────────
+            spectatorError?.let { msg ->
+                Text(
+                    text = msg,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
 

@@ -43,6 +43,10 @@ class CalendarViewModel @Inject constructor(
     private val _selectedHostUid = MutableStateFlow<String?>(null)
     val selectedHostUid: StateFlow<String?> = _selectedHostUid.asStateFlow()
 
+    /** Non-null when the spectator fetch failed or returned no data. */
+    private val _spectatorError = MutableStateFlow<String?>(null)
+    val spectatorError: StateFlow<String?> = _spectatorError.asStateFlow()
+
     init {
         // Restore last selected host from DataStore
         viewModelScope.launch {
@@ -72,6 +76,7 @@ class CalendarViewModel @Inject constructor(
             val end = ym.atEndOfMonth()
             if (hostUid == null) {
                 // Own calendar
+                _spectatorError.value = null
                 shiftRepository.getDayInfosForRange(start, end).map { dayInfos ->
                     buildCalendarDays(ym, dayInfos)
                 }
@@ -82,6 +87,11 @@ class CalendarViewModel @Inject constructor(
                         spectatorRepository.getDayInfosForRange(hostUid, start, end)
                     } catch (_: Exception) {
                         emptyList()
+                    }
+                    _spectatorError.value = if (dayInfos.isEmpty()) {
+                        "Could not load schedule — the host may need to open their app to sync"
+                    } else {
+                        null
                     }
                     emit(buildCalendarDays(ym, dayInfos))
                 }

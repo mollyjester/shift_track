@@ -5,11 +5,14 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.slikharev.shifttrack.auth.UserSession
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.remote.FirestoreSyncDataSource
+import com.slikharev.shifttrack.data.remote.FirestoreUserDataSource
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
+import kotlinx.coroutines.flow.first
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -38,6 +41,8 @@ class SyncWorker @AssistedInject constructor(
     private val leaveDao: LeaveDao,
     private val overtimeDao: OvertimeDao,
     private val syncDataSource: FirestoreSyncDataSource,
+    private val userDataSource: FirestoreUserDataSource,
+    private val appDataStore: AppDataStore,
     private val annualResetUseCase: AnnualResetUseCase,
     private val widgetUpdater: ShiftWidgetUpdater,
 ) : CoroutineWorker(context, params) {
@@ -50,6 +55,7 @@ class SyncWorker @AssistedInject constructor(
             annualResetUseCase.runIfNeeded(uid)
             // Sync each entity type independently so one failure doesn't block others.
             val failures = listOfNotNull(
+                runCatching { syncAnchor(uid) }.exceptionOrNull(),
                 runCatching { syncShifts(uid) }.exceptionOrNull(),
                 runCatching { syncLeaves(uid) }.exceptionOrNull(),
                 runCatching { syncOvertimes(uid) }.exceptionOrNull(),
@@ -61,6 +67,13 @@ class SyncWorker @AssistedInject constructor(
         } catch (e: Exception) {
             if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
         }
+    }
+
+    private suspend fun syncAnchor(uid: String) {
+        val date = appDataStore.anchorDate.first() ?: return
+        val index = appDataStore.anchorCycleIndex.first()
+        if (index < 0) return
+        userDataSource.saveAnchor(uid, date, index)
     }
 
     private suspend fun syncShifts(uid: String) {
