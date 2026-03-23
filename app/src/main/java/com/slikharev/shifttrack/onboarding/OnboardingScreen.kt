@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -82,7 +83,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 )
                 OnboardingStep.LEAVE_SETUP -> LeaveSetupStep(
                     state = state,
-                    onLeaveChange = viewModel::setLeaveAllowanceDays,
+                    onLeaveChange = viewModel::setLeaveAllowance,
                     onNext = { viewModel.nextStep() },
                     onBack = viewModel::prevStep,
                 )
@@ -290,7 +291,7 @@ private fun shiftTypeEmoji(type: ShiftType) = when (type) {
 @Composable
 private fun LeaveSetupStep(
     state: OnboardingUiState,
-    onLeaveChange: (Int) -> Unit,
+    onLeaveChange: (LeaveType, Int) -> Unit,
     onNext: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -298,7 +299,7 @@ private fun LeaveSetupStep(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "Step 2 of 3",
                 style = MaterialTheme.typography.labelMedium,
@@ -306,42 +307,59 @@ private fun LeaveSetupStep(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Annual leave entitlement",
+                text = "Leave entitlement",
                 style = MaterialTheme.typography.headlineSmall,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "How many leave days are you entitled to this year? You can change this later in Settings.",
+                text = "Set annual allowance for each leave category. You can change this later in Settings.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                FilledTonalButton(
-                    onClick = { onLeaveChange(state.leaveAllowanceDays - 1) },
-                    enabled = state.leaveAllowanceDays > 1,
-                ) { Text("−") }
-                Spacer(modifier = Modifier.width(16.dp))
-                OutlinedTextField(
-                    value = state.leaveAllowanceDays.toString(),
-                    onValueChange = { v -> v.toIntOrNull()?.let { onLeaveChange(it) } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.width(100.dp),
-                    textStyle = MaterialTheme.typography.headlineMedium.copy(textAlign = TextAlign.Center),
-                    suffix = { Text("days") },
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                FilledTonalButton(
-                    onClick = { onLeaveChange(state.leaveAllowanceDays + 1) },
-                    enabled = state.leaveAllowanceDays < 365,
-                ) { Text("+") }
+            LeaveType.entries.forEach { leaveType ->
+                val days = state.leaveAllowances[leaveType] ?: 0
+                val label = leaveType.name.lowercase().replaceFirstChar { it.uppercase() }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilledTonalButton(
+                        onClick = { onLeaveChange(leaveType, days - 1) },
+                        enabled = days > 0,
+                    ) { Text("−") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = days.toString(),
+                        onValueChange = { v -> v.toIntOrNull()?.let { onLeaveChange(leaveType, it) } },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.width(80.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilledTonalButton(
+                        onClick = { onLeaveChange(leaveType, days + 1) },
+                        enabled = days < 365,
+                    ) { Text("+") }
+                }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Total: ${state.totalLeaveDays} days",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
 
             state.error?.let {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -416,9 +434,18 @@ private fun ConfirmStep(
 
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Annual leave: ${state.leaveAllowanceDays} days",
+                text = "Leave entitlement: ${state.totalLeaveDays} days total",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            state.leaveAllowances.forEach { (type, days) ->
+                if (days > 0) {
+                    Text(
+                        text = "  ${type.name.lowercase().replaceFirstChar { it.uppercase() }}: $days days",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             state.error?.let {
                 Spacer(modifier = Modifier.height(8.dp))

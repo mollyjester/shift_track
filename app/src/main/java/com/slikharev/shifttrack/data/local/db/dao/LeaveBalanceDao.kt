@@ -12,11 +12,17 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LeaveBalanceDao {
 
-    @Query("SELECT * FROM leave_balance WHERE user_id = :userId AND year = :year LIMIT 1")
-    suspend fun getBalanceForYear(userId: String, year: Int): LeaveBalanceEntity?
+    @Query("SELECT * FROM leave_balance WHERE user_id = :userId AND year = :year AND leave_type = :leaveType LIMIT 1")
+    suspend fun getBalanceForYearAndType(userId: String, year: Int, leaveType: String): LeaveBalanceEntity?
 
-    @Query("SELECT * FROM leave_balance WHERE user_id = :userId AND year = :year LIMIT 1")
-    fun observeBalanceForYear(userId: String, year: Int): Flow<LeaveBalanceEntity?>
+    @Query("SELECT * FROM leave_balance WHERE user_id = :userId AND year = :year AND leave_type = :leaveType LIMIT 1")
+    fun observeBalanceForYearAndType(userId: String, year: Int, leaveType: String): Flow<LeaveBalanceEntity?>
+
+    @Query("SELECT * FROM leave_balance WHERE user_id = :userId AND year = :year ORDER BY leave_type ASC")
+    fun observeAllBalancesForYear(userId: String, year: Int): Flow<List<LeaveBalanceEntity>>
+
+    @Query("SELECT * FROM leave_balance WHERE user_id = :userId AND year = :year ORDER BY leave_type ASC")
+    suspend fun getAllBalancesForYear(userId: String, year: Int): List<LeaveBalanceEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(balance: LeaveBalanceEntity): Long

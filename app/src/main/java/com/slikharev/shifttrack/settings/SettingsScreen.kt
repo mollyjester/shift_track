@@ -1,6 +1,10 @@
 package com.slikharev.shifttrack.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import android.content.Intent
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
@@ -46,6 +52,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -54,8 +62,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
+import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.COLOR_PRESETS
+import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -68,7 +80,7 @@ fun SettingsScreen(navController: NavController) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val anchorDate by viewModel.anchorDate.collectAsStateWithLifecycle()
     val anchorCycleIndex by viewModel.anchorCycleIndex.collectAsStateWithLifecycle()
-    val leaveBalance by viewModel.leaveBalance.collectAsStateWithLifecycle()
+    val leaveBalances by viewModel.leaveBalances.collectAsStateWithLifecycle()
     val overtimeBalance by viewModel.overtimeBalance.collectAsStateWithLifecycle()
     val todayShiftLabel by viewModel.todayShiftLabel.collectAsStateWithLifecycle()
     val pendingInviteLink by viewModel.pendingInviteLink.collectAsStateWithLifecycle()
@@ -122,14 +134,19 @@ fun SettingsScreen(navController: NavController) {
 
             HorizontalDivider()
 
-            // ── Leave balance ────────────────────────────────────────────────────
+            // ── Leave balance (per-category) ─────────────────────────────────────
             SettingsSectionHeader("Leave Allowance")
-            LeaveBalanceCard(
-                totalDays = leaveBalance?.totalDays,
-                usedDays = leaveBalance?.usedDays,
-                year = leaveBalance?.year ?: LocalDate.now().year,
+            LeaveBalancesCard(
+                balances = leaveBalances,
+                year = LocalDate.now().year,
                 onEditClick = { showLeaveDialog = true },
             )
+
+            HorizontalDivider()
+
+            // ── Shift colors ─────────────────────────────────────────────────────
+            SettingsSectionHeader("Shift Colors")
+            ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
 
             HorizontalDivider()
 
@@ -181,10 +198,9 @@ fun SettingsScreen(navController: NavController) {
 
     if (showLeaveDialog) {
         EditLeaveDialog(
-            initialDays = leaveBalance?.totalDays ?: 30f,
-            onConfirm = { days ->
-                showLeaveDialog = false
-                viewModel.updateLeaveTotalDays(days)
+            balances = leaveBalances,
+            onConfirm = { leaveType, days ->
+                viewModel.updateLeaveTotalDaysByType(leaveType, days)
             },
             onDismiss = { showLeaveDialog = false },
         )
@@ -378,9 +394,8 @@ private fun ScheduleCard(
 }
 
 @Composable
-private fun LeaveBalanceCard(
-    totalDays: Float?,
-    usedDays: Float?,
+private fun LeaveBalancesCard(
+    balances: List<LeaveBalanceEntity>,
     year: Int,
     onEditClick: () -> Unit,
 ) {
@@ -391,29 +406,21 @@ private fun LeaveBalanceCard(
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(text = "$year", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (totalDays != null) {
-                    Text(
-                        text = "Total: ${"%.0f".format(totalDays)} days",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    if (usedDays != null) {
-                        val remaining = (totalDays - usedDays).coerceAtLeast(0f)
+                if (balances.isEmpty()) {
+                    Text(text = "Not configured", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                } else {
+                    balances.filter { it.totalDays > 0f || it.usedDays > 0f }.forEach { b ->
+                        val label = b.leaveType.lowercase().replaceFirstChar { it.uppercase() }
+                        val remaining = (b.totalDays - b.usedDays).coerceAtLeast(0f)
                         Text(
-                            text = "Used: ${"%.1f".format(usedDays)} · Remaining: ${"%.1f".format(remaining)}",
+                            text = "$label: ${"%.0f".format(b.totalDays)} total · ${"%.1f".format(remaining)} left",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                } else {
-                    Text(
-                        text = "Not configured",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
                 }
             }
             IconButton(onClick = onEditClick) {
@@ -495,7 +502,7 @@ private fun EditScheduleDialog(
                         modifier = Modifier.fillMaxWidth(),
                         colors = if (cycleIndex == idx) {
                             ButtonDefaults.outlinedButtonColors(
-                                containerColor = ShiftColors.containerColor(type).copy(alpha = 0.5f),
+                                containerColor = LocalShiftColors.current.containerColor(type).copy(alpha = 0.5f),
                             )
                         } else ButtonDefaults.outlinedButtonColors(),
                     ) {
@@ -519,33 +526,46 @@ private fun EditScheduleDialog(
 
 @Composable
 private fun EditLeaveDialog(
-    initialDays: Float,
-    onConfirm: (Float) -> Unit,
+    balances: List<LeaveBalanceEntity>,
+    onConfirm: (String, Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var days by remember { mutableFloatStateOf(initialDays.coerceIn(1f, 365f)) }
+    val balanceMap = balances.associateBy { it.leaveType }
+    val dayValues = remember(balances) {
+        LeaveType.entries.associateWith { type ->
+            androidx.compose.runtime.mutableFloatStateOf(
+                (balanceMap[type.name]?.totalDays ?: 0f).coerceIn(0f, 365f),
+            )
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Annual leave allowance") },
+        title = { Text("Leave allowance") },
         text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("Total leave days for the year:")
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    OutlinedButton(onClick = { if (days > 1f) days -= 1f }, enabled = days > 1f) { Text("−") }
-                    Text("${"%.0f".format(days)} days", style = MaterialTheme.typography.headlineSmall)
-                    OutlinedButton(onClick = { if (days < 365f) days += 1f }, enabled = days < 365f) { Text("+") }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LeaveType.entries.forEach { type ->
+                    val label = type.name.lowercase().replaceFirstChar { it.uppercase() }
+                    val daysState = dayValues[type]!!
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(text = label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        OutlinedButton(onClick = { if (daysState.floatValue > 0f) daysState.floatValue -= 1f }, enabled = daysState.floatValue > 0f) { Text("−") }
+                        Text("${"%.0f".format(daysState.floatValue)}", style = MaterialTheme.typography.bodyLarge)
+                        OutlinedButton(onClick = { if (daysState.floatValue < 365f) daysState.floatValue += 1f }, enabled = daysState.floatValue < 365f) { Text("+") }
+                    }
                 }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(days) }) { Text("Save") }
+            Button(onClick = {
+                for (type in LeaveType.entries) {
+                    onConfirm(type.name, dayValues[type]!!.floatValue)
+                }
+                onDismiss()
+            }) { Text("Save") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
@@ -595,6 +615,67 @@ private fun EditCompensatedDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+@Composable
+private fun ColorSettingsSection(onColorChange: (ShiftType, Long) -> Unit) {
+    val colorConfig = LocalShiftColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ShiftType.entries.forEach { type ->
+            val currentColor = colorConfig.containerColor(type)
+            var expanded by remember { mutableStateOf(false) }
+            val label = ShiftColors.label(type)
+
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(currentColor)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                    )
+                    Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(text = if (expanded) "▲" else "▼", style = MaterialTheme.typography.bodySmall)
+                }
+
+                if (expanded) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    COLOR_PRESETS.chunked(6).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            row.forEach { color ->
+                                val isSelected = color.toArgb() == currentColor.toArgb()
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(color)
+                                        .then(
+                                            if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                            else Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                                        )
+                                        .clickable {
+                                            onColorChange(type, color.toArgb().toLong())
+                                            expanded = false
+                                        },
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

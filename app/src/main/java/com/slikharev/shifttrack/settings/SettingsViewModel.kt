@@ -13,6 +13,7 @@ import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
+import com.slikharev.shifttrack.data.local.PrefsKeys
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.invite.InviteRepository
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
@@ -65,14 +66,7 @@ class SettingsViewModel @Inject constructor(
 
     // ─── Leave balance ────────────────────────────────────────────────────────────
 
-    val leaveBalance: StateFlow<LeaveBalanceEntity?> = combine(
-        appDataStore.anchorDate, // re-trigger after onboarding completes
-        flowOf(currentYear),
-    ) { _, year -> year }
-        .flatMapLatest { year ->
-            leaveBalanceDao.observeBalanceForYear(uid, year)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    // Per-category balances exposed via leaveBalances below.
 
     // ─── Overtime balance ─────────────────────────────────────────────────────────
 
@@ -125,34 +119,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * Updates the total annual leave allowance for the current year.
-     * Creates the balance row if it doesn't exist yet.
-     */
-    fun updateLeaveTotalDays(totalDays: Float) {
-        require(totalDays > 0f) { "Leave days must be positive" }
-        viewModelScope.launch {
-            _uiState.value = SettingsUiState(isSaving = true)
-            try {
-                val existing = leaveBalanceDao.getBalanceForYear(uid, currentYear)
-                if (existing == null) {
-                    leaveBalanceDao.upsert(
-                        LeaveBalanceEntity(
-                            year = currentYear,
-                            totalDays = totalDays,
-                            userId = uid,
-                        ),
-                    )
-                } else {
-                    leaveBalanceDao.update(existing.copy(totalDays = totalDays))
-                }
-                _uiState.value = SettingsUiState(savedMessage = "Leave allowance updated")
-            } catch (e: Exception) {
-                _uiState.value = SettingsUiState(error = "Failed to save: ${e.message}")
-            }
-        }
-    }
-
-    /**
      * Records how many overtime hours have been compensated this year.
      * Does nothing if no overtime balance row exists yet.
      */
@@ -176,6 +142,59 @@ class SettingsViewModel @Inject constructor(
 
     fun clearMessage() {
         _uiState.value = _uiState.value.copy(savedMessage = null, error = null)
+    }
+
+    // ─── Leave balance (per-category) ─────────────────────────────────────────
+
+    val leaveBalances: StateFlow<List<com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity>> =
+        combine(
+            appDataStore.anchorDate,
+            flowOf(currentYear),
+        ) { _, year -> year }
+            .flatMapLatest { year ->
+                leaveBalanceDao.observeAllBalancesForYear(uid, year)
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun updateLeaveTotalDaysByType(leaveType: String, totalDays: Float) {
+        require(totalDays >= 0f) { "Leave days cannot be negative" }
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                val existing = leaveBalanceDao.getBalanceForYearAndType(uid, currentYear, leaveType)
+                if (existing == null) {
+                    leaveBalanceDao.upsert(
+                        com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity(
+                            year = currentYear,
+                            leaveType = leaveType,
+                            totalDays = totalDays,
+                            userId = uid,
+                        ),
+                    )
+                } else {
+                    leaveBalanceDao.update(existing.copy(totalDays = totalDays))
+                }
+                _uiState.value = SettingsUiState(savedMessage = "Leave allowance updated")
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(error = "Failed to save: ${e.message}")
+            }
+        }
+    }
+
+    // ─── Colors ───────────────────────────────────────────────────────────────
+
+    fun saveShiftColor(shiftType: com.slikharev.shifttrack.model.ShiftType, argb: Long) {
+        viewModelScope.launch {
+            val key = when (shiftType) {
+                com.slikharev.shifttrack.model.ShiftType.DAY -> PrefsKeys.COLOR_DAY
+                com.slikharev.shifttrack.model.ShiftType.NIGHT -> PrefsKeys.COLOR_NIGHT
+                com.slikharev.shifttrack.model.ShiftType.REST -> PrefsKeys.COLOR_REST
+                com.slikharev.shifttrack.model.ShiftType.OFF -> PrefsKeys.COLOR_OFF
+                com.slikharev.shifttrack.model.ShiftType.LEAVE -> PrefsKeys.COLOR_LEAVE
+            }
+            appDataStore.setShiftColor(key, argb)
+            widgetUpdater.updateAll()
+        }
     }
 
     // ─── Invite ───────────────────────────────────────────────────────────────────

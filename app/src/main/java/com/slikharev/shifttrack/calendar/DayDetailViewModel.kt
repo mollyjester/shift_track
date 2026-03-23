@@ -55,7 +55,7 @@ class DayDetailViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    fun setManualOverride(shiftType: ShiftType) {
+    fun setManualOverride(shiftType: ShiftType, note: String? = null) {
         viewModelScope.launch {
             _isSaving.value = true
             _error.value = null
@@ -64,10 +64,32 @@ class DayDetailViewModel @Inject constructor(
                     userId = userSession.requireUserId(),
                     date = date,
                     shiftType = shiftType,
+                    note = note,
                 )
                 widgetUpdater.updateAll()
             } catch (e: Exception) {
                 _error.value = "Failed to save: ${e.message}"
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun saveNote(note: String?) {
+        val info = dayInfo.value ?: return
+        viewModelScope.launch {
+            _isSaving.value = true
+            _error.value = null
+            try {
+                shiftRepository.setManualOverride(
+                    userId = userSession.requireUserId(),
+                    date = date,
+                    shiftType = info.shiftType,
+                    note = note?.takeIf { it.isNotBlank() },
+                )
+                widgetUpdater.updateAll()
+            } catch (e: Exception) {
+                _error.value = "Failed to save note: ${e.message}"
             } finally {
                 _isSaving.value = false
             }

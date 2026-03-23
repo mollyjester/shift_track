@@ -20,9 +20,15 @@ The app uses a rotating 5-day cycle (Day → Day → Night → Rest → Off). To
 
 ### Step 3 — Enter Your Leave Balance
 
-1. Enter the total number of leave days you are entitled to this year (e.g., 28).
-2. The app will track how many days you use as you record leave.
-3. Tap **Finish** to complete onboarding.
+1. Set leave allowances for each leave category:
+   - **Annual** — default 28 days
+   - **Sick** — default 10 days
+   - **Personal** — default 5 days
+   - **Unpaid** — default 0 days
+   - **Other** — default 0 days
+2. Use the **+/−** buttons or type a number directly for each category.
+3. The app will track how many days you use per category as you record leave.
+4. Tap **Finish** to complete onboarding.
 
 ### Step 4 — Navigating the App
 
@@ -41,7 +47,7 @@ The bottom navigation bar has three sections:
 ### Dashboard
 
 - **Shift cards** — Each card shows the date, weekday, and shift type. Today's card is highlighted.
-- **Leave balance** — Shows remaining days as `(total – used)`. This updates immediately when you record or remove leave.
+- **Leave balance** — Shows per-category progress bars (Annual, Sick, Personal, Unpaid, Other). Each bar gradually fills as leave is consumed. Remaining days are shown as `remaining / total` next to each bar.
 - **Overtime summary** — Shows hours worked this week and the cumulative yearly total.
 
 ### Calendar
@@ -59,6 +65,7 @@ Opening a day shows:
 - Any manually set override.
 - Any leave recorded for that day.
 - Any overtime recorded.
+- A **notes** field for attaching free-text notes to the day.
 
 **Available actions:**
 
@@ -70,14 +77,16 @@ Opening a day shows:
 | Remove leave | Tap the leave entry and confirm removal |
 | Add overtime | Tap **Log Overtime**, enter hours, optionally add a note |
 | Remove overtime | Tap the overtime entry and confirm removal |
+| Save note | Enter text in the notes field and tap **Save note** |
 
 ### Settings
 
 | Setting | Description |
 |---|---|
 | **Anchor date** | Change the reference date for the cadence engine. You may need to update this if your shift pattern was re-based. |
-| **Leave entitlement** | Total leave days for the current year. The app will reset this carry-over automatically on the first launch of each new year. |
+| **Leave entitlement** | Per-category leave days for the current year (Annual, Sick, Personal, Unpaid, Other). The app resets automatically on the first launch of each new year, carrying over each category's total independently. |
 | **Overtime compensation** | Mark hours as compensated (paid out or taken as time-off). This does not remove them from the history. |
+| **Shift colors** | Customise the colour for each shift type (Day, Night, Rest, Off, Leave) from 12 preset colours. Changes take effect immediately across the calendar, dashboard, and day detail screens. |
 | **Invite a viewer** | Generate a 7-day invite link to share your schedule with a family member or manager (see *Invite Guide* below). |
 
 ---

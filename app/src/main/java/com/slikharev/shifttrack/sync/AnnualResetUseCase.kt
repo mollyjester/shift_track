@@ -4,6 +4,7 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
+import com.slikharev.shifttrack.model.LeaveType
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import javax.inject.Inject
@@ -12,8 +13,8 @@ import javax.inject.Singleton
 /**
  * Performs the annual roll-over when the calendar year advances:
  *
- * 1. If no leave-balance row exists for the current year, creates one by copying
- *    [totalDays] from the most recent previous year (so the allowance carries over).
+ * 1. For each leave type, if no leave-balance row exists for the current year,
+ *    creates one by copying [totalDays] from the most recent previous year.
  * 2. Does **not** reset [OvertimeBalanceEntity.compensatedHours] — the user does this
  *    manually via the Settings screen; the new year's overtime just starts accumulating
  *    from scratch once the first overtime entry is filed.
@@ -39,27 +40,37 @@ class AnnualResetUseCase @Inject constructor(
         val lastResetYear = appDataStore.lastResetYear.first()
         if (lastResetYear >= currentYear) return false
 
-        carryOverLeaveBalance(uid, currentYear, previousYear = lastResetYear.takeIf { it > 0 } ?: (currentYear - 1))
+        val previousYear = lastResetYear.takeIf { it > 0 } ?: (currentYear - 1)
+        carryOverLeaveBalances(uid, currentYear, previousYear)
         appDataStore.setLastResetYear(currentYear)
         return true
     }
 
-    private suspend fun carryOverLeaveBalance(uid: String, currentYear: Int, previousYear: Int) {
-        // Nothing to do if a leave-balance row already exists for the new year.
-        if (leaveBalanceDao.getBalanceForYear(uid, currentYear) != null) return
+    private suspend fun carryOverLeaveBalances(uid: String, currentYear: Int, previousYear: Int) {
+        val existingBalances = leaveBalanceDao.getAllBalancesForYear(uid, currentYear)
+        val existingTypes = existingBalances.map { it.leaveType }.toSet()
 
-        // Find the most recent prior year with a balance and copy its totalDays.
-        val previousBalance = leaveBalanceDao.getBalanceForYear(uid, previousYear)
-        val totalDays = previousBalance?.totalDays ?: appDataStore.defaultLeaveDays.first()
+        val previousBalances = leaveBalanceDao.getAllBalancesForYear(uid, previousYear)
+            .associateBy { it.leaveType }
 
-        leaveBalanceDao.upsert(
-            LeaveBalanceEntity(
-                year = currentYear,
-                totalDays = totalDays,
-                usedDays = 0f,
-                userId = uid,
+        val defaultTotalDays = appDataStore.defaultLeaveDays.first()
+
+        for (leaveType in LeaveType.entries) {
+            if (leaveType.name in existingTypes) continue
+            val previousBalance = previousBalances[leaveType.name]
+            val totalDays = previousBalance?.totalDays
+                ?: if (leaveType == LeaveType.ANNUAL) defaultTotalDays else 0f
+
+            leaveBalanceDao.upsert(
+                LeaveBalanceEntity(
+                    year = currentYear,
+                    leaveType = leaveType.name,
+                    totalDays = totalDays,
+                    usedDays = 0f,
+                    userId = uid,
+                ),
             )
-        )
+        }
     }
 
     companion object

@@ -21,7 +21,7 @@ import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
         LeaveBalanceEntity::class,
         OvertimeBalanceEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class ShiftTrackDatabase : RoomDatabase() {

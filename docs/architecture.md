@@ -20,9 +20,9 @@
 ┌──────────────────────────────────┐  ┌───────────────────────────────────┐
 │       Repository Layer           │  │         AppDataStore              │
 │  ShiftRepository                 │  │  (anchor date, onboarding flag,   │
-│  LeaveRepository                 │  │   last reset year, FCM token)     │
-│  OvertimeRepository              │  └───────────────────────────────────┘
-│  InviteRepository (interface)    │
+│  LeaveRepository                 │  │   last reset year, FCM token,     │
+│  OvertimeRepository              │  │   shift color preferences)        │
+│  InviteRepository (interface)    │  └───────────────────────────────────┘
 └────────────┬─────────────────────┘
              │
       ┌──────┴──────┐
@@ -48,6 +48,14 @@
 ### Offline-First
 
 The Room database is the **single source of truth**. Every user action writes to Room immediately and the UI reads from Room. Firestore is written to asynchronously by `SyncWorker` and failures are retried with exponential back-off. The user never waits for a network response.
+
+### Per-Category Leave Balance (v1.1)
+
+Leave balances are stored per leave type per year. The `leave_balance` table has a unique index on `(year, user_id, leave_type)`, resulting in one row per `LeaveType` per year. Onboarding creates rows for all five categories (ANNUAL, SICK, PERSONAL, UNPAID, OTHER). `AnnualResetUseCase` carries over `totalDays` from the previous year for each category independently. `LeaveRepository.refreshUsedDays()` recalculates used days per category via `sumLeaveDaysByType`.
+
+### Configurable Shift Colors (v1.1)
+
+Shift-type colors are user-configurable via Settings and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `ShiftColorConfig` is provided through `LocalShiftColors` (a `CompositionLocal`). All composable screens read colors from `LocalShiftColors.current`. The Glance widget continues to use default `ShiftColors` since `CompositionLocal` is unavailable in the widget context.
 
 ### Pure Cadence Engine
 

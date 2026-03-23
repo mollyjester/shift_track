@@ -6,6 +6,7 @@ import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
+import com.slikharev.shifttrack.model.LeaveType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +33,6 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(selectedCycleIndex = index, error = null) }
     }
 
-    /** Move anchor date one day forward (helpful when opened right after midnight). */
     fun shiftAnchorForward() {
         _uiState.update { it.copy(anchorDate = it.anchorDate.plusDays(1)) }
     }
@@ -45,16 +45,20 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(spectatorOnly = enabled, error = null) }
     }
 
-    // ── Step 2: leave setup ──────────────────────────────────────────────────
+    // ── Step 2: per-category leave setup ─────────────────────────────────────
 
-    fun setLeaveAllowanceDays(days: Int) {
-        val clamped = days.coerceIn(1, 365)
-        _uiState.update { it.copy(leaveAllowanceDays = clamped, error = null) }
+    fun setLeaveAllowance(leaveType: LeaveType, days: Int) {
+        val clamped = days.coerceIn(0, 365)
+        _uiState.update { state ->
+            state.copy(
+                leaveAllowances = state.leaveAllowances + (leaveType to clamped),
+                error = null,
+            )
+        }
     }
 
     // ── Navigation ───────────────────────────────────────────────────────────
 
-    /** Advance to the next step. Returns false if validation fails. */
     fun nextStep(): Boolean {
         val state = _uiState.value
         return when (state.step) {
@@ -70,14 +74,13 @@ class OnboardingViewModel @Inject constructor(
                 }
             }
             OnboardingStep.LEAVE_SETUP -> {
-                // Build preview on transition to CONFIRM
                 val preview = state.buildPreview()
                 _uiState.update {
                     it.copy(step = OnboardingStep.CONFIRM, previewDays = preview, error = null)
                 }
                 true
             }
-            OnboardingStep.CONFIRM -> false // handled by completeOnboarding()
+            OnboardingStep.CONFIRM -> false
         }
     }
 
@@ -86,19 +89,13 @@ class OnboardingViewModel @Inject constructor(
             when (state.step) {
                 OnboardingStep.LEAVE_SETUP -> state.copy(step = OnboardingStep.SHIFT_PICKER, error = null)
                 OnboardingStep.CONFIRM -> state.copy(step = OnboardingStep.LEAVE_SETUP, error = null)
-                OnboardingStep.SHIFT_PICKER -> state // already first step
+                OnboardingStep.SHIFT_PICKER -> state
             }
         }
     }
 
     // ── Final save ───────────────────────────────────────────────────────────
 
-    /**
-     * Persists anchor date + cycle index to DataStore, creates the initial leave-balance
-     * row in Room, then marks onboarding complete.
-     *
-     * Calls [onSuccess] on the main thread when done.
-     */
     fun completeOnboarding(onSuccess: () -> Unit) {
         val state = _uiState.value
         if (!state.spectatorOnly && state.selectedCycleIndex < 0) return
@@ -107,27 +104,27 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 if (!state.spectatorOnly) {
-                    // 1. Save anchor
                     appDataStore.setAnchor(
                         date = state.anchorDate.toString(),
                         cycleIndex = state.selectedCycleIndex,
                     )
 
-                    // 2. Seed leave balance for current year
                     val userId = userSession.currentUserId.orEmpty()
                     val year = LocalDate.now().year
-                    leaveBalanceDao.upsert(
-                        LeaveBalanceEntity(
-                            year = year,
-                            totalDays = state.leaveAllowanceDays.toFloat(),
-                            usedDays = 0f,
-                            userId = userId,
-                        ),
-                    )
+                    for ((leaveType, days) in state.leaveAllowances) {
+                        leaveBalanceDao.upsert(
+                            LeaveBalanceEntity(
+                                year = year,
+                                leaveType = leaveType.name,
+                                totalDays = days.toFloat(),
+                                usedDays = 0f,
+                                userId = userId,
+                            ),
+                        )
+                    }
                     appDataStore.setLastResetYear(year)
                 }
 
-                // 3. Mark onboarding complete (last so a crash before here is retryable)
                 appDataStore.setOnboardingComplete(true)
 
                 _uiState.update { it.copy(isSaving = false) }

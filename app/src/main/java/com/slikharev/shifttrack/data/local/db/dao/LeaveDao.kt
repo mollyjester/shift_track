@@ -43,6 +43,14 @@ interface LeaveDao {
     )
     fun sumLeaveDaysForYear(userId: String, startDate: String, endDate: String): Flow<Float>
 
+    /** Counts days taken for a specific leave type (half-day = 0.5). */
+    @Query(
+        """SELECT COALESCE(SUM(CASE WHEN half_day THEN 0.5 ELSE 1.0 END), 0)
+           FROM leaves
+           WHERE user_id = :userId AND date BETWEEN :startDate AND :endDate AND leave_type = :leaveType"""
+    )
+    fun sumLeaveDaysByType(userId: String, startDate: String, endDate: String, leaveType: String): Flow<Float>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(leave: LeaveEntity): Long
 

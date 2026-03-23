@@ -28,7 +28,7 @@ See [docs/architecture.md](docs/architecture.md) for data flow details, sync str
 | `widget/` | Glance-based home-screen widget |
 | `model/` | Shared enums and UI models (`ShiftType`, `LeaveType`, `DayInfo`) |
 | `di/` | Hilt modules (`AppModule`, `AuthModule`, `InviteModule`) |
-| `ui/` | Theme, colors, shared composables |
+| `ui/` | Theme, colors, shared composables, `ShiftColorConfig` + `LocalShiftColors` |
 
 ## Build & Test
 
@@ -60,7 +60,9 @@ Min SDK 26 · Target/Compile SDK 35 · Kotlin 2.0.21 · Java 17
 
 ## Key Gotchas
 
-- **Database schema**: version 1, `exportSchema=true`, schema JSON exported to `app/schemas/`. `fallbackToDestructiveMigration()` is active — no manual migrations exist yet.
+- **Database schema**: version 2, `exportSchema=true`, schema JSON exported to `app/schemas/`. `fallbackToDestructiveMigration()` is active — no manual migrations exist yet. v1.1 added `leave_type` column to `leave_balance` with unique index `(year, user_id, leave_type)`.
+- **Per-category leave**: Leave balances are stored per leave type per year. `LeaveRepository.refreshUsedDays()` calculates used days per category. `AnnualResetUseCase` carries over each category independently.
+- **Configurable colors**: Per-shift-type colors stored as `Long` (ARGB) in `AppDataStore`, provided via `LocalShiftColors` (`CompositionLocal`). Widget uses static defaults.
 - **Firestore sync**: fire-and-forget writes. Conflict resolution is last-write-wins by date key. Batch writes are chunked to 500 operations.
 - **Widget updates**: `ShiftWidgetUpdater.updateAll()` must be called after every local data mutation and settings change. Widget errors are swallowed.
 - **Invite validation**: currently client-side only (known limitation — migrate to Cloud Function).

@@ -125,34 +125,38 @@ class SettingsViewModelTest {
         assertEquals(false, viewModel.uiState.value.isSaving)
     }
 
-    // ── updateLeaveTotalDays ───────────────────────────────────────────────
+    // ── updateLeaveTotalDaysByType ─────────────────────────────────────────
 
     @Test
-    fun `updateLeaveTotalDays creates new balance row when none exists`() = testScope.runTest {
-        viewModel.updateLeaveTotalDays(28f)
+    fun `updateLeaveTotalDaysByType creates new balance row when none exists`() = testScope.runTest {
+        viewModel.updateLeaveTotalDaysByType("ANNUAL", 28f)
         testScheduler.advanceUntilIdle()
 
-        assertEquals(28f, fakeLeaveBalanceDao.stored?.totalDays)
-        assertEquals(LocalDate.now().year, fakeLeaveBalanceDao.stored?.year)
-        assertEquals("uid-test", fakeLeaveBalanceDao.stored?.userId)
+        val stored = fakeLeaveBalanceDao.storeByYearType["${LocalDate.now().year}-ANNUAL"]
+        assertEquals(28f, stored?.totalDays)
+        assertEquals(LocalDate.now().year, stored?.year)
+        assertEquals("uid-test", stored?.userId)
     }
 
     @Test
-    fun `updateLeaveTotalDays updates existing balance row`() = testScope.runTest {
+    fun `updateLeaveTotalDaysByType updates existing balance row`() = testScope.runTest {
         val year = LocalDate.now().year
-        fakeLeaveBalanceDao.stored = LeaveBalanceEntity(id = 1L, year = year, totalDays = 20f, usedDays = 5f, userId = "uid-test")
+        fakeLeaveBalanceDao.storeByYearType["$year-ANNUAL"] = LeaveBalanceEntity(
+            id = 1L, year = year, leaveType = "ANNUAL", totalDays = 20f, usedDays = 5f, userId = "uid-test",
+        )
 
-        viewModel.updateLeaveTotalDays(30f)
+        viewModel.updateLeaveTotalDaysByType("ANNUAL", 30f)
         testScheduler.advanceUntilIdle()
 
-        assertEquals(30f, fakeLeaveBalanceDao.stored?.totalDays)
+        val stored = fakeLeaveBalanceDao.storeByYearType["$year-ANNUAL"]
+        assertEquals(30f, stored?.totalDays)
         // usedDays should be preserved from the existing row
-        assertEquals(5f, fakeLeaveBalanceDao.stored?.usedDays)
+        assertEquals(5f, stored?.usedDays)
     }
 
     @Test
-    fun `updateLeaveTotalDays sets savedMessage on success`() = testScope.runTest {
-        viewModel.updateLeaveTotalDays(25f)
+    fun `updateLeaveTotalDaysByType sets savedMessage on success`() = testScope.runTest {
+        viewModel.updateLeaveTotalDaysByType("ANNUAL", 25f)
         testScheduler.advanceUntilIdle()
 
         assertNotNull(viewModel.uiState.value.savedMessage)
@@ -160,13 +164,8 @@ class SettingsViewModelTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun `updateLeaveTotalDays rejects zero`() {
-        viewModel.updateLeaveTotalDays(0f)
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun `updateLeaveTotalDays rejects negative`() {
-        viewModel.updateLeaveTotalDays(-5f)
+    fun `updateLeaveTotalDaysByType rejects negative`() {
+        viewModel.updateLeaveTotalDaysByType("ANNUAL", -5f)
     }
 
     // ── updateCompensatedOvertimeHours ────────────────────────────────────
@@ -241,7 +240,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `clearMessage clears savedMessage`() = testScope.runTest {
-        viewModel.updateLeaveTotalDays(20f)
+        viewModel.updateLeaveTotalDaysByType("ANNUAL", 20f)
         testScheduler.advanceUntilIdle()
         assertNotNull(viewModel.uiState.value.savedMessage)
 
@@ -291,33 +290,43 @@ private class FakeInviteRepository : InviteRepository {
 // ── Fake DAOs ────────────────────────────────────────────────────────────────
 
 private class FakeLeaveBalanceDao : LeaveBalanceDao {
-    var stored: LeaveBalanceEntity? = null
-    private val flow = MutableStateFlow<LeaveBalanceEntity?>(null)
+    val storeByYearType = mutableMapOf<String, LeaveBalanceEntity>() // key = "$year-$leaveType"
+    private val flow = MutableStateFlow<List<LeaveBalanceEntity>>(emptyList())
 
-    override suspend fun getBalanceForYear(userId: String, year: Int): LeaveBalanceEntity? =
-        stored?.takeIf { it.userId == userId && it.year == year }
+    private fun key(year: Int, leaveType: String) = "$year-$leaveType"
 
-    override fun observeBalanceForYear(userId: String, year: Int): Flow<LeaveBalanceEntity?> =
-        flow.map { it?.takeIf { b -> b.userId == userId && b.year == year } }
+    override suspend fun getBalanceForYearAndType(userId: String, year: Int, leaveType: String): LeaveBalanceEntity? =
+        storeByYearType[key(year, leaveType)]?.takeIf { it.userId == userId }
+
+    override fun observeBalanceForYearAndType(userId: String, year: Int, leaveType: String): Flow<LeaveBalanceEntity?> =
+        flow.map { list -> list.firstOrNull { it.userId == userId && it.year == year && it.leaveType == leaveType } }
+
+    override fun observeAllBalancesForYear(userId: String, year: Int): Flow<List<LeaveBalanceEntity>> =
+        flow.map { list -> list.filter { it.userId == userId && it.year == year } }
+
+    override suspend fun getAllBalancesForYear(userId: String, year: Int): List<LeaveBalanceEntity> =
+        storeByYearType.values.filter { it.userId == userId && it.year == year }
 
     override suspend fun upsert(balance: LeaveBalanceEntity): Long {
-        stored = balance.copy(id = 1L)
-        flow.value = stored
+        val updated = balance.copy(id = 1L)
+        storeByYearType[key(balance.year, balance.leaveType)] = updated
+        flow.value = storeByYearType.values.toList()
         return 1L
     }
 
     override suspend fun update(balance: LeaveBalanceEntity) {
-        stored = balance
-        flow.value = stored
+        storeByYearType[key(balance.year, balance.leaveType)] = balance
+        flow.value = storeByYearType.values.toList()
     }
 
     override suspend fun delete(balance: LeaveBalanceEntity) {
-        stored = null
-        flow.value = null
+        storeByYearType.remove(key(balance.year, balance.leaveType))
+        flow.value = storeByYearType.values.toList()
     }
 
     override suspend fun deleteAllForUser(userId: String) {
-        if (stored?.userId == userId) { stored = null; flow.value = null }
+        storeByYearType.entries.removeIf { it.value.userId == userId }
+        flow.value = storeByYearType.values.toList()
     }
 } 
 

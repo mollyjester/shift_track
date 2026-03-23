@@ -76,23 +76,25 @@ class AnnualResetUseCaseTest {
         val result = useCase.runIfNeeded(uid)
 
         assertTrue(result)
-        val balance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
-        assertNotNull(balance)
-        assertEquals(AppDataStore.DEFAULT_LEAVE_DAYS, balance!!.totalDays)
-        assertEquals(0f, balance.usedDays)
-        assertEquals(uid, balance.userId)
+        // Should have created balances for all leave types
+        val balances = fakeLeaveDao.getAllBalancesForYear(uid, currentYear)
+        assertEquals(5, balances.size) // One per LeaveType
+        val annualBalance = balances.first { it.leaveType == "ANNUAL" }
+        assertEquals(AppDataStore.DEFAULT_LEAVE_DAYS, annualBalance.totalDays)
+        assertEquals(0f, annualBalance.usedDays)
+        assertEquals(uid, annualBalance.userId)
     }
 
     @Test
     fun `runIfNeeded carries over totalDays from previous year`() = testScope.runTest {
         val previousYear = currentYear - 1
-        fakeLeaveDao.store[previousYear] = LeaveBalanceEntity(
-            id = 1L, year = previousYear, totalDays = 25f, usedDays = 3f, userId = uid
+        fakeLeaveDao.store["$previousYear-ANNUAL"] = LeaveBalanceEntity(
+            id = 1L, year = previousYear, leaveType = "ANNUAL", totalDays = 25f, usedDays = 3f, userId = uid,
         )
 
         useCase.runIfNeeded(uid)
 
-        val newBalance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
+        val newBalance = fakeLeaveDao.store["$currentYear-ANNUAL"]
         assertNotNull(newBalance)
         assertEquals(25f, newBalance!!.totalDays)  // carried from previous year
         assertEquals(0f, newBalance.usedDays)       // reset to 0
@@ -115,16 +117,19 @@ class AnnualResetUseCaseTest {
         val result = useCase.runIfNeeded(uid)
 
         assertFalse(result)
-        assertNull(fakeLeaveDao.getBalanceForYear(uid, currentYear))
+        assertTrue(fakeLeaveDao.getAllBalancesForYear(uid, currentYear).isEmpty())
     }
 
     // ── runIfNeeded — leave balance already exists for new year ───────────────
 
     @Test
     fun `runIfNeeded skips leave upsert when balance already exists for current year`() = testScope.runTest {
-        fakeLeaveDao.store[currentYear] = LeaveBalanceEntity(
-            id = 1L, year = currentYear, totalDays = 30f, usedDays = 5f, userId = uid
-        )
+        // Pre-populate all 5 types for current year
+        for (lt in com.slikharev.shifttrack.model.LeaveType.entries) {
+            fakeLeaveDao.store["$currentYear-${lt.name}"] = LeaveBalanceEntity(
+                id = 1L, year = currentYear, leaveType = lt.name, totalDays = 30f, usedDays = 5f, userId = uid,
+            )
+        }
         val upsertCountBefore = fakeLeaveDao.upsertCount
 
         useCase.runIfNeeded(uid)
@@ -140,14 +145,14 @@ class AnnualResetUseCaseTest {
         testScope.runTest {
             val lastResetYear = currentYear - 3
             appDataStore.setLastResetYear(lastResetYear)
-            fakeLeaveDao.store[lastResetYear] = LeaveBalanceEntity(
-                id = 1L, year = lastResetYear, totalDays = 22f, usedDays = 10f, userId = uid,
+            fakeLeaveDao.store["$lastResetYear-ANNUAL"] = LeaveBalanceEntity(
+                id = 1L, year = lastResetYear, leaveType = "ANNUAL", totalDays = 22f, usedDays = 10f, userId = uid,
             )
 
             val result = useCase.runIfNeeded(uid)
 
             assertTrue(result)
-            val balance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
+            val balance = fakeLeaveDao.store["$currentYear-ANNUAL"]
             assertNotNull(balance)
             assertEquals(22f, balance!!.totalDays)    // carried from 3 years ago
             assertEquals(0f, balance.usedDays)         // reset to 0
@@ -163,7 +168,7 @@ class AnnualResetUseCaseTest {
             val result = useCase.runIfNeeded(uid)
 
             assertTrue(result)
-            val balance = fakeLeaveDao.getBalanceForYear(uid, currentYear)
+            val balance = fakeLeaveDao.store["$currentYear-ANNUAL"]
             assertEquals(AppDataStore.DEFAULT_LEAVE_DAYS, balance!!.totalDays)
         }
 
@@ -184,28 +189,36 @@ class AnnualResetUseCaseTest {
 // ── Fake DAOs ────────────────────────────────────────────────────────────────
 
 private class FakeLeaveBalanceDao : LeaveBalanceDao {
-    /** Keyed by year for simplicity. */
-    val store = mutableMapOf<Int, LeaveBalanceEntity>()
+    /** Keyed by "$year-$leaveType" for per-category support. */
+    val store = mutableMapOf<String, LeaveBalanceEntity>()
     var upsertCount = 0
 
-    override suspend fun getBalanceForYear(userId: String, year: Int): LeaveBalanceEntity? =
-        store[year]?.takeIf { it.userId == userId }
+    private fun key(year: Int, leaveType: String) = "$year-$leaveType"
 
-    override fun observeBalanceForYear(userId: String, year: Int): Flow<LeaveBalanceEntity?> =
-        MutableStateFlow(store[year]?.takeIf { it.userId == userId })
+    override suspend fun getBalanceForYearAndType(userId: String, year: Int, leaveType: String): LeaveBalanceEntity? =
+        store[key(year, leaveType)]?.takeIf { it.userId == userId }
+
+    override fun observeBalanceForYearAndType(userId: String, year: Int, leaveType: String): Flow<LeaveBalanceEntity?> =
+        MutableStateFlow(store[key(year, leaveType)]?.takeIf { it.userId == userId })
+
+    override fun observeAllBalancesForYear(userId: String, year: Int): Flow<List<LeaveBalanceEntity>> =
+        MutableStateFlow(store.values.filter { it.userId == userId && it.year == year })
+
+    override suspend fun getAllBalancesForYear(userId: String, year: Int): List<LeaveBalanceEntity> =
+        store.values.filter { it.userId == userId && it.year == year }
 
     override suspend fun upsert(balance: LeaveBalanceEntity): Long {
         upsertCount++
-        store[balance.year] = balance.copy(id = upsertCount.toLong())
+        store[key(balance.year, balance.leaveType)] = balance.copy(id = upsertCount.toLong())
         return upsertCount.toLong()
     }
 
     override suspend fun update(balance: LeaveBalanceEntity) {
-        store[balance.year] = balance
+        store[key(balance.year, balance.leaveType)] = balance
     }
 
     override suspend fun delete(balance: LeaveBalanceEntity) {
-        store.remove(balance.year)
+        store.remove(key(balance.year, balance.leaveType))
     }
 
     override suspend fun deleteAllForUser(userId: String) {

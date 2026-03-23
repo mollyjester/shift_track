@@ -105,8 +105,8 @@ class OnboardingUiStateTest {
     }
 
     @Test
-    fun `default leaveAllowanceDays is 28`() {
-        assertEquals(28, OnboardingUiState().leaveAllowanceDays)
+    fun `default totalLeaveDays is 43`() {
+        assertEquals(43, OnboardingUiState().totalLeaveDays)
     }
 
     @Test

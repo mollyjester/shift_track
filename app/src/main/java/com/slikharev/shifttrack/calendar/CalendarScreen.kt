@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.slikharev.shifttrack.Screen
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -161,8 +162,8 @@ private fun ShiftDayCell(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val bgColor = ShiftColors.containerColor(day.shiftType)
-    val contentColor = ShiftColors.onContainerColor(day.shiftType)
+    val bgColor = LocalShiftColors.current.containerColor(day.shiftType)
+    val contentColor = LocalShiftColors.current.onContainerColor(day.shiftType)
     val shape = RoundedCornerShape(8.dp)
 
     Box(
@@ -171,16 +172,17 @@ private fun ShiftDayCell(
             .padding(2.dp)
             .clip(shape)
             .background(bgColor)
-            .then(
-                if (day.isToday) {
-                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
-                } else {
-                    Modifier
-                },
-            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
+        // Today indicator: inner square at half the cell size
+        if (day.isToday) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(0.5f)
+                    .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)),
+            )
+        }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = day.date.dayOfMonth.toString(),
@@ -224,7 +226,7 @@ private fun LegendChip(type: ShiftType) {
         Box(
             modifier = Modifier
                 .size(10.dp)
-                .background(ShiftColors.containerColor(type), CircleShape),
+                .background(LocalShiftColors.current.containerColor(type), CircleShape),
         )
         Text(
             text = ShiftColors.label(type),

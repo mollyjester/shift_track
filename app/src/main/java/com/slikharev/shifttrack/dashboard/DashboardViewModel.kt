@@ -31,7 +31,6 @@ class DashboardViewModel @Inject constructor(
     private val today: LocalDate = LocalDate.now()
     private val upcomingEnd: LocalDate = today.plusDays(6)
 
-    /** Today's shift and the following 6 days (7 total). */
     val upcomingDays: StateFlow<List<UpcomingDay>> = shiftRepository
         .getDayInfosForRange(today, upcomingEnd)
         .map { infos ->
@@ -39,27 +38,16 @@ class DashboardViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Leave balance for the current calendar year. */
-    val leaveBalance: StateFlow<LeaveBalanceEntity?> = leaveRepository
-        .observeBalanceForYear(today.year)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    /** Per-category leave balances for the current calendar year. */
+    val leaveBalances: StateFlow<List<LeaveBalanceEntity>> = leaveRepository
+        .observeAllBalancesForYear(today.year)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** Remaining leave days = totalDays - usedDays; null while loading. */
-    val remainingLeaveDays: StateFlow<Float?> = leaveRepository
-        .observeBalanceForYear(today.year)
-        .map { balance ->
-            if (balance == null) null
-            else (balance.totalDays - balance.usedDays).coerceAtLeast(0f)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    /** Total overtime hours accumulated this week (today + 6 days ahead). */
     val weeklyOvertimeHours: StateFlow<Float> = overtimeRepository
         .getOvertimeForRange(today, upcomingEnd)
         .map { list -> list.sumOf { it.hours.toDouble() }.toFloat() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0f)
 
-    /** Yearly overtime balance — null until any overtime is recorded. */
     val yearlyOvertimeBalance: StateFlow<OvertimeBalanceEntity?> = overtimeRepository
         .observeBalanceForYear(today.year)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)

@@ -81,39 +81,39 @@ class LeaveRepositoryTest {
 
     @Test
     fun `addLeave full day increments usedDays by 1 0`() = runTest {
-        fakeLeaveBalanceDao.store[today.year] = LeaveBalanceEntity(
-            year = today.year, totalDays = 20f, usedDays = 0f, userId = uid,
+        fakeLeaveBalanceDao.storeByYearType["${today.year}-ANNUAL"] = LeaveBalanceEntity(
+            year = today.year, leaveType = "ANNUAL", totalDays = 20f, usedDays = 0f, userId = uid,
         )
 
         repository.addLeave(today, LeaveType.ANNUAL, halfDay = false, note = null)
 
-        val balance = fakeLeaveBalanceDao.getBalanceForYear(uid, today.year)
+        val balance = fakeLeaveBalanceDao.getBalanceForYearAndType(uid, today.year, "ANNUAL")
         assertEquals(1.0f, balance!!.usedDays)
     }
 
     @Test
     fun `addLeave half day increments usedDays by 0 5`() = runTest {
-        fakeLeaveBalanceDao.store[today.year] = LeaveBalanceEntity(
-            year = today.year, totalDays = 20f, usedDays = 0f, userId = uid,
+        fakeLeaveBalanceDao.storeByYearType["${today.year}-ANNUAL"] = LeaveBalanceEntity(
+            year = today.year, leaveType = "ANNUAL", totalDays = 20f, usedDays = 0f, userId = uid,
         )
 
         repository.addLeave(today, LeaveType.ANNUAL, halfDay = true, note = null)
 
-        val balance = fakeLeaveBalanceDao.getBalanceForYear(uid, today.year)
+        val balance = fakeLeaveBalanceDao.getBalanceForYearAndType(uid, today.year, "ANNUAL")
         assertEquals(0.5f, balance!!.usedDays)
     }
 
     @Test
-    fun `addLeave accumulates usedDays across multiple entries`() = runTest {
-        fakeLeaveBalanceDao.store[today.year] = LeaveBalanceEntity(
-            year = today.year, totalDays = 20f, usedDays = 0f, userId = uid,
+    fun `addLeave accumulates usedDays across multiple entries of same type`() = runTest {
+        fakeLeaveBalanceDao.storeByYearType["${today.year}-ANNUAL"] = LeaveBalanceEntity(
+            year = today.year, leaveType = "ANNUAL", totalDays = 20f, usedDays = 0f, userId = uid,
         )
 
-        repository.addLeave(today,                  LeaveType.ANNUAL,   halfDay = false, note = null)
-        repository.addLeave(today.plusDays(1), LeaveType.SICK,     halfDay = false, note = null)
-        repository.addLeave(today.plusDays(2), LeaveType.PERSONAL, halfDay = true,  note = null)
+        repository.addLeave(today,                  LeaveType.ANNUAL, halfDay = false, note = null)
+        repository.addLeave(today.plusDays(1), LeaveType.ANNUAL, halfDay = false, note = null)
+        repository.addLeave(today.plusDays(2), LeaveType.ANNUAL, halfDay = true,  note = null)
 
-        val balance = fakeLeaveBalanceDao.getBalanceForYear(uid, today.year)
+        val balance = fakeLeaveBalanceDao.getBalanceForYearAndType(uid, today.year, "ANNUAL")
         assertEquals(2.5f, balance!!.usedDays) // 1.0 + 1.0 + 0.5
     }
 
@@ -123,7 +123,7 @@ class LeaveRepositoryTest {
         repository.addLeave(today, LeaveType.ANNUAL, halfDay = false, note = null)
 
         assertNotNull(fakeLeaveDao.getLeaveForDate(uid, today.toString()))
-        val balance = fakeLeaveBalanceDao.getBalanceForYear(uid, today.year)
+        val balance = fakeLeaveBalanceDao.getBalanceForYearAndType(uid, today.year, "ANNUAL")
         assertNotNull(balance)
         assertEquals(1.0f, balance!!.usedDays)
     }
@@ -141,29 +141,29 @@ class LeaveRepositoryTest {
 
     @Test
     fun `removeLeave recalculates usedDays to zero when all leaves are removed`() = runTest {
-        fakeLeaveBalanceDao.store[today.year] = LeaveBalanceEntity(
-            year = today.year, totalDays = 20f, usedDays = 0f, userId = uid,
+        fakeLeaveBalanceDao.storeByYearType["${today.year}-ANNUAL"] = LeaveBalanceEntity(
+            year = today.year, leaveType = "ANNUAL", totalDays = 20f, usedDays = 0f, userId = uid,
         )
         repository.addLeave(today, LeaveType.ANNUAL, halfDay = false, note = null)
 
         repository.removeLeave(today)
 
-        val balance = fakeLeaveBalanceDao.getBalanceForYear(uid, today.year)
+        val balance = fakeLeaveBalanceDao.getBalanceForYearAndType(uid, today.year, "ANNUAL")
         assertEquals(0f, balance!!.usedDays)
     }
 
     @Test
     fun `removeLeave recalculates usedDays correctly when other leaves remain`() = runTest {
-        fakeLeaveBalanceDao.store[today.year] = LeaveBalanceEntity(
-            year = today.year, totalDays = 20f, usedDays = 0f, userId = uid,
+        fakeLeaveBalanceDao.storeByYearType["${today.year}-ANNUAL"] = LeaveBalanceEntity(
+            year = today.year, leaveType = "ANNUAL", totalDays = 20f, usedDays = 0f, userId = uid,
         )
         repository.addLeave(today,                  LeaveType.ANNUAL, halfDay = false, note = null)
-        repository.addLeave(today.plusDays(1), LeaveType.SICK,   halfDay = false, note = null)
+        repository.addLeave(today.plusDays(1), LeaveType.ANNUAL, halfDay = false, note = null)
 
         // Remove only the first day
         repository.removeLeave(today)
 
-        val balance = fakeLeaveBalanceDao.getBalanceForYear(uid, today.year)
+        val balance = fakeLeaveBalanceDao.getBalanceForYearAndType(uid, today.year, "ANNUAL")
         assertEquals(1.0f, balance!!.usedDays)
     }
 
@@ -212,6 +212,14 @@ private class FakeLeaveDao : LeaveDao {
                 .toFloat(),
         )
 
+    override fun sumLeaveDaysByType(userId: String, startDate: String, endDate: String, leaveType: String): Flow<Float> =
+        MutableStateFlow(
+            store.values
+                .filter { it.userId == userId && it.date in startDate..endDate && it.leaveType == leaveType }
+                .sumOf { if (it.halfDay) 0.5 else 1.0 }
+                .toFloat(),
+        )
+
     override suspend fun upsert(leave: LeaveEntity): Long {
         val id = (store.size + 1).toLong()
         store[leave.date] = leave.copy(id = id)
@@ -242,29 +250,37 @@ private class FakeLeaveDao : LeaveDao {
 }
 
 private class FakeLeaveBalanceDao : LeaveBalanceDao {
-    val store = mutableMapOf<Int, LeaveBalanceEntity>() // key = year
+    val storeByYearType = mutableMapOf<String, LeaveBalanceEntity>() // key = "$year-$leaveType"
 
-    override suspend fun getBalanceForYear(userId: String, year: Int): LeaveBalanceEntity? =
-        store[year]?.takeIf { it.userId == userId }
+    private fun key(year: Int, leaveType: String) = "$year-$leaveType"
 
-    override fun observeBalanceForYear(userId: String, year: Int): Flow<LeaveBalanceEntity?> =
-        MutableStateFlow(store[year]?.takeIf { it.userId == userId })
+    override suspend fun getBalanceForYearAndType(userId: String, year: Int, leaveType: String): LeaveBalanceEntity? =
+        storeByYearType[key(year, leaveType)]?.takeIf { it.userId == userId }
+
+    override fun observeBalanceForYearAndType(userId: String, year: Int, leaveType: String): Flow<LeaveBalanceEntity?> =
+        MutableStateFlow(storeByYearType[key(year, leaveType)]?.takeIf { it.userId == userId })
+
+    override fun observeAllBalancesForYear(userId: String, year: Int): Flow<List<LeaveBalanceEntity>> =
+        MutableStateFlow(storeByYearType.values.filter { it.userId == userId && it.year == year })
+
+    override suspend fun getAllBalancesForYear(userId: String, year: Int): List<LeaveBalanceEntity> =
+        storeByYearType.values.filter { it.userId == userId && it.year == year }
 
     override suspend fun upsert(balance: LeaveBalanceEntity): Long {
-        val id = (store.size + 1).toLong()
-        store[balance.year] = balance.copy(id = id)
+        val id = (storeByYearType.size + 1).toLong()
+        storeByYearType[key(balance.year, balance.leaveType)] = balance.copy(id = id)
         return id
     }
 
     override suspend fun update(balance: LeaveBalanceEntity) {
-        store[balance.year] = balance
+        storeByYearType[key(balance.year, balance.leaveType)] = balance
     }
 
     override suspend fun delete(balance: LeaveBalanceEntity) {
-        store.remove(balance.year)
+        storeByYearType.remove(key(balance.year, balance.leaveType))
     }
 
     override suspend fun deleteAllForUser(userId: String) {
-        store.entries.removeIf { it.value.userId == userId }
+        storeByYearType.entries.removeIf { it.value.userId == userId }
     }
 }

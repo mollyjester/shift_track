@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -23,6 +24,12 @@ object PrefsKeys {
     // Phase 2.10: FCM registration token (persisted so it survives sign-in)
     val FCM_TOKEN = stringPreferencesKey("fcm_token")
     val DEFAULT_LEAVE_DAYS = floatPreferencesKey("default_leave_days")
+    // Configurable shift-type colors (stored as ARGB Long)
+    val COLOR_DAY = longPreferencesKey("color_day")
+    val COLOR_NIGHT = longPreferencesKey("color_night")
+    val COLOR_REST = longPreferencesKey("color_rest")
+    val COLOR_OFF = longPreferencesKey("color_off")
+    val COLOR_LEAVE = longPreferencesKey("color_leave")
 }
 
 /**
@@ -86,6 +93,18 @@ class AppDataStore @Inject constructor(
 
     suspend fun clearAll() {
         dataStore.edit { it.clear() }
+    }
+
+    // ── Shift-type colors ────────────────────────────────────────────────────────
+
+    val colorDay: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_DAY] }
+    val colorNight: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_NIGHT] }
+    val colorRest: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_REST] }
+    val colorOff: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_OFF] }
+    val colorLeave: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_LEAVE] }
+
+    suspend fun setShiftColor(key: androidx.datastore.preferences.core.Preferences.Key<Long>, argb: Long) {
+        dataStore.edit { it[key] = argb }
     }
 
     companion object {

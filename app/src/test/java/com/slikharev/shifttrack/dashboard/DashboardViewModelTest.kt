@@ -23,7 +23,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -48,8 +47,8 @@ class DashboardViewModelTest {
         mockOvertimeRepository = mockk(relaxed = true)
 
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(emptyList())
-        every { mockLeaveRepository.observeBalanceForYear(any()) } returns
-            flowOf<LeaveBalanceEntity?>(null)
+        every { mockLeaveRepository.observeAllBalancesForYear(any()) } returns
+            flowOf(emptyList<LeaveBalanceEntity>())
         every { mockOvertimeRepository.getOvertimeForRange(any(), any()) } returns flowOf(emptyList())
         every { mockOvertimeRepository.observeBalanceForYear(any()) } returns
             flowOf<OvertimeBalanceEntity?>(null)
@@ -105,62 +104,29 @@ class DashboardViewModelTest {
         job.cancel()
     }
 
-    // ── leaveBalance ─────────────────────────────────────────────────────────
+    // ── leaveBalances ─────────────────────────────────────────────────────────
 
     @Test
-    fun `leaveBalance is null when repository emits null`() = testScope.runTest {
-        val job = launch { viewModel.leaveBalance.collect { } }
+    fun `leaveBalances is empty when repository emits empty list`() = testScope.runTest {
+        val job = launch { viewModel.leaveBalances.collect { } }
         advanceUntilIdle()
-        assertNull(viewModel.leaveBalance.value)
+        assertTrue(viewModel.leaveBalances.value.isEmpty())
         job.cancel()
     }
 
     @Test
-    fun `leaveBalance reflects entity emitted by repository`() = testScope.runTest {
-        val balance = LeaveBalanceEntity(year = 2025, totalDays = 20f, usedDays = 5f, userId = "u1")
-        every { mockLeaveRepository.observeBalanceForYear(any()) } returns flowOf(balance)
+    fun `leaveBalances reflects entities emitted by repository`() = testScope.runTest {
+        val balances = listOf(
+            LeaveBalanceEntity(year = 2025, leaveType = "ANNUAL", totalDays = 20f, usedDays = 5f, userId = "u1"),
+            LeaveBalanceEntity(year = 2025, leaveType = "SICK", totalDays = 10f, usedDays = 2f, userId = "u1"),
+        )
+        every { mockLeaveRepository.observeAllBalancesForYear(any()) } returns flowOf(balances)
         viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
 
-        val job = launch { viewModel.leaveBalance.collect { } }
+        val job = launch { viewModel.leaveBalances.collect { } }
         advanceUntilIdle()
 
-        assertEquals(balance, viewModel.leaveBalance.value)
-        job.cancel()
-    }
-
-    // ── remainingLeaveDays ───────────────────────────────────────────────────
-
-    @Test
-    fun `remainingLeaveDays is null when leaveBalance is null`() = testScope.runTest {
-        val job = launch { viewModel.remainingLeaveDays.collect { } }
-        advanceUntilIdle()
-        assertNull(viewModel.remainingLeaveDays.value)
-        job.cancel()
-    }
-
-    @Test
-    fun `remainingLeaveDays computes totalDays minus usedDays`() = testScope.runTest {
-        val balance = LeaveBalanceEntity(year = 2025, totalDays = 20f, usedDays = 5f, userId = "u1")
-        every { mockLeaveRepository.observeBalanceForYear(any()) } returns flowOf(balance)
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
-
-        val job = launch { viewModel.remainingLeaveDays.collect { } }
-        advanceUntilIdle()
-
-        assertEquals(15f, viewModel.remainingLeaveDays.value)
-        job.cancel()
-    }
-
-    @Test
-    fun `remainingLeaveDays is clamped to zero when usedDays exceeds totalDays`() = testScope.runTest {
-        val balance = LeaveBalanceEntity(year = 2025, totalDays = 5f, usedDays = 10f, userId = "u1")
-        every { mockLeaveRepository.observeBalanceForYear(any()) } returns flowOf(balance)
-        viewModel = DashboardViewModel(mockShiftRepository, mockLeaveRepository, mockOvertimeRepository)
-
-        val job = launch { viewModel.remainingLeaveDays.collect { } }
-        advanceUntilIdle()
-
-        assertEquals(0f, viewModel.remainingLeaveDays.value)
+        assertEquals(balances, viewModel.leaveBalances.value)
         job.cancel()
     }
 

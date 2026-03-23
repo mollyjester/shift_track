@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -53,6 +54,7 @@ import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -103,12 +105,13 @@ fun DayDetailScreen(navController: NavController) {
                 dayInfo = dayInfo!!,
                 overtimeEntry = overtimeEntry,
                 isSaving = isSaving,
-                onOverride = viewModel::setManualOverride,
+                onOverride = { viewModel.setManualOverride(it) },
                 onClearOverride = viewModel::clearManualOverride,
                 onAddLeave = viewModel::addLeave,
                 onRemoveLeave = viewModel::removeLeave,
                 onAddOvertime = viewModel::addOvertime,
                 onRemoveOvertime = viewModel::removeOvertime,
+                onSaveNote = viewModel::saveNote,
             )
         }
     }
@@ -126,10 +129,12 @@ private fun DayDetailContent(
     onRemoveLeave: () -> Unit,
     onAddOvertime: (Float, String?) -> Unit,
     onRemoveOvertime: () -> Unit,
+    onSaveNote: (String?) -> Unit,
 ) {
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showOvertimeDialog by remember { mutableStateOf(false) }
     var showOverrideMenu by remember { mutableStateOf(false) }
+    var noteText by remember(dayInfo.note) { mutableStateOf(dayInfo.note ?: "") }
 
     Column(
         modifier = modifier
@@ -140,6 +145,14 @@ private fun DayDetailContent(
     ) {
         // Shift type card
         ShiftTypeCard(shiftType = dayInfo.shiftType, isManualOverride = dayInfo.isManualOverride)
+
+        // Note section
+        NoteSection(
+            noteText = noteText,
+            isSaving = isSaving,
+            onNoteChange = { noteText = it },
+            onSave = { onSaveNote(noteText.takeIf { it.isNotBlank() }) },
+        )
 
         // Manual override section
         OverrideSection(
@@ -195,9 +208,35 @@ private fun DayDetailContent(
 }
 
 @Composable
+private fun NoteSection(
+    noteText: String,
+    isSaving: Boolean,
+    onNoteChange: (String) -> Unit,
+    onSave: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = "Note", style = MaterialTheme.typography.titleMedium)
+        OutlinedTextField(
+            value = noteText,
+            onValueChange = { onNoteChange(it.take(500)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Add a note for this day…") },
+            minLines = 2,
+            maxLines = 4,
+        )
+        Button(
+            onClick = onSave,
+            enabled = !isSaving,
+        ) {
+            Text("Save note")
+        }
+    }
+}
+
+@Composable
 private fun ShiftTypeCard(shiftType: ShiftType, isManualOverride: Boolean) {
-    val bg = ShiftColors.containerColor(shiftType)
-    val fg = ShiftColors.onContainerColor(shiftType)
+    val bg = LocalShiftColors.current.containerColor(shiftType)
+    val fg = LocalShiftColors.current.onContainerColor(shiftType)
     Box(
         modifier = Modifier
             .fillMaxWidth()

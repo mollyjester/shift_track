@@ -1,6 +1,7 @@
 package com.slikharev.shifttrack.onboarding
 
 import com.slikharev.shifttrack.engine.CadenceEngine
+import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import java.time.LocalDate
 
@@ -8,7 +9,7 @@ import java.time.LocalDate
  * The three pages of the onboarding flow.
  *
  *  Step 1 — Pick what today's shift is in the 5-day rotation.
- *  Step 2 — Set annual leave entitlement (days per year).
+ *  Step 2 — Set per-category leave entitlement (days per year).
  *  Step 3 — Preview the user's next 5 days and confirm.
  */
 enum class OnboardingStep { SHIFT_PICKER, LEAVE_SETUP, CONFIRM }
@@ -22,24 +23,23 @@ val CYCLE_LABELS: List<String> = listOf(
     "Day off",           // 4  → ShiftType.OFF
 )
 
+/** Default leave allowance per category (used during onboarding). */
+val DEFAULT_LEAVE_ALLOWANCES: Map<LeaveType, Int> = mapOf(
+    LeaveType.ANNUAL to 28,
+    LeaveType.SICK to 10,
+    LeaveType.PERSONAL to 5,
+    LeaveType.UNPAID to 0,
+    LeaveType.OTHER to 0,
+)
+
 /**
  * Immutable snapshot of the onboarding wizard state.
- *
- * @param step              Current page of the wizard.
- * @param anchorDate        User's "today" — always [LocalDate.now] at wizard start; can be
- *                          adjusted +/- 1 day in case the user opens the app at midnight.
- * @param selectedCycleIndex  Which position in the 5-day cycle [anchorDate] maps to (0-4).
- *                            -1 = nothing selected yet.
- * @param leaveAllowanceDays  Annual leave days for the current year (default 28).
- * @param isSaving          True while the final save coroutine is running.
- * @param error             Non-null when the save operation failed.
- * @param previewDays       Populated on step CONFIRM: DayPreview for the next 7 days.
  */
 data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.SHIFT_PICKER,
     val anchorDate: LocalDate = LocalDate.now(),
     val selectedCycleIndex: Int = -1,
-    val leaveAllowanceDays: Int = 28,
+    val leaveAllowances: Map<LeaveType, Int> = DEFAULT_LEAVE_ALLOWANCES,
     val isSaving: Boolean = false,
     val error: String? = null,
     val previewDays: List<DayPreview> = emptyList(),
@@ -52,6 +52,10 @@ data class DayPreview(
     val shiftType: ShiftType,
     val label: String,
 )
+
+/** Total leave days across all categories. */
+val OnboardingUiState.totalLeaveDays: Int
+    get() = leaveAllowances.values.sum()
 
 /** Build a 7-day preview list from the current wizard state. */
 fun OnboardingUiState.buildPreview(): List<DayPreview> {

@@ -16,14 +16,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Manages the user's leave records and yearly leave-balance.
+ * Manages the user's leave records and yearly leave-balance per category.
  *
  * All writes go to Room via [LeaveDao] immediately; Firestore sync is handled
  * separately by [com.slikharev.shifttrack.sync.SyncWorker].
  *
  * After any mutation the yearly [LeaveBalanceEntity.usedDays] is recomputed
- * from the leaves table using a one-shot [kotlinx.coroutines.flow.first] call
- * and written back, so the balance screen never needs a separate aggregation.
+ * per leave type from the leaves table and written back.
  */
 @Singleton
 class LeaveRepository @Inject constructor(
@@ -34,8 +33,8 @@ class LeaveRepository @Inject constructor(
 ) {
     private val uid get() = userSession.requireUserId()
 
-    fun observeBalanceForYear(year: Int): Flow<LeaveBalanceEntity?> =
-        leaveBalanceDao.observeBalanceForYear(uid, year)
+    fun observeAllBalancesForYear(year: Int): Flow<List<LeaveBalanceEntity>> =
+        leaveBalanceDao.observeAllBalancesForYear(uid, year)
 
     fun sumLeaveDaysForYear(year: Int): Flow<Float> {
         val start = LocalDate.of(year, 1, 1).toString()
@@ -63,26 +62,35 @@ class LeaveRepository @Inject constructor(
                     synced = false,
                 ),
             )
-            refreshUsedDays(date.year)
+            refreshUsedDays(date.year, leaveType.name)
         }
     }
 
     suspend fun removeLeave(date: LocalDate) {
+        val existing = leaveDao.getLeaveForDate(uid, date.toString())
         db.withTransaction {
             leaveDao.deleteByDate(uid, date.toString())
-            refreshUsedDays(date.year)
+            if (existing != null) {
+                refreshUsedDays(date.year, existing.leaveType)
+            }
         }
     }
 
-    /** Re-computes usedDays from the leaves table and writes it back to LeaveBalanceEntity. */
-    private suspend fun refreshUsedDays(year: Int) {
+    /** Re-computes usedDays for a specific leave type and writes it back. */
+    private suspend fun refreshUsedDays(year: Int, leaveType: String) {
         val start = LocalDate.of(year, 1, 1).toString()
         val end = LocalDate.of(year, 12, 31).toString()
-        val usedDays = leaveDao.sumLeaveDaysForYear(uid, start, end).first()
-        val balance = leaveBalanceDao.getBalanceForYear(uid, year)
+        val usedDays = leaveDao.sumLeaveDaysByType(uid, start, end, leaveType).first()
+        val balance = leaveBalanceDao.getBalanceForYearAndType(uid, year, leaveType)
         if (balance == null) {
             leaveBalanceDao.upsert(
-                LeaveBalanceEntity(year = year, totalDays = 0f, usedDays = usedDays, userId = uid),
+                LeaveBalanceEntity(
+                    year = year,
+                    leaveType = leaveType,
+                    totalDays = 0f,
+                    usedDays = usedDays,
+                    userId = uid,
+                ),
             )
         } else {
             leaveBalanceDao.update(balance.copy(usedDays = usedDays))

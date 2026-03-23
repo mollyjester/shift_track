@@ -7,6 +7,7 @@ import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
+import com.slikharev.shifttrack.model.LeaveType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -97,24 +98,24 @@ class OnboardingViewModelTest {
         viewModel.selectCycleIndex(-1)
     }
 
-    // ── setLeaveAllowanceDays ─────────────────────────────────────────────────
+    // ── setLeaveAllowance ────────────────────────────────────────────────────
 
     @Test
-    fun `setLeaveAllowanceDays updates value`() {
-        viewModel.setLeaveAllowanceDays(30)
-        assertEquals(30, viewModel.uiState.value.leaveAllowanceDays)
+    fun `setLeaveAllowance updates value for specific type`() {
+        viewModel.setLeaveAllowance(LeaveType.ANNUAL, 30)
+        assertEquals(30, viewModel.uiState.value.leaveAllowances[LeaveType.ANNUAL])
     }
 
     @Test
-    fun `setLeaveAllowanceDays clamps to minimum of 1`() {
-        viewModel.setLeaveAllowanceDays(0)
-        assertEquals(1, viewModel.uiState.value.leaveAllowanceDays)
+    fun `setLeaveAllowance clamps to minimum of 0`() {
+        viewModel.setLeaveAllowance(LeaveType.ANNUAL, -5)
+        assertEquals(0, viewModel.uiState.value.leaveAllowances[LeaveType.ANNUAL])
     }
 
     @Test
-    fun `setLeaveAllowanceDays clamps to maximum of 365`() {
-        viewModel.setLeaveAllowanceDays(400)
-        assertEquals(365, viewModel.uiState.value.leaveAllowanceDays)
+    fun `setLeaveAllowance clamps to maximum of 365`() {
+        viewModel.setLeaveAllowance(LeaveType.ANNUAL, 400)
+        assertEquals(365, viewModel.uiState.value.leaveAllowances[LeaveType.ANNUAL])
     }
 
     // ── shiftAnchorForward / shiftAnchorBack ──────────────────────────────────
@@ -216,10 +217,10 @@ class OnboardingViewModelTest {
         viewModel.selectCycleIndex(3)
         viewModel.nextStep()
         assertEquals(OnboardingStep.LEAVE_SETUP, viewModel.uiState.value.step)
-        viewModel.setLeaveAllowanceDays(25)
+        viewModel.setLeaveAllowance(LeaveType.ANNUAL, 25)
         viewModel.nextStep()
         assertEquals(OnboardingStep.CONFIRM, viewModel.uiState.value.step)
-        assertEquals(25, viewModel.uiState.value.leaveAllowanceDays)
+        assertEquals(25, viewModel.uiState.value.leaveAllowances[LeaveType.ANNUAL])
         assertEquals(3, viewModel.uiState.value.selectedCycleIndex)
     }
 
@@ -228,7 +229,7 @@ class OnboardingViewModelTest {
     @Test
     fun `completeOnboarding saves anchor and leave balance to DataStore and DAO`() = testScope.runTest {
         viewModel.selectCycleIndex(2)
-        viewModel.setLeaveAllowanceDays(30)
+        viewModel.setLeaveAllowance(LeaveType.ANNUAL, 30)
         viewModel.nextStep() // → LEAVE_SETUP
         viewModel.nextStep() // → CONFIRM
 
@@ -250,10 +251,11 @@ class OnboardingViewModelTest {
         assertEquals(2, savedCycleIndex)
         assertTrue(savedOnboarding)
 
-        // Leave balance DAO should have one entry
-        assertEquals(1, fakeLeaveBalanceDao.upserted.size)
-        assertEquals(30f, fakeLeaveBalanceDao.upserted[0].totalDays)
-        assertEquals(LocalDate.now().year, fakeLeaveBalanceDao.upserted[0].year)
+        // Leave balance DAO should have entries for all leave types
+        assertEquals(5, fakeLeaveBalanceDao.upserted.size)
+        val annualBalance = fakeLeaveBalanceDao.upserted.first { it.leaveType == "ANNUAL" }
+        assertEquals(30f, annualBalance.totalDays)
+        assertEquals(LocalDate.now().year, annualBalance.year)
     }
 
     @Test
@@ -268,8 +270,10 @@ class OnboardingViewModelTest {
 
 private class FakeLeaveBalanceDao : LeaveBalanceDao {
     val upserted = mutableListOf<LeaveBalanceEntity>()
-    override suspend fun getBalanceForYear(userId: String, year: Int) = null
-    override fun observeBalanceForYear(userId: String, year: Int) = kotlinx.coroutines.flow.flowOf(null)
+    override suspend fun getBalanceForYearAndType(userId: String, year: Int, leaveType: String) = null
+    override fun observeBalanceForYearAndType(userId: String, year: Int, leaveType: String) = kotlinx.coroutines.flow.flowOf(null)
+    override fun observeAllBalancesForYear(userId: String, year: Int) = kotlinx.coroutines.flow.flowOf(emptyList<LeaveBalanceEntity>())
+    override suspend fun getAllBalancesForYear(userId: String, year: Int) = emptyList<LeaveBalanceEntity>()
     override suspend fun upsert(balance: LeaveBalanceEntity): Long {
         upserted.add(balance)
         return upserted.size.toLong()

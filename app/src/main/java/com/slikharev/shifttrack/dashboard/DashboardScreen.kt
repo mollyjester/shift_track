@@ -35,9 +35,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.slikharev.shifttrack.Screen
+import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -48,8 +50,7 @@ import java.util.Locale
 fun DashboardScreen(navController: NavController) {
     val viewModel: DashboardViewModel = hiltViewModel()
     val upcomingDays by viewModel.upcomingDays.collectAsStateWithLifecycle()
-    val leaveBalance by viewModel.leaveBalance.collectAsStateWithLifecycle()
-    val remainingLeave by viewModel.remainingLeaveDays.collectAsStateWithLifecycle()
+    val leaveBalances by viewModel.leaveBalances.collectAsStateWithLifecycle()
     val weeklyOvertimeHours by viewModel.weeklyOvertimeHours.collectAsStateWithLifecycle()
     val yearlyOvertimeBalance by viewModel.yearlyOvertimeBalance.collectAsStateWithLifecycle()
 
@@ -78,12 +79,8 @@ fun DashboardScreen(navController: NavController) {
                 )
             }
 
-            if (leaveBalance != null) {
-                LeaveBalanceCard(
-                    totalDays = leaveBalance!!.totalDays,
-                    usedDays = leaveBalance!!.usedDays,
-                    remaining = remainingLeave,
-                )
+            if (leaveBalances.isNotEmpty()) {
+                LeaveBalancesCard(balances = leaveBalances)
             }
 
             if (weeklyOvertimeHours > 0f || yearlyOvertimeBalance != null) {
@@ -95,7 +92,7 @@ fun DashboardScreen(navController: NavController) {
 
             if (upcomingDays.size > 1) {
                 UpcomingShiftsSection(
-                    days = upcomingDays.drop(1), // skip today, already shown above
+                    days = upcomingDays.drop(1),
                     onDayClick = { date ->
                         navController.navigate(Screen.DayDetail.createRoute(date.toString()))
                     },
@@ -107,8 +104,9 @@ fun DashboardScreen(navController: NavController) {
 
 @Composable
 private fun TodayShiftCard(dayInfo: DayInfo, onClick: () -> Unit) {
-    val bg = ShiftColors.containerColor(dayInfo.shiftType)
-    val fg = ShiftColors.onContainerColor(dayInfo.shiftType)
+    val colors = LocalShiftColors.current
+    val bg = colors.containerColor(dayInfo.shiftType)
+    val fg = colors.onContainerColor(dayInfo.shiftType)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -150,28 +148,40 @@ private fun TodayShiftCard(dayInfo: DayInfo, onClick: () -> Unit) {
 }
 
 @Composable
-private fun LeaveBalanceCard(totalDays: Float, usedDays: Float, remaining: Float?) {
-    val fraction = if (totalDays > 0f) (usedDays / totalDays).coerceIn(0f, 1f) else 0f
+private fun LeaveBalancesCard(balances: List<LeaveBalanceEntity>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(text = "Leave balance", style = MaterialTheme.typography.titleMedium)
-            LinearProgressIndicator(
-                progress = { fraction },
-                modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-            )
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Used: ${"%.1f".format(usedDays)} d",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = if (remaining != null) "Remaining: ${"%.1f".format(remaining)} d" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            balances.filter { it.totalDays > 0f || it.usedDays > 0f }.forEach { balance ->
+                val label = balance.leaveType.lowercase().replaceFirstChar { it.uppercase() }
+                val fraction = if (balance.totalDays > 0f) {
+                    (balance.usedDays / balance.totalDays).coerceIn(0f, 1f)
+                } else 0f
+                val remaining = (balance.totalDays - balance.usedDays).coerceAtLeast(0f)
+
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = "${"%.1f".format(remaining)} / ${"%.0f".format(balance.totalDays)} d",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { fraction },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                    )
+                }
             }
         }
     }
@@ -197,7 +207,7 @@ private fun UpcomingShiftsSection(
 
 @Composable
 private fun UpcomingDayRow(entry: UpcomingDay, label: String, onClick: () -> Unit) {
-    val bg = ShiftColors.containerColor(entry.dayInfo.shiftType).copy(alpha = 0.35f)
+    val bg = LocalShiftColors.current.containerColor(entry.dayInfo.shiftType).copy(alpha = 0.35f)
     val contentColor = MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
