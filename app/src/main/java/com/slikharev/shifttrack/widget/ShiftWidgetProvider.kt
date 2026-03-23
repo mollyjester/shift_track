@@ -73,17 +73,15 @@ class ShiftWidgetProvider : AppWidgetProvider() {
     companion object {
         private const val WIDE_THRESHOLD_DP = 200
 
-        // View IDs for the 7 day slots in the wide layout.
-        private data class DaySlot(val root: Int, val label: Int, val shift: Int)
-
-        private val DAY_SLOTS = arrayOf(
-            DaySlot(R.id.widget_day_0, R.id.widget_day_label_0, R.id.widget_day_shift_0),
-            DaySlot(R.id.widget_day_1, R.id.widget_day_label_1, R.id.widget_day_shift_1),
-            DaySlot(R.id.widget_day_2, R.id.widget_day_label_2, R.id.widget_day_shift_2),
-            DaySlot(R.id.widget_day_3, R.id.widget_day_label_3, R.id.widget_day_shift_3),
-            DaySlot(R.id.widget_day_4, R.id.widget_day_label_4, R.id.widget_day_shift_4),
-            DaySlot(R.id.widget_day_5, R.id.widget_day_label_5, R.id.widget_day_shift_5),
-            DaySlot(R.id.widget_day_6, R.id.widget_day_label_6, R.id.widget_day_shift_6),
+        // View IDs for the 7 day shift TextViews in the wide layout.
+        private val DAY_SHIFT_IDS = intArrayOf(
+            R.id.widget_day_shift_0,
+            R.id.widget_day_shift_1,
+            R.id.widget_day_shift_2,
+            R.id.widget_day_shift_3,
+            R.id.widget_day_shift_4,
+            R.id.widget_day_shift_5,
+            R.id.widget_day_shift_6,
         )
 
         /**
@@ -203,25 +201,23 @@ class ShiftWidgetProvider : AppWidgetProvider() {
 
                 val days = state.days.take(snap.dayCount)
 
-                for (i in DAY_SLOTS.indices) {
-                    val slot = DAY_SLOTS[i]
+                for (i in DAY_SHIFT_IDS.indices) {
+                    val viewId = DAY_SHIFT_IDS[i]
                     if (i < days.size) {
                         val dayInfo = days[i]
-                        views.setViewVisibility(slot.root, View.VISIBLE)
-                        views.setViewVisibility(slot.label, View.GONE)
+                        views.setViewVisibility(viewId, View.VISIBLE)
 
-                        // Shift chip
                         views.setTextViewText(
-                            slot.shift,
+                            viewId,
                             ShiftColors.label(dayInfo.shiftType).uppercase(),
                         )
                         views.setInt(
-                            slot.shift,
+                            viewId,
                             "setBackgroundColor",
                             colorConfig.containerColor(dayInfo.shiftType).toArgb(),
                         )
                         views.setTextColor(
-                            slot.shift,
+                            viewId,
                             colorConfig.onContainerColor(dayInfo.shiftType).toArgb(),
                         )
 
@@ -238,9 +234,9 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                             dayIntent,
                             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                         )
-                        views.setOnClickPendingIntent(slot.root, dayPi)
+                        views.setOnClickPendingIntent(viewId, dayPi)
                     } else {
-                        views.setViewVisibility(slot.root, View.GONE)
+                        views.setViewVisibility(viewId, View.GONE)
                     }
                 }
             } else {
