@@ -130,19 +130,53 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 return
             }
 
-            // Determine widget state: spectator mode reads from local cache,
-            // normal mode computes from local anchor.
+            // Determine widget state: spectator mode reads from local cache (or fetches
+            // Firestore when cache is absent/stale), normal mode computes from local anchor.
             val enrichedState: WidgetUiState = if (snap.spectatorMode && snap.selectedHostUid != null) {
-                // Spectator mode: read pre-cached data (no network calls in widget)
-                if (snap.spectatorCache.isEmpty()) {
+                // Check if the cache is fresh: it must contain an entry for today.
+                val today = LocalDate.now()
+                val cacheHasToday = snap.spectatorCache.any { entry ->
+                    runCatching { LocalDate.parse(entry.date) }.getOrNull() == today
+                }
+
+                val effectiveCache: List<AppDataStore.SpectatorWidgetEntry> = if (cacheHasToday) {
+                    snap.spectatorCache
+                } else {
+                    // Cache is missing or stale — fetch directly from Firestore.
+                    // This is safe: we are already on Dispatchers.IO inside a coroutine.
+                    val spectatorRepo = entryPoint.spectatorRepository()
+                    val endDate = today.plusDays(AppDataStore.MAX_WIDGET_DAYS.toLong() - 1)
+                    val infos = try {
+                        spectatorRepo.getDayInfosForRange(snap.selectedHostUid, today, endDate)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    if (infos.isNotEmpty()) {
+                        val entries = infos.map { d ->
+                            AppDataStore.SpectatorWidgetEntry(
+                                date = d.date.toString(),
+                                shiftType = d.shiftType.name,
+                                hasLeave = d.hasLeave,
+                                halfDay = d.halfDay,
+                                leaveType = d.leaveType?.name,
+                            )
+                        }
+                        appDataStore.setSpectatorWidgetCache(entries)
+                        entries
+                    } else {
+                        emptyList()
+                    }
+                }
+
+                if (effectiveCache.isEmpty()) {
                     WidgetUiState(isConfigured = false, days = emptyList())
                 } else {
-                    val days = snap.spectatorCache.mapIndexed { offset, entry ->
+                    val days = effectiveCache.mapIndexed { offset, entry ->
                         val shiftType = runCatching { ShiftType.valueOf(entry.shiftType) }
                             .getOrDefault(ShiftType.OFF)
                         val leaveType = entry.leaveType?.let { LeaveType.fromString(it) }
                         val date = runCatching { LocalDate.parse(entry.date) }
-                            .getOrDefault(LocalDate.now().plusDays(offset.toLong()))
+                            .getOrDefault(today.plusDays(offset.toLong()))
                         val label = when (offset) {
                             0 -> "Today"
                             1 -> "Tomorrow"
