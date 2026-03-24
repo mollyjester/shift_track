@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +48,8 @@ import androidx.compose.ui.unit.dp
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.ui.theme.ShiftTrackTheme
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.runBlocking
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -82,13 +84,15 @@ class WidgetConfigActivity : ComponentActivity() {
     }
 
     private fun confirmAndFinish() {
-        // Update the widget with current settings
-        runBlocking { widgetUpdater.updateAll() }
+        lifecycleScope.launch {
+            // Update the widget with current settings (off main thread)
+            widgetUpdater.updateAll()
 
-        // Return OK with the widget ID so the launcher keeps the widget
-        val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        setResult(RESULT_OK, result)
-        finish()
+            // Return OK with the widget ID so the launcher keeps the widget
+            val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            setResult(RESULT_OK, result)
+            finish()
+        }
     }
 }
 
@@ -102,6 +106,7 @@ private fun WidgetConfigScreen(
     val bgColorArgb by appDataStore.widgetBgColor.collectAsState(initial = null)
     val transparency by appDataStore.widgetTransparency.collectAsState(initial = AppDataStore.DEFAULT_WIDGET_TRANSPARENCY)
     val dayCount by appDataStore.widgetDayCount.collectAsState(initial = AppDataStore.DEFAULT_WIDGET_DAY_COUNT)
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -132,19 +137,19 @@ private fun WidgetConfigScreen(
                 transparency = transparency,
                 dayCount = dayCount,
                 onBgColorChange = { argb ->
-                    runBlocking {
+                    scope.launch {
                         appDataStore.setWidgetBgColor(argb)
                         widgetUpdater.updateAll()
                     }
                 },
                 onTransparencyChange = { alpha ->
-                    runBlocking {
+                    scope.launch {
                         appDataStore.setWidgetTransparency(alpha)
                         widgetUpdater.updateAll()
                     }
                 },
                 onDayCountChange = { count ->
-                    runBlocking {
+                    scope.launch {
                         appDataStore.setWidgetDayCount(count)
                         widgetUpdater.updateAll()
                     }

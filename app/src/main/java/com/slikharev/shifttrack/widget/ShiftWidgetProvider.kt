@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.Color
@@ -54,6 +55,8 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 for (id in appWidgetIds) {
                     updateSingleWidget(context, appWidgetManager, id)
                 }
+            } catch (e: Exception) {
+                Log.w(TAG, "Widget onUpdate failed", e)
             } finally {
                 pendingResult.finish()
             }
@@ -70,6 +73,8 @@ class ShiftWidgetProvider : AppWidgetProvider() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 updateSingleWidget(context, appWidgetManager, appWidgetId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Widget onOptionsChanged failed", e)
             } finally {
                 pendingResult.finish()
             }
@@ -77,6 +82,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private const val TAG = "ShiftWidgetProvider"
         private const val WIDE_THRESHOLD_DP = 200
 
         /** View IDs for each day slot in the wide layout. */
@@ -203,7 +209,9 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             )
 
             val options = manager.getAppWidgetOptions(appWidgetId)
-            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 110)
+            // Default to 250dp (matches minWidth in shift_widget_info.xml)
+            // so the wide layout is used when options aren't set yet.
+            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
 
             val views = if (minWidth >= WIDE_THRESHOLD_DP) {
                 buildWideLayout(context, enrichedState, snap, colorConfig)
