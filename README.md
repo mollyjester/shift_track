@@ -73,7 +73,7 @@ The **Home** tab gives you a quick overview:
 
 The **Calendar** tab shows a full month with each day colour-coded by shift type. Tap any day to open the **Day Detail** screen.
 
-- **Half-day leave** is shown as a split cell — the top half displays the shift colour and the bottom half uses a darker shade of the same colour.
+- **Half-day leave** is shown as a split cell — the top half displays the shift colour and the bottom half uses light grey.
 - **Leave type indicators** appear as coloured dots on days with full-day leave, using the leave type's designated colour (Annual = green, Sick = red, Personal = blue, Unpaid = orange, Study = purple).
 - The **legend** below the calendar shows both shift types and leave types with large, easy-to-read colour circles.
 
@@ -128,6 +128,10 @@ Your colour choices are applied everywhere — calendar, dashboard, day detail, 
 
 Customise the overtime indicator colour in the same section using the same color picker.
 
+### Leave Type Colors
+
+Go to **Settings → Leave Type Colors** to assign a distinct colour to each leave category (Annual, Sick, Personal, Unpaid, Study). Colors are shown as dots on calendar cells with full-day leave and appear in the calendar legend. Use the same HSV color picker as shift colors.
+
 ---
 
 ## Home-Screen Widget
@@ -136,7 +140,6 @@ ShiftTrack includes a home-screen widget that shows your upcoming shifts.
 
 | Size | Shows |
 |------|-------|
-| 2×2 | Today's shift |
 | 4×1 | Upcoming days (1–7, configurable) with day number and shift type |
 
 Each widget day cell shows the day number and shift/leave type stacked vertically, using the same colours as the calendar. Half-day leave renders as a split background (top = shift colour, bottom = darker shade). Full-day leave shows the leave type colour and a dot indicator.
@@ -191,10 +194,11 @@ The last selected schedule is remembered when you reopen the app.
 | Feature | Own schedule | Spectated schedule |
 |---------|-------------|-------------------|
 | Calendar view | Full month, colour-coded | Full month, colour-coded |
-| Day Detail | Can edit overrides, leave, overtime, notes | Read-only |
+| Day Detail | Can edit overrides, leave, overtime, notes | Read-only — shows shift, leave type, overtime flag, and notes |
 | Dashboard | Shows your shifts, leave balance, overtime | Shows the host's upcoming shifts (leave balance and overtime hidden) |
-| Widget | Shows your upcoming shifts | Shows the host's upcoming shifts (fetched from the cloud) |
+| Widget | Shows your upcoming shifts | Shows the host's upcoming shifts (fetched from the cloud, cached for offline use) |
 | Settings | All sections visible | Account, Shift Colors, Leave Type Colors, and Widget visible |
+| Push notifications | — | Receive a silent notification when the host edits their schedule; the app refreshes automatically |
 
 ---
 
@@ -205,6 +209,7 @@ ShiftTrack works fully offline. Every change you make is saved to your device im
 - You never need to wait for a network connection to use the app.
 - If you use the app on multiple devices, the most recent change for each day wins.
 - Opening the app after being offline triggers an immediate sync.
+- **Spectators** can also view a host's schedule offline — the last fetched data is cached locally and served automatically when the network is unavailable.
 
 ---
 
@@ -239,8 +244,9 @@ See the [docs/](docs/) folder for technical documentation:
 
 ```bash
 ./gradlew assembleDebug          # Build debug APK
-./gradlew testDebugUnitTest      # Run unit tests (206 tests)
+./gradlew testDebugUnitTest      # Run unit tests
 ./gradlew assembleRelease        # Build release APK
+firebase deploy --only functions # Deploy Cloud Functions (spectator push notifications)
 ```
 
-Min SDK 34 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose
+Min SDK 34 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose · v2.8.0

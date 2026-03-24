@@ -13,7 +13,7 @@
 | DataStore | (via Compose BOM) | https://developer.android.com/jetpack/androidx/releases/datastore |
 | WorkManager | 2.10.0 | https://developer.android.com/jetpack/androidx/releases/work |
 | Firebase BOM | 33.10.0 | https://firebase.google.com/support/release-notes/android |
-| Firebase Cloud Functions | Node.js 20, firebase-functions v5, firebase-admin v12 | https://firebase.google.com/docs/functions/release-notes |
+| Firebase Cloud Functions | Node.js 22, firebase-functions v5, firebase-admin v12 | https://firebase.google.com/docs/functions/release-notes |
 | Glance | *(removed in v2.0)* | No longer used — widget is built with raw RemoteViews |
 | MockK | 1.13.10 | https://github.com/mockk/mockk/releases |
 | kotlinx-coroutines-test | 1.9.0 | https://github.com/Kotlin/kotlinx.coroutines/releases |
@@ -30,7 +30,7 @@ Use this list when re-deploying ShiftTrack to a new Firebase project.
 - [ ] Enable **Google Sign-In** in Authentication → Sign-in methods.
 - [ ] Create a **Firestore database** in **production mode**.
 - [ ] Deploy the Firestore security rules: `firebase deploy --only firestore:rules`
-- [ ] Deploy Cloud Functions: `firebase deploy --only functions` (requires Node.js 20)
+- [ ] Deploy Cloud Functions: `firebase deploy --only functions` (requires Node.js 22)
 - [ ] Enable **Cloud Messaging** (FCM). The default server key is sufficient.
 - [ ] (Optional) Enable **App Check** to prevent unauthorized API access in production.
 - [ ] Verify `google-services.json` contains the correct `current_key` for OAuth and the FCM `sender_id`.
@@ -51,6 +51,17 @@ Use this list when re-deploying ShiftTrack to a new Firebase project.
 | **Multi-year leave history** | If the app is not opened for more than one year, intermediate years' leave data is not created. The new-year balance is created correctly from the most recent available year. | Leave history gap in the DB; no user impact if they don't query historical years. |
 | **Offline spectator view** | ~~Spectator data is not cached locally; spectators cannot view the schedule while offline. The widget also requires network access to fetch the host's data.~~ **Fixed in v2.8** — `SpectatorRepository` caches fetched data to `AppDataStore` (`SPECTATOR_CALENDAR_CACHE`). When offline, cached data is served as fallback. `SpectatorCacheRefresher` pre-fetches the next 7 days on push notification receipt. | Resolved. |
 | **Database migrations** | Room version 2 with `fallbackToDestructiveMigration()`. Schema export enabled for future migration tooling but no written migrations exist yet. v1.1 added `leave_type` column to `leave_balance` table and changed the unique index from `(year, user_id)` to `(year, user_id, leave_type)`. Adding columns requires a proper migration or accepts data loss. | Users lose local data on schema-breaking upgrades until migrations are added. |
+
+---
+
+## Documentation Update Policy
+
+Update **README.md** whenever user-facing functionality changes — new features, changed behaviour, removed UI elements, or updated configuration steps. The README is the primary reference for end users and should reflect the current state of the app at every release.
+
+Also update the relevant sections of:
+- `docs/user-guide.md` — for detailed step-by-step feature walkthroughs
+- `docs/maintenance.md` — for dependency versions, Firebase setup, and the Known Limitations table
+- `.github/copilot-instructions.md` — for architecture decisions, Key Gotchas, and new module descriptions
 
 ---
 
