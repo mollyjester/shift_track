@@ -46,7 +46,7 @@
                 android:textSize="24sp"
                 android:textStyle="bold" />
 
-            <View
+            <ImageView
                 android:id="@+id/widget_small_dot"
                 android:layout_width="10dp"
                 android:layout_height="10dp"

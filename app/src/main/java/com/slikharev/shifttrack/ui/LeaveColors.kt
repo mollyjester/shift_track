@@ -1,9 +1,13 @@
 package com.slikharev.shifttrack.ui
 
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.slikharev.shifttrack.model.LeaveType
 
-/** Fixed color palette for leave types, used in calendar legend and day cells. */
+/** Light grey background used for leave days in calendar and widget. */
+val LeaveGrey = Color(0xFFE0E0E0.toInt())
+
+/** Default (static) color palette for leave types. */
 object LeaveColors {
     val Annual = Color(0xFF66BB6A.toInt())   // green
     val Sick = Color(0xFFEF5350.toInt())     // red
@@ -27,3 +31,25 @@ object LeaveColors {
         LeaveType.STUDY -> "Study"
     }
 }
+
+/**
+ * Runtime-configurable color scheme for leave types.
+ * Read via [LocalLeaveColors] in @Composable scope.
+ */
+data class LeaveColorConfig(
+    val annualColor: Color = LeaveColors.Annual,
+    val sickColor: Color = LeaveColors.Sick,
+    val personalColor: Color = LeaveColors.Personal,
+    val unpaidColor: Color = LeaveColors.Unpaid,
+    val studyColor: Color = LeaveColors.Study,
+) {
+    fun color(type: LeaveType): Color = when (type) {
+        LeaveType.ANNUAL -> annualColor
+        LeaveType.SICK -> sickColor
+        LeaveType.PERSONAL -> personalColor
+        LeaveType.UNPAID -> unpaidColor
+        LeaveType.STUDY -> studyColor
+    }
+}
+
+val LocalLeaveColors = staticCompositionLocalOf { LeaveColorConfig() }

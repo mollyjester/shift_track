@@ -54,6 +54,8 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
+import com.slikharev.shifttrack.ui.LeaveGrey
+import com.slikharev.shifttrack.ui.LocalLeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.format.DateTimeFormatter
@@ -271,8 +273,17 @@ private fun ShiftDayCell(
     onClick: () -> Unit,
 ) {
     val colors = LocalShiftColors.current
-    val bgColor = colors.containerColor(day.shiftType)
-    val contentColor = colors.onContainerColor(day.shiftType)
+    val leaveColors = LocalLeaveColors.current
+    // Full-day leave → light grey; otherwise shift color
+    val bgColor = if (day.dayInfo.hasLeave && !day.dayInfo.halfDay) {
+        LeaveGrey
+    } else {
+        colors.containerColor(day.shiftType)
+    }
+    val contentColor = run {
+        val luminance = 0.299f * bgColor.red + 0.587f * bgColor.green + 0.114f * bgColor.blue
+        if (luminance > 0.5f) Color(0xFF212121.toInt()) else Color(0xFFEEEEEE.toInt())
+    }
     val shape = RoundedCornerShape(8.dp)
 
     Box(
@@ -284,7 +295,7 @@ private fun ShiftDayCell(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        // Half-day: darker bottom half
+        // Half-day: bottom half is light grey
         if (day.dayInfo.halfDay) {
             Box(
                 modifier = Modifier
@@ -292,7 +303,7 @@ private fun ShiftDayCell(
                     .fillMaxHeight(0.5f)
                     .align(Alignment.BottomCenter)
                     .background(
-                        darkenColor(bgColor, 0.3f),
+                        LeaveGrey,
                         RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
                     ),
             )
@@ -314,20 +325,13 @@ private fun ShiftDayCell(
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Normal,
             )
-            // Leave type indicator (non-half-day leaves show leave type color dot)
+            // Leave type dot: only for full-day leave (not half-day)
             if (day.dayInfo.hasLeave && !day.dayInfo.halfDay && day.dayInfo.leaveType != null) {
                 Spacer(modifier = Modifier.height(1.dp))
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(LeaveColors.color(day.dayInfo.leaveType!!), CircleShape),
-                )
-            } else if (day.dayInfo.hasLeave) {
-                Spacer(modifier = Modifier.height(1.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .background(ShiftColors.Leave, CircleShape),
+                        .background(leaveColors.color(day.dayInfo.leaveType!!), CircleShape),
                 )
             }
         }
@@ -362,7 +366,7 @@ private fun ShiftLegend() {
         }
         LeaveType.entries.forEach { type ->
             LegendChip(
-                color = LeaveColors.color(type),
+                color = LocalLeaveColors.current.color(type),
                 label = LeaveColors.label(type),
             )
         }

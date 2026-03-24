@@ -71,6 +71,7 @@ import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
+import com.slikharev.shifttrack.ui.LocalLeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
 import java.time.LocalDate
@@ -163,7 +164,7 @@ fun SettingsScreen(navController: NavController) {
 
             // ── Leave type colors (visible to all users) ─────────────────────────
             SettingsSectionHeader("Leave Type Colors")
-            LeaveColorLegend()
+            LeaveColorSettingsSection(onColorChange = viewModel::saveLeaveColor)
 
             HorizontalDivider()
 
@@ -726,24 +727,46 @@ private fun ColorSettingsSection(onColorChange: (ShiftType, Long) -> Unit) {
 }
 
 @Composable
-private fun LeaveColorLegend() {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun LeaveColorSettingsSection(onColorChange: (LeaveType, Long) -> Unit) {
+    val leaveColorConfig = LocalLeaveColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         LeaveType.entries.forEach { type ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
+            val currentColor = leaveColorConfig.color(type)
+            var expanded by remember { mutableStateOf(false) }
+            val label = LeaveColors.label(type)
+
+            Column {
+                Row(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(LeaveColors.color(type))
-                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
-                )
-                Text(
-                    text = LeaveColors.label(type),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(currentColor)
+                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                    )
+                    Text(text = label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(text = if (expanded) "▲" else "▼", style = MaterialTheme.typography.bodySmall)
+                }
+
+                if (expanded) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HsvColorPicker(
+                        initialColor = currentColor,
+                        onColorSelected = { color ->
+                            onColorChange(type, color.toArgb().toLong())
+                        },
+                        defaultColor = LeaveColors.color(type),
+                        onReset = {
+                            onColorChange(type, LeaveColors.color(type).toArgb().toLong())
+                        },
+                    )
+                }
             }
         }
     }

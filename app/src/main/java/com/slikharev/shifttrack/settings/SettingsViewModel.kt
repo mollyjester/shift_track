@@ -208,6 +208,20 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun saveLeaveColor(leaveType: com.slikharev.shifttrack.model.LeaveType, argb: Long) {
+        viewModelScope.launch {
+            val key = when (leaveType) {
+                com.slikharev.shifttrack.model.LeaveType.ANNUAL -> PrefsKeys.COLOR_LEAVE_ANNUAL
+                com.slikharev.shifttrack.model.LeaveType.SICK -> PrefsKeys.COLOR_LEAVE_SICK
+                com.slikharev.shifttrack.model.LeaveType.PERSONAL -> PrefsKeys.COLOR_LEAVE_PERSONAL
+                com.slikharev.shifttrack.model.LeaveType.UNPAID -> PrefsKeys.COLOR_LEAVE_UNPAID
+                com.slikharev.shifttrack.model.LeaveType.STUDY -> PrefsKeys.COLOR_LEAVE_STUDY
+            }
+            appDataStore.setLeaveColor(key, argb)
+            widgetUpdater.updateAll()
+        }
+    }
+
     // ─── Widget diagnostics ──────────────────────────────────────────────────
 
     private val _widgetErrors = MutableStateFlow<List<String>>(WidgetDiagnostics.getErrors(context))

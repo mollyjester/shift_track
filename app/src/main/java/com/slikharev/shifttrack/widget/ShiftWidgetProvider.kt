@@ -17,6 +17,7 @@ import com.slikharev.shifttrack.R
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.ui.LeaveColorConfig
 import com.slikharev.shifttrack.ui.LeaveColors
 import com.slikharev.shifttrack.ui.ShiftColorConfig
 import com.slikharev.shifttrack.ui.ShiftColors
@@ -248,15 +249,23 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 leaveColor = snap.colorLeave?.let { Color(it.toInt()) } ?: ShiftColors.Leave,
             )
 
+            val leaveColorConfig = LeaveColorConfig(
+                annualColor = snap.colorLeaveAnnual?.let { Color(it.toInt()) } ?: LeaveColors.Annual,
+                sickColor = snap.colorLeaveSick?.let { Color(it.toInt()) } ?: LeaveColors.Sick,
+                personalColor = snap.colorLeavePersonal?.let { Color(it.toInt()) } ?: LeaveColors.Personal,
+                unpaidColor = snap.colorLeaveUnpaid?.let { Color(it.toInt()) } ?: LeaveColors.Unpaid,
+                studyColor = snap.colorLeaveStudy?.let { Color(it.toInt()) } ?: LeaveColors.Study,
+            )
+
             val options = manager.getAppWidgetOptions(appWidgetId)
             // Default to 250dp (matches minWidth in shift_widget_info.xml)
             // so the wide layout is used when options aren't set yet.
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
 
             val views = if (minWidth >= WIDE_THRESHOLD_DP) {
-                buildWideLayout(context, enrichedState, snap, colorConfig)
+                buildWideLayout(context, enrichedState, snap, colorConfig, leaveColorConfig)
             } else {
-                buildSmallLayout(context, enrichedState, snap, colorConfig)
+                buildSmallLayout(context, enrichedState, snap, colorConfig, leaveColorConfig)
             }
 
             manager.updateAppWidget(appWidgetId, views)
@@ -269,6 +278,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             state: WidgetUiState,
             snap: AppDataStore.WidgetSnapshot,
             colorConfig: ShiftColorConfig,
+            leaveColorConfig: LeaveColorConfig,
         ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_small)
             views.setInt(R.id.widget_small_root, "setBackgroundColor", computeBgColor(snap))
@@ -279,15 +289,16 @@ class ShiftWidgetProvider : AppWidgetProvider() {
 
                 val today = state.days.first()
                 val shiftColor = colorConfig.containerColor(today.shiftType).toArgb()
-                val textColor = colorConfig.onContainerColor(today.shiftType).toArgb()
 
-                // Background: split only for half-day leave
-                val topColor = shiftColor
+                // Full-day leave → light grey background; otherwise shift color
+                val topColor = if (today.hasLeave && !today.halfDay) LEAVE_GREY_ARGB else shiftColor
                 val bottomColor = if (today.hasLeave && today.halfDay) {
-                    darkenArgb(shiftColor, 0.3f)
+                    LEAVE_GREY_ARGB  // half-day leave → bottom half is light grey
                 } else {
-                    shiftColor
+                    topColor
                 }
+                val textColor = computeOnColor(topColor)
+
                 views.setInt(R.id.widget_small_top, "setBackgroundColor", topColor)
                 views.setInt(R.id.widget_small_bottom, "setBackgroundColor", bottomColor)
 
@@ -303,7 +314,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 if (today.hasLeave && !today.halfDay && today.leaveType != null) {
                     views.setViewVisibility(R.id.widget_small_dot, View.VISIBLE)
                     views.setInt(R.id.widget_small_dot, "setBackgroundColor",
-                        LeaveColors.color(today.leaveType).toArgb())
+                        leaveColorConfig.color(today.leaveType).toArgb())
                 } else {
                     views.setViewVisibility(R.id.widget_small_dot, View.GONE)
                 }
@@ -332,6 +343,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             state: WidgetUiState,
             snap: AppDataStore.WidgetSnapshot,
             colorConfig: ShiftColorConfig,
+            leaveColorConfig: LeaveColorConfig,
         ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_wide)
             views.setInt(R.id.widget_wide_root, "setBackgroundColor", computeBgColor(snap))
@@ -355,21 +367,25 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                         var dotColor: Int? = null
 
                         val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
-                        textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
                         typeLabel = ShiftColors.label(dayInfo.shiftType).uppercase()
-                        topColor = shiftColor
 
                         if (dayInfo.hasLeave && dayInfo.halfDay) {
-                            // Half-day leave: split background, no dot
-                            bottomColor = darkenArgb(shiftColor, 0.3f)
-                        } else if (dayInfo.hasLeave && !dayInfo.halfDay && dayInfo.leaveType != null) {
-                            // Full-day leave: solid shift color, dot colored by leave type
-                            bottomColor = shiftColor
-                            dotColor = LeaveColors.color(dayInfo.leaveType).toArgb()
+                            // Half-day leave: top = shift, bottom = light grey, no dot
+                            topColor = shiftColor
+                            bottomColor = LEAVE_GREY_ARGB
+                        } else if (dayInfo.hasLeave && !dayInfo.halfDay) {
+                            // Full-day leave: light grey, dot colored by leave type
+                            topColor = LEAVE_GREY_ARGB
+                            bottomColor = LEAVE_GREY_ARGB
+                            if (dayInfo.leaveType != null) {
+                                dotColor = leaveColorConfig.color(dayInfo.leaveType).toArgb()
+                            }
                         } else {
                             // Normal shift: solid color, no dot
+                            topColor = shiftColor
                             bottomColor = shiftColor
                         }
+                        textColor = computeOnColor(topColor)
 
                         views.setInt(slot.top, "setBackgroundColor", topColor)
                         views.setInt(slot.bottom, "setBackgroundColor", bottomColor)
@@ -416,6 +432,18 @@ class ShiftWidgetProvider : AppWidgetProvider() {
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────
+
+        /** Light grey ARGB for leave-day backgrounds. */
+        private const val LEAVE_GREY_ARGB = 0xFFE0E0E0.toInt()
+
+        /** Returns dark or light text color based on background luminance. */
+        private fun computeOnColor(argb: Int): Int {
+            val r = ((argb shr 16) and 0xFF) / 255f
+            val g = ((argb shr 8) and 0xFF) / 255f
+            val b = (argb and 0xFF) / 255f
+            val luminance = 0.299f * r + 0.587f * g + 0.114f * b
+            return if (luminance > 0.5f) 0xFF212121.toInt() else 0xFFEEEEEE.toInt()
+        }
 
         /**
          * Combines the stored background color with the transparency value,

@@ -64,7 +64,7 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <View
+                    <ImageView
                         android:id="@+id/widget_day_dot_0"
                         android:layout_width="5dp"
                         android:layout_height="5dp"
@@ -128,7 +128,7 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <View
+                    <ImageView
                         android:id="@+id/widget_day_dot_1"
                         android:layout_width="5dp"
                         android:layout_height="5dp"
@@ -192,7 +192,7 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <View
+                    <ImageView
                         android:id="@+id/widget_day_dot_2"
                         android:layout_width="5dp"
                         android:layout_height="5dp"
@@ -256,7 +256,7 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <View
+                    <ImageView
                         android:id="@+id/widget_day_dot_3"
                         android:layout_width="5dp"
                         android:layout_height="5dp"
@@ -320,7 +320,7 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <View
+                    <ImageView
                         android:id="@+id/widget_day_dot_4"
                         android:layout_width="5dp"
                         android:layout_height="5dp"
@@ -384,7 +384,7 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <View
+                    <ImageView
                         android:id="@+id/widget_day_dot_5"
                         android:layout_width="5dp"
                         android:layout_height="5dp"
@@ -448,7 +448,7 @@
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
-                    <View
+                    <ImageView
                         android:id="@+id/widget_day_dot_6"
                         android:layout_width="5dp"
                         android:layout_height="5dp"

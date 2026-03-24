@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.sync.SyncScheduler
+import com.slikharev.shifttrack.ui.LeaveColorConfig
+import com.slikharev.shifttrack.ui.LeaveColors
+import com.slikharev.shifttrack.ui.LocalLeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColorConfig
 import com.slikharev.shifttrack.ui.ShiftColors
@@ -41,6 +44,12 @@ class MainActivity : ComponentActivity() {
             val offColor by appDataStore.colorOff.collectAsState(initial = null)
             val leaveColor by appDataStore.colorLeave.collectAsState(initial = null)
 
+            val leaveAnnualColor by appDataStore.colorLeaveAnnual.collectAsState(initial = null)
+            val leaveSickColor by appDataStore.colorLeaveSick.collectAsState(initial = null)
+            val leavePersonalColor by appDataStore.colorLeavePersonal.collectAsState(initial = null)
+            val leaveUnpaidColor by appDataStore.colorLeaveUnpaid.collectAsState(initial = null)
+            val leaveStudyColor by appDataStore.colorLeaveStudy.collectAsState(initial = null)
+
             val colorConfig = ShiftColorConfig(
                 dayColor = dayColor?.let { Color(it.toInt()) } ?: ShiftColors.Day,
                 nightColor = nightColor?.let { Color(it.toInt()) } ?: ShiftColors.Night,
@@ -49,8 +58,19 @@ class MainActivity : ComponentActivity() {
                 leaveColor = leaveColor?.let { Color(it.toInt()) } ?: ShiftColors.Leave,
             )
 
+            val leaveColorConfig = LeaveColorConfig(
+                annualColor = leaveAnnualColor?.let { Color(it.toInt()) } ?: LeaveColors.Annual,
+                sickColor = leaveSickColor?.let { Color(it.toInt()) } ?: LeaveColors.Sick,
+                personalColor = leavePersonalColor?.let { Color(it.toInt()) } ?: LeaveColors.Personal,
+                unpaidColor = leaveUnpaidColor?.let { Color(it.toInt()) } ?: LeaveColors.Unpaid,
+                studyColor = leaveStudyColor?.let { Color(it.toInt()) } ?: LeaveColors.Study,
+            )
+
             ShiftTrackTheme {
-                CompositionLocalProvider(LocalShiftColors provides colorConfig) {
+                CompositionLocalProvider(
+                    LocalShiftColors provides colorConfig,
+                    LocalLeaveColors provides leaveColorConfig,
+                ) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         ShiftTrackNavHost()
                     }

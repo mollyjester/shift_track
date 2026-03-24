@@ -31,6 +31,12 @@ object PrefsKeys {
     val COLOR_REST = longPreferencesKey("color_rest")
     val COLOR_OFF = longPreferencesKey("color_off")
     val COLOR_LEAVE = longPreferencesKey("color_leave")
+    // Configurable leave-type colors (stored as ARGB Long)
+    val COLOR_LEAVE_ANNUAL = longPreferencesKey("color_leave_annual")
+    val COLOR_LEAVE_SICK = longPreferencesKey("color_leave_sick")
+    val COLOR_LEAVE_PERSONAL = longPreferencesKey("color_leave_personal")
+    val COLOR_LEAVE_UNPAID = longPreferencesKey("color_leave_unpaid")
+    val COLOR_LEAVE_STUDY = longPreferencesKey("color_leave_study")
     // Widget configuration
     val WIDGET_BG_COLOR = longPreferencesKey("widget_bg_color")
     val WIDGET_TRANSPARENCY = floatPreferencesKey("widget_transparency")
@@ -117,6 +123,18 @@ class AppDataStore @Inject constructor(
     val colorLeave: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_LEAVE] }
 
     suspend fun setShiftColor(key: androidx.datastore.preferences.core.Preferences.Key<Long>, argb: Long) {
+        dataStore.edit { it[key] = argb }
+    }
+
+    // ── Leave-type colors ─────────────────────────────────────────────────────
+
+    val colorLeaveAnnual: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_LEAVE_ANNUAL] }
+    val colorLeaveSick: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_LEAVE_SICK] }
+    val colorLeavePersonal: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_LEAVE_PERSONAL] }
+    val colorLeaveUnpaid: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_LEAVE_UNPAID] }
+    val colorLeaveStudy: Flow<Long?> = dataStore.data.map { it[PrefsKeys.COLOR_LEAVE_STUDY] }
+
+    suspend fun setLeaveColor(key: Preferences.Key<Long>, argb: Long) {
         dataStore.edit { it[key] = argb }
     }
 
@@ -230,6 +248,11 @@ class AppDataStore @Inject constructor(
             colorRest = prefs[PrefsKeys.COLOR_REST],
             colorOff = prefs[PrefsKeys.COLOR_OFF],
             colorLeave = prefs[PrefsKeys.COLOR_LEAVE],
+            colorLeaveAnnual = prefs[PrefsKeys.COLOR_LEAVE_ANNUAL],
+            colorLeaveSick = prefs[PrefsKeys.COLOR_LEAVE_SICK],
+            colorLeavePersonal = prefs[PrefsKeys.COLOR_LEAVE_PERSONAL],
+            colorLeaveUnpaid = prefs[PrefsKeys.COLOR_LEAVE_UNPAID],
+            colorLeaveStudy = prefs[PrefsKeys.COLOR_LEAVE_STUDY],
             spectatorMode = prefs[PrefsKeys.SPECTATOR_MODE] ?: false,
             selectedHostUid = prefs[PrefsKeys.SELECTED_HOST_UID],
             spectatorCache = cache,
@@ -247,6 +270,11 @@ class AppDataStore @Inject constructor(
         val colorRest: Long?,
         val colorOff: Long?,
         val colorLeave: Long?,
+        val colorLeaveAnnual: Long? = null,
+        val colorLeaveSick: Long? = null,
+        val colorLeavePersonal: Long? = null,
+        val colorLeaveUnpaid: Long? = null,
+        val colorLeaveStudy: Long? = null,
         val spectatorMode: Boolean = false,
         val selectedHostUid: String? = null,
         val spectatorCache: List<SpectatorWidgetEntry> = emptyList(),
