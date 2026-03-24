@@ -10,6 +10,7 @@ import com.slikharev.shifttrack.data.repository.OvertimeRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import com.slikharev.shifttrack.model.DayInfo
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,8 +34,9 @@ class DashboardViewModel @Inject constructor(
     shiftRepository: ShiftRepository,
     leaveRepository: LeaveRepository,
     overtimeRepository: OvertimeRepository,
-    appDataStore: AppDataStore,
+    private val appDataStore: AppDataStore,
     private val spectatorRepository: SpectatorRepository,
+    private val widgetUpdater: ShiftWidgetUpdater,
 ) : ViewModel() {
 
     private val today: LocalDate = LocalDate.now()
@@ -68,6 +70,20 @@ class DashboardViewModel @Inject constructor(
                         spectatorRepository.getDayInfosForRange(hostUid, today, upcomingEnd)
                     } catch (_: Exception) {
                         emptyList()
+                    }
+                    // Cache for widget (runs locally, no network)
+                    if (infos.isNotEmpty()) {
+                        val entries = infos.map { d ->
+                            AppDataStore.SpectatorWidgetEntry(
+                                date = d.date.toString(),
+                                shiftType = d.shiftType.name,
+                                hasLeave = d.hasLeave,
+                                halfDay = d.halfDay,
+                                leaveType = d.leaveType?.name,
+                            )
+                        }
+                        appDataStore.setSpectatorWidgetCache(entries)
+                        widgetUpdater.updateAll()
                     }
                     emit(infos.map { UpcomingDay(dayInfo = it, isToday = it.date == today) })
                 }

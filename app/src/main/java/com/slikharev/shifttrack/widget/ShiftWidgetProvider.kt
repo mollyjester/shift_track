@@ -125,42 +125,37 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 return
             }
 
-            // Determine widget state: spectator mode fetches from Firestore,
+            // Determine widget state: spectator mode reads from local cache,
             // normal mode computes from local anchor.
             val enrichedState: WidgetUiState = if (snap.spectatorMode && snap.selectedHostUid != null) {
-                // Spectator mode: fetch host's shifts from Firestore
-                try {
-                    val spectatorRepository = entryPoint.spectatorRepository()
-                    val today = LocalDate.now()
-                    val endDate = today.plusDays((AppDataStore.MAX_WIDGET_DAYS - 1).toLong())
-                    val dayInfos = spectatorRepository.getDayInfosForRange(
-                        snap.selectedHostUid, today, endDate,
-                    )
-                    if (dayInfos.isEmpty()) {
-                        WidgetUiState(isConfigured = false, days = emptyList())
-                    } else {
-                        val days = dayInfos.mapIndexed { offset, info ->
-                            val label = when (offset) {
-                                0 -> "Today"
-                                1 -> "Tomorrow"
-                                else -> info.date.dayOfWeek.getDisplayName(
-                                    java.time.format.TextStyle.SHORT, Locale.getDefault(),
-                                )
-                            }
-                            WidgetDayInfo(
-                                date = info.date,
-                                shiftType = info.shiftType,
-                                label = label,
-                                isToday = offset == 0,
-                                hasLeave = info.hasLeave,
-                                halfDay = info.halfDay,
-                                leaveType = info.leaveType,
+                // Spectator mode: read pre-cached data (no network calls in widget)
+                if (snap.spectatorCache.isEmpty()) {
+                    WidgetUiState(isConfigured = false, days = emptyList())
+                } else {
+                    val days = snap.spectatorCache.mapIndexed { offset, entry ->
+                        val shiftType = runCatching { ShiftType.valueOf(entry.shiftType) }
+                            .getOrDefault(ShiftType.OFF)
+                        val leaveType = entry.leaveType?.let { LeaveType.fromString(it) }
+                        val date = runCatching { LocalDate.parse(entry.date) }
+                            .getOrDefault(LocalDate.now().plusDays(offset.toLong()))
+                        val label = when (offset) {
+                            0 -> "Today"
+                            1 -> "Tomorrow"
+                            else -> date.dayOfWeek.getDisplayName(
+                                java.time.format.TextStyle.SHORT, Locale.getDefault(),
                             )
                         }
-                        WidgetUiState(isConfigured = true, days = days)
+                        WidgetDayInfo(
+                            date = date,
+                            shiftType = shiftType,
+                            label = label,
+                            isToday = offset == 0,
+                            hasLeave = entry.hasLeave,
+                            halfDay = entry.halfDay,
+                            leaveType = leaveType,
+                        )
                     }
-                } catch (_: Exception) {
-                    WidgetUiState(isConfigured = false, days = emptyList())
+                    WidgetUiState(isConfigured = true, days = days)
                 }
             } else {
                 // Normal mode: compute from local anchor + enrich with leave data

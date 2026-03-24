@@ -41,6 +41,8 @@ object PrefsKeys {
     val WATCHED_HOSTS = stringPreferencesKey("watched_hosts")
     // Currently selected host UID for spectator calendar view
     val SELECTED_HOST_UID = stringPreferencesKey("selected_host_uid")
+    // Cached spectator shift data for widget (avoids Firestore calls in widget receiver)
+    val SPECTATOR_WIDGET_CACHE = stringPreferencesKey("spectator_widget_cache")
 }
 
 /**
@@ -174,15 +176,49 @@ class AppDataStore @Inject constructor(
         }
     }
 
+    // ── Spectator widget cache ────────────────────────────────────────────────────
+
+    /**
+     * Stores pre-fetched spectator shift data so the widget never needs Firestore.
+     * Each entry is "date,shiftType,hasLeave,halfDay,leaveType" separated by newlines.
+     */
+    suspend fun setSpectatorWidgetCache(entries: List<SpectatorWidgetEntry>) {
+        val encoded = entries.joinToString("\n") { e ->
+            "${e.date},${e.shiftType},${e.hasLeave},${e.halfDay},${e.leaveType ?: ""}"
+        }
+        dataStore.edit { it[PrefsKeys.SPECTATOR_WIDGET_CACHE] = encoded }
+    }
+
+    data class SpectatorWidgetEntry(
+        val date: String,
+        val shiftType: String,
+        val hasLeave: Boolean,
+        val halfDay: Boolean,
+        val leaveType: String?,
+    )
+
     // ── Atomic snapshot for widget rendering ─────────────────────────────────────
 
     /**
      * Reads all widget-related preferences in a single [DataStore] access,
-     * guaranteeing a consistent snapshot. Use this in [provideGlance] instead of
-     * multiple separate [Flow.first] calls.
+     * guaranteeing a consistent snapshot.
      */
     suspend fun readWidgetSnapshot(): WidgetSnapshot {
         val prefs = dataStore.data.first()
+        val cache = prefs[PrefsKeys.SPECTATOR_WIDGET_CACHE]?.let { raw ->
+            raw.lines().filter { it.isNotBlank() }.mapNotNull { line ->
+                val parts = line.split(',', limit = 5)
+                if (parts.size >= 4) {
+                    SpectatorWidgetEntry(
+                        date = parts[0],
+                        shiftType = parts[1],
+                        hasLeave = parts[2].toBooleanStrictOrNull() ?: false,
+                        halfDay = parts[3].toBooleanStrictOrNull() ?: false,
+                        leaveType = parts.getOrNull(4)?.ifBlank { null },
+                    )
+                } else null
+            }
+        } ?: emptyList()
         return WidgetSnapshot(
             anchorDate = prefs[PrefsKeys.ANCHOR_DATE],
             anchorCycleIndex = prefs[PrefsKeys.ANCHOR_CYCLE_INDEX] ?: -1,
@@ -196,6 +232,7 @@ class AppDataStore @Inject constructor(
             colorLeave = prefs[PrefsKeys.COLOR_LEAVE],
             spectatorMode = prefs[PrefsKeys.SPECTATOR_MODE] ?: false,
             selectedHostUid = prefs[PrefsKeys.SELECTED_HOST_UID],
+            spectatorCache = cache,
         )
     }
 
@@ -212,6 +249,7 @@ class AppDataStore @Inject constructor(
         val colorLeave: Long?,
         val spectatorMode: Boolean = false,
         val selectedHostUid: String? = null,
+        val spectatorCache: List<SpectatorWidgetEntry> = emptyList(),
     )
 
     companion object {

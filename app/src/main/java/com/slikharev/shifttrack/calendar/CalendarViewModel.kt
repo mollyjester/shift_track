@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.data.repository.SpectatorRepository
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,7 @@ class CalendarViewModel @Inject constructor(
     private val shiftRepository: ShiftRepository,
     private val spectatorRepository: SpectatorRepository,
     private val appDataStore: AppDataStore,
+    private val widgetUpdater: ShiftWidgetUpdater,
 ) : ViewModel() {
 
     private val _currentYearMonth = MutableStateFlow(YearMonth.now())
@@ -92,6 +94,26 @@ class CalendarViewModel @Inject constructor(
                         "Could not load schedule — the host may need to open their app to sync"
                     } else {
                         null
+                    }
+                    // Update widget cache when this month contains today
+                    if (dayInfos.isNotEmpty() && ym == YearMonth.now()) {
+                        val today = java.time.LocalDate.now()
+                        val cacheInfos = dayInfos
+                            .filter { !it.date.isBefore(today) }
+                            .take(AppDataStore.MAX_WIDGET_DAYS)
+                        if (cacheInfos.isNotEmpty()) {
+                            val entries = cacheInfos.map { d ->
+                                AppDataStore.SpectatorWidgetEntry(
+                                    date = d.date.toString(),
+                                    shiftType = d.shiftType.name,
+                                    hasLeave = d.hasLeave,
+                                    halfDay = d.halfDay,
+                                    leaveType = d.leaveType?.name,
+                                )
+                            }
+                            appDataStore.setSpectatorWidgetCache(entries)
+                            widgetUpdater.updateAll()
+                        }
                     }
                     emit(buildCalendarDays(ym, dayInfos))
                 }

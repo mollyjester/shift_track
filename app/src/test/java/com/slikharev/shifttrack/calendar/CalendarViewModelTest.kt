@@ -4,6 +4,7 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import com.slikharev.shifttrack.model.DayInfo
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,7 @@ class CalendarViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var shiftRepository: ShiftRepository
     private lateinit var spectatorRepository: SpectatorRepository
+    private lateinit var widgetUpdater: ShiftWidgetUpdater
     private lateinit var appDataStore: AppDataStore
     private lateinit var viewModel: CalendarViewModel
 
@@ -42,6 +44,7 @@ class CalendarViewModelTest {
         Dispatchers.setMain(testDispatcher)
         shiftRepository = mockk()
         spectatorRepository = mockk()
+        widgetUpdater = mockk(relaxed = true)
         appDataStore = mockk(relaxed = true) {
             every { spectatorMode } returns flowOf(false)
             every { watchedHosts } returns flowOf(emptyList())
@@ -49,7 +52,7 @@ class CalendarViewModelTest {
         }
         // Return an empty list for any date range — we are not testing calendarDays content here.
         every { shiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(emptyList<DayInfo>())
-        viewModel = CalendarViewModel(shiftRepository, spectatorRepository, appDataStore)
+        viewModel = CalendarViewModel(shiftRepository, spectatorRepository, appDataStore, widgetUpdater)
     }
 
     @After

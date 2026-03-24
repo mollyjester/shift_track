@@ -10,6 +10,7 @@ import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -43,6 +44,7 @@ class DashboardViewModelTest {
     private lateinit var mockOvertimeRepository: OvertimeRepository
     private lateinit var mockAppDataStore: AppDataStore
     private lateinit var mockSpectatorRepository: SpectatorRepository
+    private lateinit var mockWidgetUpdater: ShiftWidgetUpdater
     private lateinit var viewModel: DashboardViewModel
 
     @Before
@@ -52,6 +54,7 @@ class DashboardViewModelTest {
         mockLeaveRepository = mockk(relaxed = true)
         mockOvertimeRepository = mockk(relaxed = true)
         mockSpectatorRepository = mockk(relaxed = true)
+        mockWidgetUpdater = mockk(relaxed = true)
         mockAppDataStore = mockk(relaxed = true) {
             every { spectatorMode } returns flowOf(false)
             every { selectedHostUid } returns flowOf(null)
@@ -67,7 +70,7 @@ class DashboardViewModelTest {
 
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
     }
 
@@ -96,7 +99,7 @@ class DashboardViewModelTest {
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(infos)
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
 
         val job = launch { viewModel.upcomingDays.collect { } }
@@ -115,7 +118,7 @@ class DashboardViewModelTest {
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(infos)
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
 
         val job = launch { viewModel.upcomingDays.collect { } }
@@ -142,7 +145,7 @@ class DashboardViewModelTest {
 
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
 
         val job = launch { viewModel.upcomingDays.collect { } }
@@ -165,7 +168,7 @@ class DashboardViewModelTest {
 
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
 
         val job = launch { viewModel.selectedHostName.collect { } }
@@ -194,7 +197,7 @@ class DashboardViewModelTest {
         every { mockLeaveRepository.observeAllBalancesForYear(any()) } returns flowOf(balances)
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
 
         val job = launch { viewModel.leaveBalances.collect { } }
@@ -224,7 +227,7 @@ class DashboardViewModelTest {
         every { mockOvertimeRepository.getOvertimeForRange(any(), any()) } returns flowOf(entries)
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
 
         val job = launch { viewModel.weeklyOvertimeHours.collect { } }
@@ -242,7 +245,7 @@ class DashboardViewModelTest {
         every { mockOvertimeRepository.observeBalanceForYear(any()) } returns flowOf(balance)
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
-            mockAppDataStore, mockSpectatorRepository,
+            mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
         )
 
         val job = launch { viewModel.yearlyOvertimeBalance.collect { } }
