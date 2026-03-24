@@ -75,17 +75,21 @@ const notifySpectators = async (hostUid) => {
   }
 };
 
+// eur3 (Europe multi-region) = europe-west1 + europe-west4. Cloud Functions
+// must specify a single GCP region; europe-west1 (Belgium) is within eur3.
+const REGION = "europe-west1";
+
 exports.onShiftWrite = onDocumentWritten(
-  "users/{hostUid}/shifts/{date}",
+  { document: "users/{hostUid}/shifts/{date}", region: REGION },
   (event) => notifySpectators(event.params.hostUid),
 );
 
 exports.onLeaveWrite = onDocumentWritten(
-  "users/{hostUid}/leaves/{date}",
+  { document: "users/{hostUid}/leaves/{date}", region: REGION },
   (event) => notifySpectators(event.params.hostUid),
 );
 
 exports.onOvertimeWrite = onDocumentWritten(
-  "users/{hostUid}/overtime/{date}",
+  { document: "users/{hostUid}/overtime/{date}", region: REGION },
   (event) => notifySpectators(event.params.hostUid),
 );

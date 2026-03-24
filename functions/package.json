@@ -2,7 +2,7 @@
   "name": "shifttrack-functions",
   "description": "ShiftTrack Cloud Functions — spectator push notifications",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {
