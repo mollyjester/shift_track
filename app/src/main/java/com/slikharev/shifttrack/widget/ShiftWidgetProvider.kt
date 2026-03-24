@@ -26,7 +26,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -234,34 +233,39 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             views.setInt(R.id.widget_small_root, "setBackgroundColor", computeBgColor(snap))
 
             if (state.isConfigured && state.days.isNotEmpty()) {
+                views.setViewVisibility(R.id.widget_small_content, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_small_message, View.GONE)
+
                 val today = state.days.first()
-                views.setTextViewText(
-                    R.id.widget_small_date,
-                    today.date.format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault())),
-                )
+                val shiftColor = colorConfig.containerColor(today.shiftType).toArgb()
+                val textColor = colorConfig.onContainerColor(today.shiftType).toArgb()
 
-                val bgColor: Int
-                val textColor: Int
-                val text: String
-                if (today.hasLeave && !today.halfDay && today.leaveType != null) {
-                    // Full-day leave: show leave type color
-                    bgColor = LeaveColors.color(today.leaveType).toArgb()
-                    textColor = 0xFFFFFFFF.toInt()
-                    text = LeaveColors.label(today.leaveType).uppercase()
-                } else if (today.hasLeave && today.halfDay) {
-                    // Half-day leave: shift color + indicator
-                    bgColor = colorConfig.containerColor(today.shiftType).toArgb()
-                    textColor = colorConfig.onContainerColor(today.shiftType).toArgb()
-                    text = ShiftColors.label(today.shiftType).uppercase() + " ½"
+                // Background: split only for half-day leave
+                val topColor = shiftColor
+                val bottomColor = if (today.hasLeave && today.halfDay) {
+                    darkenArgb(shiftColor, 0.3f)
                 } else {
-                    bgColor = colorConfig.containerColor(today.shiftType).toArgb()
-                    textColor = colorConfig.onContainerColor(today.shiftType).toArgb()
-                    text = ShiftColors.label(today.shiftType).uppercase()
+                    shiftColor
                 }
+                views.setInt(R.id.widget_small_top, "setBackgroundColor", topColor)
+                views.setInt(R.id.widget_small_bottom, "setBackgroundColor", bottomColor)
 
-                views.setTextViewText(R.id.widget_small_shift, text)
-                views.setInt(R.id.widget_small_shift, "setBackgroundColor", bgColor)
+                // Day number
+                views.setTextViewText(R.id.widget_small_date, today.date.dayOfMonth.toString())
+                views.setTextColor(R.id.widget_small_date, textColor)
+
+                // Shift type label
+                views.setTextViewText(R.id.widget_small_shift, ShiftColors.label(today.shiftType).uppercase())
                 views.setTextColor(R.id.widget_small_shift, textColor)
+
+                // Dot: only for full-day leave
+                if (today.hasLeave && !today.halfDay && today.leaveType != null) {
+                    views.setViewVisibility(R.id.widget_small_dot, View.VISIBLE)
+                    views.setInt(R.id.widget_small_dot, "setBackgroundColor",
+                        LeaveColors.color(today.leaveType).toArgb())
+                } else {
+                    views.setViewVisibility(R.id.widget_small_dot, View.GONE)
+                }
 
                 // Tap → open day in app
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("shiftapp://day/${today.date}")).apply {
@@ -274,10 +278,8 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 )
                 views.setOnClickPendingIntent(R.id.widget_small_root, pi)
             } else {
-                views.setTextViewText(R.id.widget_small_date, "")
-                views.setTextViewText(R.id.widget_small_shift, "Open ShiftTrack\nto set up")
-                views.setInt(R.id.widget_small_shift, "setBackgroundColor", 0x00000000)
-                views.setTextColor(R.id.widget_small_shift, 0xFF43474E.toInt())
+                views.setViewVisibility(R.id.widget_small_content, View.GONE)
+                views.setViewVisibility(R.id.widget_small_message, View.VISIBLE)
             }
             return views
         }
@@ -311,29 +313,21 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                         val typeLabel: String
                         var dotColor: Int? = null
 
-                        if (dayInfo.hasLeave && !dayInfo.halfDay && dayInfo.leaveType != null) {
-                            // Full-day leave: leave type color background + dot
-                            val leaveColor = LeaveColors.color(dayInfo.leaveType).toArgb()
-                            topColor = leaveColor
-                            bottomColor = leaveColor
-                            textColor = 0xFFFFFFFF.toInt()
-                            typeLabel = LeaveColors.label(dayInfo.leaveType).uppercase()
-                            dotColor = leaveColor
-                        } else if (dayInfo.hasLeave && dayInfo.halfDay) {
-                            // Half-day: shift color top, darker bottom + dot
-                            val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
-                            topColor = shiftColor
+                        val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
+                        textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
+                        typeLabel = ShiftColors.label(dayInfo.shiftType).uppercase()
+                        topColor = shiftColor
+
+                        if (dayInfo.hasLeave && dayInfo.halfDay) {
+                            // Half-day leave: split background, no dot
                             bottomColor = darkenArgb(shiftColor, 0.3f)
-                            textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
-                            typeLabel = ShiftColors.label(dayInfo.shiftType).uppercase()
-                            dotColor = ShiftColors.Leave.toArgb()
-                        } else {
-                            // Normal shift
-                            val shiftColor = colorConfig.containerColor(dayInfo.shiftType).toArgb()
-                            topColor = shiftColor
+                        } else if (dayInfo.hasLeave && !dayInfo.halfDay && dayInfo.leaveType != null) {
+                            // Full-day leave: solid shift color, dot colored by leave type
                             bottomColor = shiftColor
-                            textColor = colorConfig.onContainerColor(dayInfo.shiftType).toArgb()
-                            typeLabel = ShiftColors.label(dayInfo.shiftType).uppercase()
+                            dotColor = LeaveColors.color(dayInfo.leaveType).toArgb()
+                        } else {
+                            // Normal shift: solid color, no dot
+                            bottomColor = shiftColor
                         }
 
                         views.setInt(slot.top, "setBackgroundColor", topColor)
