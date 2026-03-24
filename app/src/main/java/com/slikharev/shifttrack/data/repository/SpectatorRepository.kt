@@ -1,6 +1,7 @@
 package com.slikharev.shifttrack.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
@@ -13,17 +14,40 @@ import javax.inject.Singleton
 /**
  * Reads a host user's shift/leave/overtime data from Firestore.
  * Used by spectators to view another user's calendar (read-only).
+ *
+ * Fetched results are cached locally via [AppDataStore] so the
+ * schedule is viewable offline. When Firestore is unreachable the
+ * repository returns matching entries from the cache.
  */
 @Singleton
 class SpectatorRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
+    private val appDataStore: AppDataStore,
 ) {
 
     /**
      * Fetches the host's [DayInfo] list for [startDate]..[endDate] from Firestore.
-     * Returns an empty list if the host has no anchor configured.
+     * On success the result is written to the local calendar cache.
+     * On failure (e.g. offline) the cache is consulted as a fallback.
+     * Returns an empty list if neither source has data.
      */
     suspend fun getDayInfosForRange(
+        hostUid: String,
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<DayInfo> {
+        return try {
+            val result = fetchFromFirestore(hostUid, startDate, endDate)
+            if (result.isNotEmpty()) {
+                cacheResults(result)
+            }
+            result
+        } catch (_: Exception) {
+            readFromCache(startDate, endDate)
+        }
+    }
+
+    private suspend fun fetchFromFirestore(
         hostUid: String,
         startDate: LocalDate,
         endDate: LocalDate,
@@ -107,5 +131,45 @@ class SpectatorRepository @Inject constructor(
             current = current.plusDays(1)
         }
         return result
+    }
+
+    private suspend fun cacheResults(infos: List<DayInfo>) {
+        val entries = infos.map { d ->
+            AppDataStore.SpectatorWidgetEntry(
+                date = d.date.toString(),
+                shiftType = d.shiftType.name,
+                hasLeave = d.hasLeave,
+                halfDay = d.halfDay,
+                leaveType = d.leaveType?.name,
+                isManualOverride = d.isManualOverride,
+                hasOvertime = d.hasOvertime,
+                note = d.note,
+            )
+        }
+        appDataStore.setSpectatorCalendarCache(entries)
+    }
+
+    private suspend fun readFromCache(
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<DayInfo> {
+        return appDataStore.readSpectatorCalendarCache()
+            .mapNotNull { entry ->
+                val date = runCatching { LocalDate.parse(entry.date) }.getOrNull()
+                    ?: return@mapNotNull null
+                if (date.isBefore(startDate) || date.isAfter(endDate)) return@mapNotNull null
+                val shiftType = runCatching { ShiftType.valueOf(entry.shiftType) }
+                    .getOrDefault(ShiftType.OFF)
+                DayInfo(
+                    date = date,
+                    shiftType = shiftType,
+                    isManualOverride = entry.isManualOverride,
+                    hasLeave = entry.hasLeave,
+                    halfDay = entry.halfDay,
+                    leaveType = entry.leaveType?.let { LeaveType.fromString(it) },
+                    hasOvertime = entry.hasOvertime,
+                    note = entry.note,
+                )
+            }
     }
 }

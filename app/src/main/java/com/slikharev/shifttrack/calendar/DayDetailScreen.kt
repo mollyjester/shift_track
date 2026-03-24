@@ -157,6 +157,28 @@ private fun DayDetailContent(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (dayInfo.hasLeave) {
+                val leaveLabel = dayInfo.leaveType?.name?.lowercase()
+                    ?.replaceFirstChar { it.uppercase() } ?: "Leave"
+                val halfLabel = if (dayInfo.halfDay) " (half day)" else ""
+                Text(
+                    text = "\uD83C\uDF34 $leaveLabel$halfLabel",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (dayInfo.hasOvertime) {
+                Text(
+                    text = "⏱ Overtime recorded",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (!dayInfo.note.isNullOrBlank()) {
+                Text(
+                    text = "Note: ${dayInfo.note}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         } else {
             // Note section
             NoteSection(

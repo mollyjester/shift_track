@@ -74,9 +74,6 @@ fun CalendarScreen(navController: NavController) {
 
     val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
 
-    // Whether to show day-click navigation (only for own calendar)
-    val isViewingOwnCalendar = selectedHostUid == null
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -140,9 +137,7 @@ fun CalendarScreen(navController: NavController) {
             CalendarGrid(
                 calendarDays = calendarDays,
                 onDayClick = { date ->
-                    if (isViewingOwnCalendar) {
-                        navController.navigate(Screen.DayDetail.createRoute(date.toString()))
-                    }
+                    navController.navigate(Screen.DayDetail.createRoute(date.toString()))
                 },
             )
             Spacer(modifier = Modifier.height(16.dp))

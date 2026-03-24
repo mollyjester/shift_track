@@ -93,7 +93,6 @@ fun SettingsScreen(navController: NavController) {
     val widgetBgColor by viewModel.widgetBgColor.collectAsStateWithLifecycle()
     val widgetTransparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val widgetDayCount by viewModel.widgetDayCount.collectAsStateWithLifecycle()
-    val widgetErrors by viewModel.widgetErrors.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.savedMessage, uiState.error) {
@@ -177,16 +176,6 @@ fun SettingsScreen(navController: NavController) {
                 onBgColorChange = viewModel::setWidgetBgColor,
                 onTransparencyChange = viewModel::setWidgetTransparency,
                 onDayCountChange = viewModel::setWidgetDayCount,
-            )
-
-            HorizontalDivider()
-
-            // ── Widget diagnostics (error log + share) ───────────────────────
-            SettingsSectionHeader("Widget Diagnostics")
-            WidgetDiagnosticsSection(
-                errors = widgetErrors,
-                onRefresh = viewModel::refreshWidgetErrors,
-                onClear = viewModel::clearWidgetErrors,
             )
 
             if (!isSpectatorOnly) {
@@ -854,51 +843,6 @@ private fun WidgetSettingsSection(
                 onClick = { if (dayCount < AppDataStore.MAX_WIDGET_DAYS) onDayCountChange(dayCount + 1) },
                 enabled = dayCount < AppDataStore.MAX_WIDGET_DAYS,
             ) { Text("+") }
-        }
-    }
-}
-
-// ── Widget Diagnostics ────────────────────────────────────────────────────────
-
-@Composable
-private fun WidgetDiagnosticsSection(
-    errors: List<String>,
-    onRefresh: () -> Unit,
-    onClear: () -> Unit,
-) {
-    val context = LocalContext.current
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (errors.isEmpty()) {
-            Text(
-                "No widget errors recorded.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            errors.take(10).forEach { entry ->
-                Text(
-                    entry,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onRefresh) { Text("Refresh") }
-            if (errors.isNotEmpty()) {
-                OutlinedButton(
-                    onClick = {
-                        val text = errors.joinToString("\n")
-                        val intent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, "ShiftTrack widget diagnostics")
-                            putExtra(Intent.EXTRA_TEXT, text)
-                        }
-                        context.startActivity(Intent.createChooser(intent, "Share widget logs"))
-                    },
-                ) { Text("Share") }
-                OutlinedButton(onClick = onClear) { Text("Clear") }
-            }
         }
     }
 }

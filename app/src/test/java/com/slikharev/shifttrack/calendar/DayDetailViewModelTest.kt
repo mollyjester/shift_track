@@ -7,6 +7,7 @@ import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
+import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
@@ -46,6 +47,7 @@ class DayDetailViewModelTest {
     private lateinit var mockShiftRepository: ShiftRepository
     private lateinit var mockLeaveRepository: LeaveRepository
     private lateinit var mockOvertimeRepository: OvertimeRepository
+    private lateinit var mockSpectatorRepository: SpectatorRepository
     private lateinit var mockUserSession: UserSession
     private lateinit var mockWidgetUpdater: ShiftWidgetUpdater
     private lateinit var mockAppDataStore: AppDataStore
@@ -57,12 +59,14 @@ class DayDetailViewModelTest {
         mockShiftRepository = mockk(relaxed = true)
         mockLeaveRepository = mockk(relaxed = true)
         mockOvertimeRepository = mockk(relaxed = true)
+        mockSpectatorRepository = mockk(relaxed = true)
         mockUserSession = mockk {
             every { currentUserId } returns "test-uid"
         }
         mockWidgetUpdater = mockk(relaxed = true)
         mockAppDataStore = mockk {
             every { spectatorMode } returns flowOf(false)
+            every { selectedHostUid } returns flowOf(null)
         }
 
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(emptyList())
@@ -74,6 +78,7 @@ class DayDetailViewModelTest {
             shiftRepository = mockShiftRepository,
             leaveRepository = mockLeaveRepository,
             overtimeRepository = mockOvertimeRepository,
+            spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
             appDataStore = mockAppDataStore,
@@ -109,6 +114,7 @@ class DayDetailViewModelTest {
             shiftRepository = mockShiftRepository,
             leaveRepository = mockLeaveRepository,
             overtimeRepository = mockOvertimeRepository,
+            spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
             appDataStore = mockAppDataStore,
@@ -138,6 +144,7 @@ class DayDetailViewModelTest {
             shiftRepository = mockShiftRepository,
             leaveRepository = mockLeaveRepository,
             overtimeRepository = mockOvertimeRepository,
+            spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
             appDataStore = mockAppDataStore,
@@ -287,12 +294,14 @@ class DayDetailViewModelTest {
     fun `isSpectator reflects AppDataStore spectatorMode`() = testScope.runTest {
         val spectatorDataStore = mockk<AppDataStore> {
             every { spectatorMode } returns flowOf(true)
+            every { selectedHostUid } returns flowOf(null)
         }
         val vm = DayDetailViewModel(
             savedStateHandle = SavedStateHandle(mapOf("date" to "2025-06-15")),
             shiftRepository = mockShiftRepository,
             leaveRepository = mockLeaveRepository,
             overtimeRepository = mockOvertimeRepository,
+            spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
             appDataStore = spectatorDataStore,

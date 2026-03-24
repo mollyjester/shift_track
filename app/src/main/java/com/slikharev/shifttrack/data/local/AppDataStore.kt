@@ -49,6 +49,8 @@ object PrefsKeys {
     val SELECTED_HOST_UID = stringPreferencesKey("selected_host_uid")
     // Cached spectator shift data for widget (avoids Firestore calls in widget receiver)
     val SPECTATOR_WIDGET_CACHE = stringPreferencesKey("spectator_widget_cache")
+    // Cached spectator calendar data for offline viewing (broader than widget cache)
+    val SPECTATOR_CALENDAR_CACHE = stringPreferencesKey("spectator_calendar_cache")
 }
 
 /**
@@ -213,7 +215,44 @@ class AppDataStore @Inject constructor(
         val hasLeave: Boolean,
         val halfDay: Boolean,
         val leaveType: String?,
+        val isManualOverride: Boolean = false,
+        val hasOvertime: Boolean = false,
+        val note: String? = null,
     )
+
+    // ── Spectator calendar cache (offline support) ────────────────────────────────
+
+    /**
+     * Stores a broader set of spectator shift data for offline calendar viewing.
+     * Same encoding as the widget cache. Used by [SpectatorRepository] as a
+     * fallback when Firestore is unreachable.
+     */
+    suspend fun setSpectatorCalendarCache(entries: List<SpectatorWidgetEntry>) {
+        val encoded = entries.joinToString("\n") { e ->
+            "${e.date},${e.shiftType},${e.hasLeave},${e.halfDay},${e.leaveType ?: ""},${e.isManualOverride},${e.hasOvertime},${e.note?.replace("\n", " ")?.take(200) ?: ""}"
+        }
+        dataStore.edit { it[PrefsKeys.SPECTATOR_CALENDAR_CACHE] = encoded }
+    }
+
+    suspend fun readSpectatorCalendarCache(): List<SpectatorWidgetEntry> {
+        val prefs = dataStore.data.first()
+        val raw = prefs[PrefsKeys.SPECTATOR_CALENDAR_CACHE] ?: return emptyList()
+        return raw.split("\n").mapNotNull { line ->
+            val parts = line.split(",")
+            if (parts.size >= 5) {
+                SpectatorWidgetEntry(
+                    date = parts[0],
+                    shiftType = parts[1],
+                    hasLeave = parts[2].toBooleanStrictOrNull() ?: false,
+                    halfDay = parts[3].toBooleanStrictOrNull() ?: false,
+                    leaveType = parts[4].ifBlank { null },
+                    isManualOverride = parts.getOrNull(5)?.toBooleanStrictOrNull() ?: false,
+                    hasOvertime = parts.getOrNull(6)?.toBooleanStrictOrNull() ?: false,
+                    note = parts.getOrNull(7)?.ifBlank { null },
+                )
+            } else null
+        }
+    }
 
     // ── Atomic snapshot for widget rendering ─────────────────────────────────────
 

@@ -10,27 +10,34 @@ import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
+import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DayDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val shiftRepository: ShiftRepository,
     private val leaveRepository: LeaveRepository,
     private val overtimeRepository: OvertimeRepository,
+    private val spectatorRepository: SpectatorRepository,
     private val userSession: UserSession,
     private val widgetUpdater: ShiftWidgetUpdater,
     appDataStore: AppDataStore,
@@ -43,10 +50,24 @@ class DayDetailViewModel @Inject constructor(
     val isSpectator: StateFlow<Boolean> = appDataStore.spectatorMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val dayInfo: StateFlow<DayInfo?> = shiftRepository
-        .getDayInfosForRange(date, date)
-        .map { it.firstOrNull() }
+    private val selectedHostUid: StateFlow<String?> = appDataStore.selectedHostUid
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val dayInfo: StateFlow<DayInfo?> = combine(isSpectator, selectedHostUid) { spectator, hostUid ->
+        spectator to hostUid
+    }.flatMapLatest { (spectator, hostUid) ->
+        if (spectator && hostUid != null) {
+            flow {
+                val infos = spectatorRepository.getDayInfosForRange(hostUid, date, date)
+                // Provide a fallback so the screen never stays on the loading spinner.
+                emit(
+                    infos.firstOrNull() ?: DayInfo(date = date, shiftType = ShiftType.OFF),
+                )
+            }
+        } else {
+            shiftRepository.getDayInfosForRange(date, date).map { it.firstOrNull() }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Reactive overtime entry for this day — null when none is recorded. */
     val overtimeEntry: StateFlow<OvertimeEntity?> = overtimeRepository

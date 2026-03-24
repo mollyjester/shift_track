@@ -13,6 +13,7 @@
 | DataStore | (via Compose BOM) | https://developer.android.com/jetpack/androidx/releases/datastore |
 | WorkManager | 2.10.0 | https://developer.android.com/jetpack/androidx/releases/work |
 | Firebase BOM | 33.10.0 | https://firebase.google.com/support/release-notes/android |
+| Firebase Cloud Functions | Node.js 20, firebase-functions v5, firebase-admin v12 | https://firebase.google.com/docs/functions/release-notes |
 | Glance | *(removed in v2.0)* | No longer used — widget is built with raw RemoteViews |
 | MockK | 1.13.10 | https://github.com/mockk/mockk/releases |
 | kotlinx-coroutines-test | 1.9.0 | https://github.com/Kotlin/kotlinx.coroutines/releases |
@@ -29,6 +30,7 @@ Use this list when re-deploying ShiftTrack to a new Firebase project.
 - [ ] Enable **Google Sign-In** in Authentication → Sign-in methods.
 - [ ] Create a **Firestore database** in **production mode**.
 - [ ] Deploy the Firestore security rules: `firebase deploy --only firestore:rules`
+- [ ] Deploy Cloud Functions: `firebase deploy --only functions` (requires Node.js 20)
 - [ ] Enable **Cloud Messaging** (FCM). The default server key is sufficient.
 - [ ] (Optional) Enable **App Check** to prevent unauthorized API access in production.
 - [ ] Verify `google-services.json` contains the correct `current_key` for OAuth and the FCM `sender_id`.
@@ -45,9 +47,9 @@ Use this list when re-deploying ShiftTrack to a new Firebase project.
 | **Layered calendar icons** | If a day has both leave and overtime, only the first indicator is shown on the calendar tile. | Cosmetic only; full detail is always visible on DayDetail. |
 | **Annual reset confirmation** | The leave roll-over fires silently. A user-facing confirmation dialog to adjust the new year's entitlement before accepting is deferred. | Users can manually correct the total in Settings. |
 | **Spectator read-only UI cues** | ~~The UI does not visually distinguish a spectator session.~~ **Fixed in v2.2** — `DayDetailScreen` now hides all editing UI in spectator mode and shows a "Spectator mode — calendar is read-only" message. Spectator mode is persisted in `AppDataStore`. | Resolved. |
-| **Push notifications** | FCM token is stored and uploaded, but the server never sends shift-update notifications to spectators. | Spectators must open the app to see the latest data. |
+| **Push notifications** | ~~FCM token is stored and uploaded, but the server never sends shift-update notifications to spectators.~~ **Fixed in v2.8** — Firebase Cloud Functions (`functions/index.js`) send data-only push notifications to spectators when the host's shifts, leaves, or overtime change. `ShiftTrackMessagingService` handles the push by triggering a sync, refreshing the spectator cache, and updating widgets. | Resolved. |
 | **Multi-year leave history** | If the app is not opened for more than one year, intermediate years' leave data is not created. The new-year balance is created correctly from the most recent available year. | Leave history gap in the DB; no user impact if they don't query historical years. |
-| **Offline spectator view** | Spectator data is not cached locally; spectators cannot view the schedule while offline. The widget also requires network access to fetch the host's data. | Acceptable for the current audience. |
+| **Offline spectator view** | ~~Spectator data is not cached locally; spectators cannot view the schedule while offline. The widget also requires network access to fetch the host's data.~~ **Fixed in v2.8** — `SpectatorRepository` caches fetched data to `AppDataStore` (`SPECTATOR_CALENDAR_CACHE`). When offline, cached data is served as fallback. `SpectatorCacheRefresher` pre-fetches the next 7 days on push notification receipt. | Resolved. |
 | **Database migrations** | Room version 2 with `fallbackToDestructiveMigration()`. Schema export enabled for future migration tooling but no written migrations exist yet. v1.1 added `leave_type` column to `leave_balance` table and changed the unique index from `(year, user_id)` to `(year, user_id, leave_type)`. Adding columns requires a proper migration or accepts data loss. | Users lose local data on schema-breaking upgrades until migrations are added. |
 
 ---

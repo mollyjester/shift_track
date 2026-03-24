@@ -117,6 +117,9 @@ Opening a day shows:
 ### What a Spectator Can See
 
 - The host's full shift calendar (all days, overrides, leave, overtime) via the Calendar tab dropdown selector.
+- Tapping any day in the host's calendar opens the **Day Detail** screen showing the shift type, leave information, overtime status, and notes — all in read-only mode.
+- Schedule updates are pushed automatically via push notifications. The calendar and widget refresh when the host makes changes.
+- Previously viewed schedule data is cached locally, so the calendar is viewable even when offline.
 
 ### What a Spectator Cannot Do
 
@@ -131,7 +134,7 @@ During onboarding, toggle **Spectator Only** to skip shift anchor and leave bala
 - The **Calendar** tab shows a dropdown selector with your watched hosts (no "My" option since you have no own schedule).
 - The **Settings** screen shows Account, Shift Colors, Leave Type Colors, and Widget sections. Schedule, leave allowance, overtime, and invite sections are hidden.
 - The **Widget** shows the selected host's upcoming shifts, fetched from the cloud. Colour settings are applied the same way as for own-schedule users.
-- The **Day Detail** screen shows shift information but hides all editing controls.
+- The **Day Detail** screen shows shift information, leave type and half-day status, overtime flag, and notes — all in read-only mode. Tapping any day on the calendar opens this view.
 
 ### Switching Between Schedules
 

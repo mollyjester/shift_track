@@ -1,6 +1,5 @@
 package com.slikharev.shifttrack.settings
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.auth.AuthRepository
@@ -18,9 +17,7 @@ import com.slikharev.shifttrack.data.local.PrefsKeys
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.invite.InviteRepository
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
-import com.slikharev.shifttrack.widget.WidgetDiagnostics
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,7 +40,6 @@ data class SettingsUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val appDataStore: AppDataStore,
     private val shiftDao: ShiftDao,
     private val leaveDao: LeaveDao,
@@ -222,19 +218,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // ─── Widget diagnostics ──────────────────────────────────────────────────
-
-    private val _widgetErrors = MutableStateFlow<List<String>>(WidgetDiagnostics.getErrors(context))
-    val widgetErrors: StateFlow<List<String>> = _widgetErrors.asStateFlow()
-
-    fun refreshWidgetErrors() {
-        _widgetErrors.value = WidgetDiagnostics.getErrors(context)
-    }
-
-    fun clearWidgetErrors() {
-        WidgetDiagnostics.clear(context)
-        _widgetErrors.value = emptyList()
-    }
 
     // ─── Widget configuration ─────────────────────────────────────────────────
 

@@ -21,7 +21,8 @@
 │       Repository Layer           │  │         AppDataStore              │
 │  ShiftRepository                 │  │  (anchor date, onboarding flag,   │
 │  LeaveRepository                 │  │   last reset year, FCM token,     │
-│  OvertimeRepository              │  │   shift color prefs, spectator)  │
+│  OvertimeRepository              │  │   shift color prefs, spectator,   │
+│  SpectatorRepository             │  │   spectator calendar cache)       │
 │  InviteRepository (interface)    │  └───────────────────────────────────┘
 └────────────┬─────────────────────┘
              │
@@ -40,6 +41,13 @@
 │  1. AnnualResetUseCase  →  LeaveBalanceDao                              │
 │  2. FirestoreSyncDataSource  →  Firestore (shifts, leaves, overtime)    │
 │  3. ShiftWidgetUpdater  →  RemoteViews widget refresh                   │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│          Firebase Cloud Functions (spectator push notifications)         │
+│  Triggers on write to users/{uid}/shifts|leaves|overtime/{date}         │
+│  → Sends data-only FCM to spectators → ShiftTrackMessagingService      │
+│  → SpectatorCacheRefresher + ShiftWidgetUpdater                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,23 +79,44 @@ Settings are applied at render time in `ShiftWidgetProvider.updateSingleWidget()
 
 Widget configuration is accessed via the system's long-press → Reconfigure menu (declared as `reconfigurable` in `shift_widget_info.xml`). `WidgetConfigActivity` is a full-screen Compose activity with a "Done" button that sets `RESULT_OK` and returns the user to the home screen.
 
-### Spectator Mode (v2.2, updated v2.5)
+### Spectator Mode (v2.2, updated v2.8)
 
 A `spectator_mode` boolean preference in `AppDataStore` controls whether the calendar is read-only. Set during onboarding when the user toggles "Spectator Only" (skipping anchor/leave setup). `DayDetailViewModel` exposes `isSpectator: StateFlow<Boolean>`, and `DayDetailScreen` hides all editing controls (override, leave, overtime, notes) when true.
 
-As of v2.5, spectator mode is fully integrated across all surfaces:
+As of v2.8, spectator mode is fully integrated across all surfaces:
 
 - **Dashboard**: Shows the selected host's upcoming shifts (fetched from Firestore via `SpectatorRepository`). Today's shift card and upcoming days are displayed. Leave balances and overtime are hidden since those are local-only data. If no host is selected, a prompt directs the user to the Calendar tab.
+- **Calendar**: Tapping any day in a spectated host's calendar opens the Day Detail screen, which shows the shift type, leave, overtime, and note information in read-only mode.
+- **Day Detail**: `DayDetailViewModel` uses `combine(isSpectator, selectedHostUid).flatMapLatest` to switch between local `ShiftRepository` and remote `SpectatorRepository`. Spectators see the shift card, leave type, overtime flag, and note — all read-only. A fallback `DayInfo(OFF)` prevents infinite loading when the host has no data for the selected date.
 - **Widget**: Works in spectator mode — fetches the selected host's shift data from Firestore and renders it the same as an own-schedule widget. The `WidgetSnapshot` includes `spectatorMode` and `selectedHostUid` fields.
 - **Settings**: Shift Colors, Leave Type Colors, and Widget configuration sections are visible to spectators, allowing full colour and widget customisation. Only schedule, leave allowance, overtime, and invite sections are hidden.
 
-### Half-Day Leave & Leave-Type Colors (v2.2)
+### Spectator Push Notifications (v2.8)
+
+Firebase Cloud Functions (`functions/index.js`) trigger on any write to `users/{hostUid}/shifts|leaves|overtime/{date}`. Each trigger:
+1. Reads the host's `spectators` array from their user document.
+2. Collects FCM tokens for each spectator.
+3. Sends a data-only multicast message `{type: "host_data_changed", hostUid}`.
+4. Cleans up stale tokens.
+
+On the Android side, `ShiftTrackMessagingService` receives the message and:
+1. Triggers an immediate `SyncWorker` run.
+2. Calls `SpectatorCacheRefresher.refresh()` to update the local cache.
+3. Calls `ShiftWidgetUpdater.updateAll()` to refresh widgets.
+
+### Offline Spectator Caching (v2.8)
+
+`SpectatorRepository` caches all fetched host data into `AppDataStore` (`SPECTATOR_CALENDAR_CACHE` key). On subsequent requests, if Firestore is unreachable (offline), the repository returns matching entries from the local cache. The cache stores date, shiftType, hasLeave, halfDay, leaveType, isManualOverride, hasOvertime, and note for each day. `SpectatorCacheRefresher` pre-fetches the next 7 days when a push notification arrives.
+
+### Half-Day Leave & Leave-Type Colors (v2.2, updated v2.7)
 
 `DayInfo` carries `halfDay: Boolean` and `leaveType: LeaveType?`, populated by `ShiftRepository.getDayInfosForRange()` from `LeaveEntity`. On the calendar:
 
-- **Half-day** cells render with a split background — the top half uses the shift color, the bottom half uses a darker shade (30% darkened).
-- **Full-day leave** cells (non-half-day) display a leave-type-colored dot using `LeaveColors.color(type)`.
+- **Half-day** cells render with a split background — the top half uses the shift color, the bottom half uses light grey (`#E0E0E0`).
+- **Full-day leave** cells (non-half-day) use a light grey (`#E0E0E0`) background with a leave-type-colored dot.
 - The calendar legend shows both shift types and all leave types with 30 dp colour circles.
+
+Leave-type colors are user-configurable via Settings (HSV color picker) and stored as `Long` (ARGB) values in `AppDataStore`. At runtime, `LeaveColorConfig` is provided through `LocalLeaveColors` (a `CompositionLocal`). The widget reads leave colors from `AppDataStore` at render time.
 
 ### Pure Cadence Engine
 
@@ -110,6 +139,7 @@ ViewModels expose immutable `StateFlow` values. Screens call ViewModel methods b
 1. After every local mutation in `DayDetailViewModel` (manual override, leave, overtime).
 2. After settings changes in `SettingsViewModel` (new anchor date, colors, widget config).
 3. After every successful `SyncWorker` run.
+4. After receiving a push notification about host data changes (`ShiftTrackMessagingService`).
 
 In spectator mode, the widget reads `spectatorMode` and `selectedHostUid` from the `WidgetSnapshot`. When both are set, `ShiftWidgetProvider` fetches the host's shift data via `SpectatorRepository` (Firestore) instead of computing from the local anchor. Leave and overtime indicators from the host's Firestore data are included.
 
@@ -168,7 +198,9 @@ Each shift/leave/overtime document in Firestore is keyed by `date` string (`YYYY
 
 ### Spectator (Read-Only) Access
 
-A spectator is a user whose UID appears in `users/{hostUid}.spectators`. Firestore rules grant spectators `read` access to `users/{hostUid}/{shifts,leaves,overtime}` but deny all writes. The app does not currently push real-time updates to spectators; they reload data on app open.
+A spectator is a user whose UID appears in `users/{hostUid}.spectators`. Firestore rules grant spectators `read` access to `users/{hostUid}/{shifts,leaves,overtime}` but deny all writes.
+
+As of v2.8, Firebase Cloud Functions send push notifications to spectators when the host's data changes. `SpectatorRepository` caches fetched data locally so spectators can view the schedule offline. The widget and calendar cache are populated on every successful fetch and on push notification receipt via `SpectatorCacheRefresher`.
 
 ---
 

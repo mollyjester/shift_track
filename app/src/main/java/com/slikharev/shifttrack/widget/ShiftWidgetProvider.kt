@@ -58,7 +58,6 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Widget onUpdate failed", e)
-                WidgetDiagnostics.logError(context, "onUpdate", e)
             } finally {
                 pendingResult.finish()
             }
@@ -77,7 +76,6 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 updateSingleWidget(context, appWidgetManager, appWidgetId)
             } catch (e: Exception) {
                 Log.w(TAG, "Widget onOptionsChanged failed", e)
-                WidgetDiagnostics.logError(context, "onOptionsChanged", e)
             } finally {
                 pendingResult.finish()
             }
@@ -123,7 +121,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                     ShiftWidgetEntryPoint::class.java,
                 )
             } catch (e: Exception) {
-                WidgetDiagnostics.logError(context, "entryPoint", e)
+                Log.w(TAG, "Widget entryPoint failed", e)
                 return
             }
 
@@ -132,7 +130,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
             val snap = try {
                 appDataStore.readWidgetSnapshot()
             } catch (e: Exception) {
-                WidgetDiagnostics.logError(context, "readSnapshot", e)
+                Log.w(TAG, "Widget readSnapshot failed", e)
                 return
             }
 
