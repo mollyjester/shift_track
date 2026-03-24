@@ -8,10 +8,15 @@ import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
+import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import com.slikharev.shifttrack.model.DayInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
@@ -22,12 +27,14 @@ data class UpcomingDay(
     val isToday: Boolean,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     shiftRepository: ShiftRepository,
     leaveRepository: LeaveRepository,
     overtimeRepository: OvertimeRepository,
     appDataStore: AppDataStore,
+    private val spectatorRepository: SpectatorRepository,
 ) : ViewModel() {
 
     private val today: LocalDate = LocalDate.now()
@@ -37,10 +44,40 @@ class DashboardViewModel @Inject constructor(
     val isSpectatorOnly: StateFlow<Boolean> = appDataStore.spectatorMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val upcomingDays: StateFlow<List<UpcomingDay>> = shiftRepository
-        .getDayInfosForRange(today, upcomingEnd)
-        .map { infos ->
-            infos.map { UpcomingDay(dayInfo = it, isToday = it.date == today) }
+    /** The display name of the currently selected host, or null. */
+    val selectedHostName: StateFlow<String?> = combine(
+        appDataStore.selectedHostUid,
+        appDataStore.watchedHosts,
+    ) { uid, hosts ->
+        uid?.let { id -> hosts.firstOrNull { it.uid == id }?.displayName }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Upcoming days. In spectator mode with a selected host, fetched from Firestore.
+     * Otherwise fetched from local ShiftRepository.
+     */
+    val upcomingDays: StateFlow<List<UpcomingDay>> = combine(
+        appDataStore.spectatorMode,
+        appDataStore.selectedHostUid,
+    ) { spectator, hostUid -> spectator to hostUid }
+        .flatMapLatest { (isSpectator, hostUid) ->
+            if (isSpectator && hostUid != null) {
+                // Spectator mode: one-shot fetch from Firestore
+                flow {
+                    val infos = try {
+                        spectatorRepository.getDayInfosForRange(hostUid, today, upcomingEnd)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    emit(infos.map { UpcomingDay(dayInfo = it, isToday = it.date == today) })
+                }
+            } else {
+                // Normal mode: reactive Flow from local Room
+                shiftRepository.getDayInfosForRange(today, upcomingEnd)
+                    .map { infos ->
+                        infos.map { UpcomingDay(dayInfo = it, isToday = it.date == today) }
+                    }
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

@@ -127,9 +127,10 @@ Opening a day shows:
 
 During onboarding, toggle **Spectator Only** to skip shift anchor and leave balance setup entirely. In spectator-only mode:
 
-- The **Dashboard** shows a message directing you to select a schedule in the Calendar tab.
+- The **Dashboard** shows the selected host's upcoming shifts, including today's shift card and the coming days. Leave balance and overtime sections are hidden since those are local-only data. If no host is selected yet, a prompt directs you to the Calendar tab.
 - The **Calendar** tab shows a dropdown selector with your watched hosts (no "My" option since you have no own schedule).
-- The **Settings** screen shows only the Account section (sign out, delete account); schedule, leave, overtime, widget, and invite sections are hidden.
+- The **Settings** screen shows Account, Shift Colors, Leave Type Colors, and Widget sections. Schedule, leave allowance, overtime, and invite sections are hidden.
+- The **Widget** shows the selected host's upcoming shifts, fetched from the cloud. Colour settings are applied the same way as for own-schedule users.
 - The **Day Detail** screen shows shift information but hides all editing controls.
 
 ### Switching Between Schedules

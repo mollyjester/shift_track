@@ -2,6 +2,7 @@ package com.slikharev.shifttrack.widget
 
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
+import com.slikharev.shifttrack.data.repository.SpectatorRepository
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
@@ -11,4 +12,5 @@ import dagger.hilt.components.SingletonComponent
 interface ShiftWidgetEntryPoint {
     fun appDataStore(): AppDataStore
     fun leaveDao(): LeaveDao
+    fun spectatorRepository(): SpectatorRepository
 }

@@ -71,9 +71,15 @@ Settings are applied at render time in `ShiftWidgetProvider.updateSingleWidget()
 
 Widget configuration is accessed via the system's long-press → Reconfigure menu (declared as `reconfigurable` in `shift_widget_info.xml`). `WidgetConfigActivity` is a full-screen Compose activity with a "Done" button that sets `RESULT_OK` and returns the user to the home screen.
 
-### Spectator Mode (v2.2)
+### Spectator Mode (v2.2, updated v2.5)
 
 A `spectator_mode` boolean preference in `AppDataStore` controls whether the calendar is read-only. Set during onboarding when the user toggles "Spectator Only" (skipping anchor/leave setup). `DayDetailViewModel` exposes `isSpectator: StateFlow<Boolean>`, and `DayDetailScreen` hides all editing controls (override, leave, overtime, notes) when true.
+
+As of v2.5, spectator mode is fully integrated across all surfaces:
+
+- **Dashboard**: Shows the selected host's upcoming shifts (fetched from Firestore via `SpectatorRepository`). Today's shift card and upcoming days are displayed. Leave balances and overtime are hidden since those are local-only data. If no host is selected, a prompt directs the user to the Calendar tab.
+- **Widget**: Works in spectator mode — fetches the selected host's shift data from Firestore and renders it the same as an own-schedule widget. The `WidgetSnapshot` includes `spectatorMode` and `selectedHostUid` fields.
+- **Settings**: Shift Colors, Leave Type Colors, and Widget configuration sections are visible to spectators, allowing full colour and widget customisation. Only schedule, leave allowance, overtime, and invite sections are hidden.
 
 ### Half-Day Leave & Leave-Type Colors (v2.2)
 
@@ -102,8 +108,10 @@ ViewModels expose immutable `StateFlow` values. Screens call ViewModel methods b
 
 `ShiftWidgetUpdater.updateAll()` is called:
 1. After every local mutation in `DayDetailViewModel` (manual override, leave, overtime).
-2. After settings changes in `SettingsViewModel` (new anchor date).
+2. After settings changes in `SettingsViewModel` (new anchor date, colors, widget config).
 3. After every successful `SyncWorker` run.
+
+In spectator mode, the widget reads `spectatorMode` and `selectedHostUid` from the `WidgetSnapshot`. When both are set, `ShiftWidgetProvider` fetches the host's shift data via `SpectatorRepository` (Firestore) instead of computing from the local anchor. Leave and overtime indicators from the host's Firestore data are included.
 
 `ShiftWidgetUpdater` swallows errors so a missing widget host never crashes the caller.
 

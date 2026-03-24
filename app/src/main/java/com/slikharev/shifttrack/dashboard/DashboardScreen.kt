@@ -55,13 +55,15 @@ fun DashboardScreen(navController: NavController) {
     val leaveBalances by viewModel.leaveBalances.collectAsStateWithLifecycle()
     val weeklyOvertimeHours by viewModel.weeklyOvertimeHours.collectAsStateWithLifecycle()
     val yearlyOvertimeBalance by viewModel.yearlyOvertimeBalance.collectAsStateWithLifecycle()
+    val selectedHostName by viewModel.selectedHostName.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Dashboard") })
         },
     ) { padding ->
-        if (isSpectatorOnly) {
+        if (isSpectatorOnly && upcomingDays.isEmpty() && selectedHostName == null) {
+            // Spectator with no host selected yet
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -85,6 +87,14 @@ fun DashboardScreen(navController: NavController) {
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                if (isSpectatorOnly && selectedHostName != null) {
+                    Text(
+                        text = "Viewing: $selectedHostName",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+
                 val todayEntry = upcomingDays.firstOrNull { it.isToday }
                 if (todayEntry != null) {
                     TodayShiftCard(
@@ -97,11 +107,11 @@ fun DashboardScreen(navController: NavController) {
                     )
                 }
 
-                if (leaveBalances.isNotEmpty()) {
+                if (!isSpectatorOnly && leaveBalances.isNotEmpty()) {
                     LeaveBalancesCard(balances = leaveBalances)
                 }
 
-                if (weeklyOvertimeHours > 0f || yearlyOvertimeBalance != null) {
+                if (!isSpectatorOnly && (weeklyOvertimeHours > 0f || yearlyOvertimeBalance != null)) {
                     OvertimeCard(
                         weeklyHours = weeklyOvertimeHours,
                         balance = yearlyOvertimeBalance,
@@ -114,6 +124,16 @@ fun DashboardScreen(navController: NavController) {
                         onDayClick = { date ->
                             navController.navigate(Screen.DayDetail.createRoute(date.toString()))
                         },
+                    )
+                }
+
+                if (isSpectatorOnly && upcomingDays.isEmpty() && selectedHostName != null) {
+                    Text(
+                        text = "Could not load schedule — the host may need to open their app to sync.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp),
                     )
                 }
             }

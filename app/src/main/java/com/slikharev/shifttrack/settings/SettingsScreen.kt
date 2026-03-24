@@ -150,32 +150,34 @@ fun SettingsScreen(navController: NavController) {
                     year = LocalDate.now().year,
                     onEditClick = { showLeaveDialog = true },
                 )
+            }
 
-                HorizontalDivider()
+            HorizontalDivider()
 
-                // ── Shift colors ─────────────────────────────────────────────────────
-                SettingsSectionHeader("Shift Colors")
-                ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
+            // ── Shift colors (visible to all users) ──────────────────────────────
+            SettingsSectionHeader("Shift Colors")
+            ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
 
-                HorizontalDivider()
+            HorizontalDivider()
 
-                // ── Leave type colors ────────────────────────────────────────────────
-                SettingsSectionHeader("Leave Type Colors")
-                LeaveColorLegend()
+            // ── Leave type colors (visible to all users) ─────────────────────────
+            SettingsSectionHeader("Leave Type Colors")
+            LeaveColorLegend()
 
-                HorizontalDivider()
+            HorizontalDivider()
 
-                // ── Widget settings ──────────────────────────────────────────────────
-                SettingsSectionHeader("Widget")
-                WidgetSettingsSection(
-                    bgColorArgb = widgetBgColor,
-                    transparency = widgetTransparency,
-                    dayCount = widgetDayCount,
-                    onBgColorChange = viewModel::setWidgetBgColor,
-                    onTransparencyChange = viewModel::setWidgetTransparency,
-                    onDayCountChange = viewModel::setWidgetDayCount,
-                )
+            // ── Widget settings (visible to all users) ───────────────────────────
+            SettingsSectionHeader("Widget")
+            WidgetSettingsSection(
+                bgColorArgb = widgetBgColor,
+                transparency = widgetTransparency,
+                dayCount = widgetDayCount,
+                onBgColorChange = viewModel::setWidgetBgColor,
+                onTransparencyChange = viewModel::setWidgetTransparency,
+                onDayCountChange = viewModel::setWidgetDayCount,
+            )
 
+            if (!isSpectatorOnly) {
                 HorizontalDivider()
 
                 // ── Overtime balance ─────────────────────────────────────────────────

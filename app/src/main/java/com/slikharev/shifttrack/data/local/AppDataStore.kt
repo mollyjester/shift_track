@@ -194,6 +194,8 @@ class AppDataStore @Inject constructor(
             colorRest = prefs[PrefsKeys.COLOR_REST],
             colorOff = prefs[PrefsKeys.COLOR_OFF],
             colorLeave = prefs[PrefsKeys.COLOR_LEAVE],
+            spectatorMode = prefs[PrefsKeys.SPECTATOR_MODE] ?: false,
+            selectedHostUid = prefs[PrefsKeys.SELECTED_HOST_UID],
         )
     }
 
@@ -208,6 +210,8 @@ class AppDataStore @Inject constructor(
         val colorRest: Long?,
         val colorOff: Long?,
         val colorLeave: Long?,
+        val spectatorMode: Boolean = false,
+        val selectedHostUid: String? = null,
     )
 
     companion object {

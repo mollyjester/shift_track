@@ -125,40 +125,79 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 return
             }
 
-            val widgetState = WidgetShiftCalculator.compute(
-                snap.anchorDate,
-                snap.anchorCycleIndex,
-                dayCount = AppDataStore.MAX_WIDGET_DAYS,
-            )
-
-            // Enrich with leave data from Room
-            val enrichedDays = try {
-                val userId = FirebaseAuth.getInstance().currentUser?.uid
-                if (userId != null && widgetState.days.isNotEmpty()) {
-                    val leaveDao = entryPoint.leaveDao()
-                    val startDate = widgetState.days.first().date.toString()
-                    val endDate = widgetState.days.last().date.toString()
-                    val leaves = leaveDao.getLeavesForRange(userId, startDate, endDate).first()
-                    val leaveByDate = leaves.associateBy { it.date }
-
-                    widgetState.days.map { day ->
-                        val leave = leaveByDate[day.date.toString()]
-                        if (leave != null) {
-                            val lt = LeaveType.fromString(leave.leaveType)
-                            day.copy(
-                                hasLeave = true,
-                                halfDay = leave.halfDay,
-                                leaveType = lt,
-                                shiftType = if (leave.halfDay) day.shiftType else ShiftType.LEAVE,
+            // Determine widget state: spectator mode fetches from Firestore,
+            // normal mode computes from local anchor.
+            val enrichedState: WidgetUiState = if (snap.spectatorMode && snap.selectedHostUid != null) {
+                // Spectator mode: fetch host's shifts from Firestore
+                try {
+                    val spectatorRepository = entryPoint.spectatorRepository()
+                    val today = LocalDate.now()
+                    val endDate = today.plusDays((AppDataStore.MAX_WIDGET_DAYS - 1).toLong())
+                    val dayInfos = spectatorRepository.getDayInfosForRange(
+                        snap.selectedHostUid, today, endDate,
+                    )
+                    if (dayInfos.isEmpty()) {
+                        WidgetUiState(isConfigured = false, days = emptyList())
+                    } else {
+                        val days = dayInfos.mapIndexed { offset, info ->
+                            val label = when (offset) {
+                                0 -> "Today"
+                                1 -> "Tomorrow"
+                                else -> info.date.dayOfWeek.getDisplayName(
+                                    java.time.format.TextStyle.SHORT, Locale.getDefault(),
+                                )
+                            }
+                            WidgetDayInfo(
+                                date = info.date,
+                                shiftType = info.shiftType,
+                                label = label,
+                                isToday = offset == 0,
+                                hasLeave = info.hasLeave,
+                                halfDay = info.halfDay,
+                                leaveType = info.leaveType,
                             )
-                        } else day
+                        }
+                        WidgetUiState(isConfigured = true, days = days)
                     }
-                } else widgetState.days
-            } catch (_: Exception) {
-                widgetState.days
-            }
+                } catch (_: Exception) {
+                    WidgetUiState(isConfigured = false, days = emptyList())
+                }
+            } else {
+                // Normal mode: compute from local anchor + enrich with leave data
+                val widgetState = WidgetShiftCalculator.compute(
+                    snap.anchorDate,
+                    snap.anchorCycleIndex,
+                    dayCount = AppDataStore.MAX_WIDGET_DAYS,
+                )
 
-            val enrichedState = widgetState.copy(days = enrichedDays)
+                val enrichedDays = try {
+                    val userId = FirebaseAuth.getInstance().currentUser?.uid
+                    if (userId != null && widgetState.days.isNotEmpty()) {
+                        val leaveDao = entryPoint.leaveDao()
+                        val startDate = widgetState.days.first().date.toString()
+                        val endDate = widgetState.days.last().date.toString()
+                        val leaves = leaveDao.getLeavesForRange(userId, startDate, endDate).first()
+                        val leaveByDate = leaves.associateBy { it.date }
+
+                        widgetState.days.map { day ->
+                            val leave = leaveByDate[day.date.toString()]
+                            if (leave != null) {
+                                val lt = LeaveType.fromString(leave.leaveType)
+                                day.copy(
+                                    hasLeave = true,
+                                    halfDay = leave.halfDay,
+                                    leaveType = lt,
+                                    shiftType = if (leave.halfDay) day.shiftType else ShiftType.LEAVE,
+                                )
+                            } else day
+                        }
+                    } else widgetState.days
+                } catch (_: Exception) {
+                    widgetState.days
+                }
+
+                widgetState.copy(days = enrichedDays)
+            }
 
             val colorConfig = ShiftColorConfig(
                 dayColor = snap.colorDay?.let { Color(it.toInt()) } ?: ShiftColors.Day,

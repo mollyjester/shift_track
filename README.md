@@ -192,8 +192,9 @@ The last selected schedule is remembered when you reopen the app.
 |---------|-------------|-------------------|
 | Calendar view | Full month, colour-coded | Full month, colour-coded |
 | Day Detail | Can edit overrides, leave, overtime, notes | Read-only |
-| Dashboard | Shows your shifts, leave balance, overtime | Shows "spectator mode" message |
-| Settings | All sections visible | Only account section (sign out, delete) |
+| Dashboard | Shows your shifts, leave balance, overtime | Shows the host's upcoming shifts (leave balance and overtime hidden) |
+| Widget | Shows your upcoming shifts | Shows the host's upcoming shifts (fetched from the cloud) |
+| Settings | All sections visible | Account, Shift Colors, Leave Type Colors, and Widget visible |
 
 ---
 
