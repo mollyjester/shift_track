@@ -88,6 +88,7 @@ class SettingsViewModelTest {
             inviteRepository = fakeInviteRepository,
             widgetUpdater = mockWidgetUpdater,
             firestoreUserDataSource = mockk(relaxed = true),
+            context = mockk(relaxed = true),
         )
     }
 

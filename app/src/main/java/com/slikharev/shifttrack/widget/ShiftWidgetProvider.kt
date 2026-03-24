@@ -25,6 +25,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.time.LocalDate
 import java.util.Locale
 
@@ -56,6 +57,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Widget onUpdate failed", e)
+                WidgetDiagnostics.logError(context, "onUpdate", e)
             } finally {
                 pendingResult.finish()
             }
@@ -74,6 +76,7 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 updateSingleWidget(context, appWidgetManager, appWidgetId)
             } catch (e: Exception) {
                 Log.w(TAG, "Widget onOptionsChanged failed", e)
+                WidgetDiagnostics.logError(context, "onOptionsChanged", e)
             } finally {
                 pendingResult.finish()
             }
@@ -118,7 +121,8 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                     context.applicationContext,
                     ShiftWidgetEntryPoint::class.java,
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                WidgetDiagnostics.logError(context, "entryPoint", e)
                 return
             }
 
@@ -126,7 +130,8 @@ class ShiftWidgetProvider : AppWidgetProvider() {
 
             val snap = try {
                 appDataStore.readWidgetSnapshot()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                WidgetDiagnostics.logError(context, "readSnapshot", e)
                 return
             }
 
@@ -147,7 +152,9 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                     val spectatorRepo = entryPoint.spectatorRepository()
                     val endDate = today.plusDays(AppDataStore.MAX_WIDGET_DAYS.toLong() - 1)
                     val infos = try {
-                        spectatorRepo.getDayInfosForRange(snap.selectedHostUid, today, endDate)
+                        withTimeout(8_000L) {
+                            spectatorRepo.getDayInfosForRange(snap.selectedHostUid, today, endDate)
+                        }
                     } catch (_: Exception) {
                         emptyList()
                     }

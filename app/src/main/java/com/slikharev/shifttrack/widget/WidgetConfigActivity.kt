@@ -85,8 +85,14 @@ class WidgetConfigActivity : ComponentActivity() {
 
     private fun confirmAndFinish() {
         lifecycleScope.launch {
-            // Update the widget with current settings (off main thread)
-            widgetUpdater.updateAll()
+            // Push RemoteViews to the specific widget being configured.
+            // We MUST use appWidgetId directly here — during initial configuration
+            // the widget is not yet committed, so AppWidgetManager.getAppWidgetIds()
+            // does NOT include it on Android 14+. Using updateAll() would miss it.
+            val manager = AppWidgetManager.getInstance(this@WidgetConfigActivity)
+            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                ShiftWidgetProvider.updateSingleWidget(this@WidgetConfigActivity, manager, appWidgetId)
+            }
 
             // Return OK with the widget ID so the launcher keeps the widget
             val result = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
