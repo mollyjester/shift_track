@@ -98,9 +98,23 @@ class CalendarViewModel @Inject constructor(
                     // Update widget cache when this month contains today
                     if (dayInfos.isNotEmpty() && ym == YearMonth.now()) {
                         val today = java.time.LocalDate.now()
-                        val cacheInfos = dayInfos
-                            .filter { !it.date.isBefore(today) }
-                            .take(AppDataStore.MAX_WIDGET_DAYS)
+                        val futureDays = dayInfos.filter { !it.date.isBefore(today) }
+                        val maxDays = AppDataStore.MAX_WIDGET_DAYS
+
+                        // If the current month doesn't have enough days left,
+                        // fetch the next month's days to fill the widget cache.
+                        val cacheInfos = if (futureDays.size < maxDays) {
+                            val nextStart = end.plusDays(1)
+                            val nextEnd = today.plusDays(maxDays.toLong() - 1)
+                            val extraDays = try {
+                                spectatorRepository.getDayInfosForRange(hostUid, nextStart, nextEnd)
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                            (futureDays + extraDays).take(maxDays)
+                        } else {
+                            futureDays.take(maxDays)
+                        }
                         if (cacheInfos.isNotEmpty()) {
                             val entries = cacheInfos.map { d ->
                                 AppDataStore.SpectatorWidgetEntry(

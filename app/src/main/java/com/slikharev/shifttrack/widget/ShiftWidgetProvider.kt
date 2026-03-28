@@ -33,9 +33,7 @@ import java.util.Locale
 /**
  * Home-screen widget built with raw [RemoteViews] for maximum reliability.
  *
- * Two layouts:
- * - **Small** (< 200 dp wide): Shows today's shift.
- * - **Wide** (≥ 200 dp wide): Shows 1–7 upcoming days.
+ * Always uses the wide (multi-day) layout showing 1–7 upcoming days.
  *
  * Configuration is accessed via the system's long-press → Reconfigure menu
  * (declared as `reconfigurable` in `shift_widget_info.xml`).
@@ -84,26 +82,26 @@ class ShiftWidgetProvider : AppWidgetProvider() {
 
     companion object {
         private const val TAG = "ShiftWidgetProvider"
-        private const val WIDE_THRESHOLD_DP = 200
 
         /** View IDs for each day slot in the wide layout. */
         private data class DaySlotIds(
             val root: Int,
             val top: Int,
             val bottom: Int,
+            val weekdayText: Int,
             val dateText: Int,
             val shiftText: Int,
             val dot: Int,
         )
 
         private val DAY_SLOTS = arrayOf(
-            DaySlotIds(R.id.widget_day_0, R.id.widget_day_top_0, R.id.widget_day_bottom_0, R.id.widget_day_date_0, R.id.widget_day_shift_0, R.id.widget_day_dot_0),
-            DaySlotIds(R.id.widget_day_1, R.id.widget_day_top_1, R.id.widget_day_bottom_1, R.id.widget_day_date_1, R.id.widget_day_shift_1, R.id.widget_day_dot_1),
-            DaySlotIds(R.id.widget_day_2, R.id.widget_day_top_2, R.id.widget_day_bottom_2, R.id.widget_day_date_2, R.id.widget_day_shift_2, R.id.widget_day_dot_2),
-            DaySlotIds(R.id.widget_day_3, R.id.widget_day_top_3, R.id.widget_day_bottom_3, R.id.widget_day_date_3, R.id.widget_day_shift_3, R.id.widget_day_dot_3),
-            DaySlotIds(R.id.widget_day_4, R.id.widget_day_top_4, R.id.widget_day_bottom_4, R.id.widget_day_date_4, R.id.widget_day_shift_4, R.id.widget_day_dot_4),
-            DaySlotIds(R.id.widget_day_5, R.id.widget_day_top_5, R.id.widget_day_bottom_5, R.id.widget_day_date_5, R.id.widget_day_shift_5, R.id.widget_day_dot_5),
-            DaySlotIds(R.id.widget_day_6, R.id.widget_day_top_6, R.id.widget_day_bottom_6, R.id.widget_day_date_6, R.id.widget_day_shift_6, R.id.widget_day_dot_6),
+            DaySlotIds(R.id.widget_day_0, R.id.widget_day_top_0, R.id.widget_day_bottom_0, R.id.widget_day_weekday_0, R.id.widget_day_date_0, R.id.widget_day_shift_0, R.id.widget_day_dot_0),
+            DaySlotIds(R.id.widget_day_1, R.id.widget_day_top_1, R.id.widget_day_bottom_1, R.id.widget_day_weekday_1, R.id.widget_day_date_1, R.id.widget_day_shift_1, R.id.widget_day_dot_1),
+            DaySlotIds(R.id.widget_day_2, R.id.widget_day_top_2, R.id.widget_day_bottom_2, R.id.widget_day_weekday_2, R.id.widget_day_date_2, R.id.widget_day_shift_2, R.id.widget_day_dot_2),
+            DaySlotIds(R.id.widget_day_3, R.id.widget_day_top_3, R.id.widget_day_bottom_3, R.id.widget_day_weekday_3, R.id.widget_day_date_3, R.id.widget_day_shift_3, R.id.widget_day_dot_3),
+            DaySlotIds(R.id.widget_day_4, R.id.widget_day_top_4, R.id.widget_day_bottom_4, R.id.widget_day_weekday_4, R.id.widget_day_date_4, R.id.widget_day_shift_4, R.id.widget_day_dot_4),
+            DaySlotIds(R.id.widget_day_5, R.id.widget_day_top_5, R.id.widget_day_bottom_5, R.id.widget_day_weekday_5, R.id.widget_day_date_5, R.id.widget_day_shift_5, R.id.widget_day_dot_5),
+            DaySlotIds(R.id.widget_day_6, R.id.widget_day_top_6, R.id.widget_day_bottom_6, R.id.widget_day_weekday_6, R.id.widget_day_date_6, R.id.widget_day_shift_6, R.id.widget_day_dot_6),
         )
 
         /**
@@ -255,83 +253,9 @@ class ShiftWidgetProvider : AppWidgetProvider() {
                 studyColor = snap.colorLeaveStudy?.let { Color(it.toInt()) } ?: LeaveColors.Study,
             )
 
-            val options = manager.getAppWidgetOptions(appWidgetId)
-            // Default to 250dp (matches minWidth in shift_widget_info.xml)
-            // so the wide layout is used when options aren't set yet.
-            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
-
-            val views = if (minWidth >= WIDE_THRESHOLD_DP) {
-                buildWideLayout(context, enrichedState, snap, colorConfig, leaveColorConfig)
-            } else {
-                buildSmallLayout(context, enrichedState, snap, colorConfig, leaveColorConfig)
-            }
+            val views = buildWideLayout(context, enrichedState, snap, colorConfig, leaveColorConfig)
 
             manager.updateAppWidget(appWidgetId, views)
-        }
-
-        // ── Small layout ─────────────────────────────────────────────────────
-
-        private fun buildSmallLayout(
-            context: Context,
-            state: WidgetUiState,
-            snap: AppDataStore.WidgetSnapshot,
-            colorConfig: ShiftColorConfig,
-            leaveColorConfig: LeaveColorConfig,
-        ): RemoteViews {
-            val views = RemoteViews(context.packageName, R.layout.widget_small)
-            views.setInt(R.id.widget_small_root, "setBackgroundColor", computeBgColor(snap))
-
-            if (state.isConfigured && state.days.isNotEmpty()) {
-                views.setViewVisibility(R.id.widget_small_content, View.VISIBLE)
-                views.setViewVisibility(R.id.widget_small_message, View.GONE)
-
-                val today = state.days.first()
-                val shiftColor = colorConfig.containerColor(today.shiftType).toArgb()
-
-                // Full-day leave → light grey background; otherwise shift color
-                val topColor = if (today.hasLeave && !today.halfDay) LEAVE_GREY_ARGB else shiftColor
-                val bottomColor = if (today.hasLeave && today.halfDay) {
-                    LEAVE_GREY_ARGB  // half-day leave → bottom half is light grey
-                } else {
-                    topColor
-                }
-                val textColor = computeOnColor(topColor)
-
-                views.setInt(R.id.widget_small_top, "setBackgroundColor", topColor)
-                views.setInt(R.id.widget_small_bottom, "setBackgroundColor", bottomColor)
-
-                // Day number
-                views.setTextViewText(R.id.widget_small_date, today.date.dayOfMonth.toString())
-                views.setTextColor(R.id.widget_small_date, textColor)
-
-                // Shift type label
-                views.setTextViewText(R.id.widget_small_shift, ShiftColors.label(today.shiftType).uppercase())
-                views.setTextColor(R.id.widget_small_shift, textColor)
-
-                // Dot: only for full-day leave
-                if (today.hasLeave && !today.halfDay && today.leaveType != null) {
-                    views.setViewVisibility(R.id.widget_small_dot, View.VISIBLE)
-                    views.setInt(R.id.widget_small_dot, "setBackgroundColor",
-                        leaveColorConfig.color(today.leaveType).toArgb())
-                } else {
-                    views.setViewVisibility(R.id.widget_small_dot, View.GONE)
-                }
-
-                // Tap → open day in app
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("shiftapp://day/${today.date}")).apply {
-                    setClassName(context, "com.slikharev.shifttrack.MainActivity")
-                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                }
-                val pi = PendingIntent.getActivity(
-                    context, today.date.hashCode(),
-                    intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                )
-                views.setOnClickPendingIntent(R.id.widget_small_root, pi)
-            } else {
-                views.setViewVisibility(R.id.widget_small_content, View.GONE)
-                views.setViewVisibility(R.id.widget_small_message, View.VISIBLE)
-            }
-            return views
         }
 
         // ── Wide layout ──────────────────────────────────────────────────────
@@ -387,6 +311,13 @@ class ShiftWidgetProvider : AppWidgetProvider() {
 
                         views.setInt(slot.top, "setBackgroundColor", topColor)
                         views.setInt(slot.bottom, "setBackgroundColor", bottomColor)
+
+                        // Weekday name
+                        val weekday = dayInfo.date.dayOfWeek.getDisplayName(
+                            java.time.format.TextStyle.SHORT, Locale.getDefault(),
+                        ).uppercase()
+                        views.setTextViewText(slot.weekdayText, weekday)
+                        views.setTextColor(slot.weekdayText, textColor)
 
                         // Day number
                         views.setTextViewText(slot.dateText, dayInfo.date.dayOfMonth.toString())
