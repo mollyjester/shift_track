@@ -216,7 +216,7 @@ ShiftTrack works fully offline. Every change you make is saved to your device im
 ## Troubleshooting
 
 ### Widget not updating
-Remove and re-add the widget, or open the app to trigger a refresh. The system may delay widget updates to conserve battery.
+The widget refreshes automatically at midnight and after every local data change. If it still shows old data, try removing and re-adding it. On some devices, you may need to grant the "Alarms & reminders" permission (Settings → Apps → ShiftTrack → Alarms). Open the app to force a sync.
 
 ### Sync seems stuck
 All changes are saved locally first. Open the app while connected to trigger a sync. Background sync runs within a few minutes of reconnecting.
@@ -229,6 +229,21 @@ An internet connection is required for the first sign-in. After that, your crede
 
 ### Invite link not working
 Links expire after 7 days and are single-use. Ask the sender to generate a new one. You must be signed in to accept an invite.
+
+---
+
+## Experimental Features
+
+### Auto Wake-Up Alarms
+
+ShiftTrack can set wake-up alarms in your phone's Clock app before DAY shifts.
+
+1. Go to **Settings → Experimental Features** and toggle on **Auto wake-up alarms**.
+2. Configure the evening trigger time, first alarm time, number of alarms, and interval.
+3. The evening before a DAY shift, you'll receive a notification.
+4. Tap it to review/customise alarm times, then tap **Set alarms**.
+
+Per-day overrides are saved and synced to Firestore. Only available for host users (not spectators).
 
 ---
 
@@ -249,4 +264,4 @@ See the [docs/](docs/) folder for technical documentation:
 firebase deploy --only functions # Deploy Cloud Functions (spectator push notifications)
 ```
 
-Min SDK 34 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose · v2.8.0
+Min SDK 34 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose · v3.0.0

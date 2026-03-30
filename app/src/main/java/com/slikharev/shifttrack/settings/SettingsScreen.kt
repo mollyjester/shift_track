@@ -1,6 +1,8 @@
 package com.slikharev.shifttrack.settings
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,6 +67,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.compose.ui.graphics.Color
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.slikharev.shifttrack.R
+import com.slikharev.shifttrack.alarm.ExperimentalFeaturesSection // [EXPERIMENTAL:ALARM]
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
@@ -93,6 +100,40 @@ fun SettingsScreen(navController: NavController) {
     val widgetBgColor by viewModel.widgetBgColor.collectAsStateWithLifecycle()
     val widgetTransparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val widgetDayCount by viewModel.widgetDayCount.collectAsStateWithLifecycle()
+
+    // Google Sign-In for reauthentication
+    val context = LocalContext.current
+    val googleSignInClient = remember(context) {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+    val reauthLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            account.idToken?.let { idToken ->
+                viewModel.reauthenticateAndDelete(idToken) {
+                    navController.navigate("auth") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            } ?: viewModel.clearMessage()
+        } catch (_: ApiException) {
+            viewModel.clearMessage()
+        }
+    }
+
+    // [EXPERIMENTAL:ALARM]
+    val alarmEnabled by viewModel.alarmEnabled.collectAsStateWithLifecycle()
+    val alarmTriggerTime by viewModel.alarmTriggerTime.collectAsStateWithLifecycle()
+    val alarmCount by viewModel.alarmCount.collectAsStateWithLifecycle()
+    val alarmIntervalMinutes by viewModel.alarmIntervalMinutes.collectAsStateWithLifecycle()
+    val alarmFirstTime by viewModel.alarmFirstTime.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.savedMessage, uiState.error) {
@@ -200,6 +241,23 @@ fun SettingsScreen(navController: NavController) {
                         viewModel.generateInvite()
                         showShareInviteDialog = true
                     },
+                )
+
+                HorizontalDivider()
+
+                // ── Experimental features ─────────────────────────────── [EXPERIMENTAL:ALARM]
+                SettingsSectionHeader("Experimental Features")
+                ExperimentalFeaturesSection(
+                    enabled = alarmEnabled,
+                    triggerTime = alarmTriggerTime,
+                    alarmCount = alarmCount,
+                    intervalMinutes = alarmIntervalMinutes,
+                    firstAlarmTime = alarmFirstTime,
+                    onEnabledChange = viewModel::setAlarmEnabled,
+                    onTriggerTimeChange = viewModel::setAlarmTriggerTime,
+                    onAlarmCountChange = viewModel::setAlarmCount,
+                    onIntervalMinutesChange = viewModel::setAlarmIntervalMinutes,
+                    onFirstAlarmTimeChange = viewModel::setAlarmFirstTime,
                 )
             }
 
@@ -313,6 +371,34 @@ fun SettingsScreen(navController: NavController) {
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            },
+        )
+    }
+
+    // Reauth dialog — shown when Firebase needs a fresh credential
+    if (uiState.needsReauth) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearMessage() },
+            title = { Text("Verify your identity") },
+            text = {
+                Text(
+                    "For security, please sign in with Google again to " +
+                        "confirm account deletion.",
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.clearMessage()
+                        reauthLauncher.launch(googleSignInClient.signInIntent)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text("Sign in with Google") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.clearMessage() }) { Text("Cancel") }
             },
         )
     }

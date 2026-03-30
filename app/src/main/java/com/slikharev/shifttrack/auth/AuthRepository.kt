@@ -97,6 +97,22 @@ open class AuthRepository @Inject constructor(
         encryptedPrefs.edit().clear().apply()
     }
 
+    /**
+     * Re-authenticates the current user with a fresh Google ID token and then
+     * deletes the account. Call this when [deleteAccount] throws
+     * [com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException].
+     */
+    suspend fun reauthenticateAndDelete(idToken: String) {
+        val user = firebaseAuth.currentUser
+            ?: throw IllegalStateException("No current Firebase user")
+        val uid = user.uid
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        user.reauthenticate(credential).await()
+        runCatching { firestoreUserDataSource.deleteUserData(uid) }
+        user.delete().await()
+        encryptedPrefs.edit().clear().apply()
+    }
+
     private fun cacheCredentials(user: FirebaseUser) {
         encryptedPrefs.edit()
             .putString(KEY_USER_ID, user.uid)

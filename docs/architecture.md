@@ -49,6 +49,16 @@
 │  → Sends data-only FCM to spectators → ShiftTrackMessagingService      │
 │  → SpectatorCacheRefresher + ShiftWidgetUpdater                         │
 └─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│          Alarm Feature (experimental, self-contained)                    │
+│  AlarmPreferences (DataStore) ← SettingsViewModel                       │
+│  AlarmTriggerScheduler  →  AlarmTriggerReceiver (evening check)         │
+│  AlarmSetterActivity (Compose) → AlarmClock.ACTION_SET_ALARM            │
+│  AlarmOverrideEntity (Room) → FirestoreSyncDataSource (Firestore sync)  │
+│  MidnightAlarmScheduler → MidnightWidgetReceiver (widget refresh)       │
+│  BootReceiver (re-registers all alarms after reboot)                    │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Key Design Decisions
@@ -144,6 +154,18 @@ ViewModels expose immutable `StateFlow` values. Screens call ViewModel methods b
 In spectator mode, the widget reads `spectatorMode` and `selectedHostUid` from the `WidgetSnapshot`. When both are set, `ShiftWidgetProvider` fetches the host's shift data via `SpectatorRepository` (Firestore) instead of computing from the local anchor. Leave and overtime indicators from the host's Firestore data are included.
 
 `ShiftWidgetUpdater` swallows errors so a missing widget host never crashes the caller.
+
+### Midnight Widget Refresh (v3.0)
+
+`MidnightAlarmScheduler` schedules an exact alarm at 00:00 each night using `AlarmManager.setExactAndAllowWhileIdle()`. `MidnightWidgetReceiver` fires at midnight, calls `ShiftWidgetUpdater.updateAll()`, and re-schedules for the next midnight. `BootReceiver` re-registers the alarm after device reboot. This ensures the widget always shows the correct "today" column even if the app was not opened that day.
+
+### Experimental Alarm Feature (v3.0)
+
+All code lives in the `alarm/` package for isolation. Integration points are marked with `// [EXPERIMENTAL:ALARM]` comments for easy removal.
+
+**Flow:** DataStore preferences → `AlarmTriggerScheduler` fires an exact alarm at the configured trigger time → `AlarmTriggerReceiver` checks if tomorrow is a DAY shift via `CadenceEngine` → posts a high-priority notification → user taps → `AlarmSetterActivity` opens → user reviews/customises alarm configuration → `AlarmClock.ACTION_SET_ALARM` intents fire silently → alarms set in the system Clock app.
+
+Per-day overrides are stored in Room (`alarm_overrides` table) and synced to Firestore (`users/{uid}/alarm_overrides/{date}`) via `SyncWorker`. Spectators never see or trigger the alarm feature (gated by `spectatorMode` check).
 
 ---
 

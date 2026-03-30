@@ -187,10 +187,13 @@ Tap any day shown in the widget to open ShiftTrack directly to the Day Detail sc
 
 ### Widget Refresh
 
-The widget updates automatically when you:
-- Make any change on the Day Detail screen (override, leave, overtime).
-- Change the anchor date in Settings.
-- Come back online after offline use (sync completes).
+The widget updates automatically:
+- **At midnight** — an exact alarm triggers a refresh so the widget always shows the correct day, even if you don't open the app.
+- After every local data change (override, leave, overtime).
+- After settings changes (anchor date, colors, widget config).
+- After sync completes (coming back online, push notifications).
+
+> **Note:** On some devices, you may need to grant the "Alarms & reminders" permission for midnight refresh to work (Settings → Apps → ShiftTrack → Alarms).
 
 ---
 
@@ -220,3 +223,45 @@ The widget updates automatically when you:
 
 - The link expires after 7 days. Ask the sender to generate a new one.
 - Each link can only be redeemed once. If you have already accepted an invite from this person, no action is needed.
+
+---
+
+## Experimental Features
+
+### Auto Wake-Up Alarms
+
+ShiftTrack can set wake-up alarms in your phone's Clock app before DAY shifts.
+
+#### Setup
+
+1. Go to **Settings → Experimental Features**.
+2. Toggle **Auto wake-up alarms** on.
+3. Configure the defaults:
+   - **Evening trigger** — When to send the notification (default 21:00).
+   - **First alarm at** — Time of the first alarm (default 04:30).
+   - **Number of alarms** — How many alarms to set (default 4, max 10).
+   - **Interval** — Minutes between each alarm (default 10, range 5–20).
+4. A preview line shows the computed alarm times.
+
+#### Using It
+
+The evening before a DAY shift, you'll receive a high-priority notification:
+
+> **Day shift tomorrow — Mon, 31 Mar**
+> Tap to set wake-up alarms
+
+Tap the notification to open the alarm setter screen:
+
+1. You'll see the **default alarm times** at the top.
+2. Toggle **Custom alarms for this day** if you want different times.
+3. Adjust the first alarm time, count, and interval as needed.
+4. Tap **Set alarms** to silently create the alarms in your Clock app.
+
+Custom per-day settings are saved and synced to the cloud.
+
+#### Requirements
+
+- Android 14+ (API 34)
+- The `SCHEDULE_EXACT_ALARM` permission must be granted (the app requests it automatically).
+- The `SET_ALARM` permission is declared in the manifest.
+- Only available for host users (not spectators).

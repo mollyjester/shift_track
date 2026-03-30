@@ -88,6 +88,8 @@ class SettingsViewModelTest {
             inviteRepository = fakeInviteRepository,
             widgetUpdater = mockWidgetUpdater,
             firestoreUserDataSource = mockk(relaxed = true),
+            alarmPreferences = com.slikharev.shifttrack.alarm.AlarmPreferences(dataStore), // [EXPERIMENTAL:ALARM]
+            alarmOverrideDao = mockk(relaxed = true), // [EXPERIMENTAL:ALARM]
         )
     }
 

@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" /> <!-- [EXPERIMENTAL:ALARM] -->
 
     <application
         android:name=".ShiftTrackApp"
@@ -67,6 +70,32 @@
         <activity
             android:name=".widget.WidgetConfigActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.ShiftTrack" />
+
+        <!-- Midnight widget refresh alarm -->
+        <receiver
+            android:name=".widget.MidnightWidgetReceiver"
+            android:exported="false" />
+
+        <!-- Re-register alarms after device reboot -->
+        <receiver
+            android:name=".widget.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- [EXPERIMENTAL:ALARM] Evening alarm trigger receiver -->
+        <receiver
+            android:name=".alarm.AlarmTriggerReceiver"
+            android:exported="false" />
+
+        <!-- [EXPERIMENTAL:ALARM] Alarm setter activity (notification tap target) -->
+        <activity
+            android:name=".alarm.AlarmSetterActivity"
+            android:exported="false"
             android:excludeFromRecents="true"
             android:theme="@style/Theme.ShiftTrack" />
 
