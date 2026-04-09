@@ -2,7 +2,6 @@ package com.slikharev.shifttrack.calendar
 
 import android.content.Intent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,7 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.DropdownMenu
@@ -37,16 +38,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,15 +70,20 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
-import com.slikharev.shifttrack.ui.LeaveGrey
+import com.slikharev.shifttrack.ui.leaveGreyColor
 import com.slikharev.shifttrack.ui.LocalLeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+/** Centre page index for the HorizontalPager (allows ±5000 months of scroll). */
+private const val PAGER_CENTRE = 5000
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,9 +96,35 @@ fun CalendarScreen(navController: NavController) {
     val selectedHostUid by viewModel.selectedHostUid.collectAsStateWithLifecycle()
     val spectatorError by viewModel.spectatorError.collectAsStateWithLifecycle()
     val exportUri by viewModel.exportUri.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showExportDialog by remember { mutableStateOf(false) }
+
+    // ── Pager state — page offset from today's month ─────────────────────────
+    val baseMonth = remember { YearMonth.now() }
+    val pagerState = rememberPagerState(initialPage = PAGER_CENTRE) { PAGER_CENTRE * 2 }
+
+    // Sync pager → viewModel when user swipes
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            val targetMonth = baseMonth.plusMonths((page - PAGER_CENTRE).toLong())
+            if (targetMonth != viewModel.currentYearMonth.value) {
+                viewModel.setMonth(targetMonth)
+            }
+        }
+    }
+
+    // Sync viewModel → pager when arrow buttons or goToToday change the month
+    LaunchedEffect(currentYearMonth) {
+        val targetPage = PAGER_CENTRE +
+            ((currentYearMonth.year - baseMonth.year) * 12 +
+                (currentYearMonth.monthValue - baseMonth.monthValue))
+        if (targetPage != pagerState.currentPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
 
     // Launch share sheet when export URI is ready
     LaunchedEffect(exportUri) {
@@ -104,12 +140,15 @@ fun CalendarScreen(navController: NavController) {
     }
 
     val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+    val isOnCurrentMonth = currentYearMonth == YearMonth.now()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    IconButton(onClick = { viewModel.prevMonth() }) {
+                    IconButton(onClick = {
+                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Previous month",
@@ -133,7 +172,9 @@ fun CalendarScreen(navController: NavController) {
                             )
                         }
                     }
-                    IconButton(onClick = { viewModel.nextMonth() }) {
+                    IconButton(onClick = {
+                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                    }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Next month",
@@ -142,46 +183,91 @@ fun CalendarScreen(navController: NavController) {
                 },
             )
         },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            // ── Host selector dropdown ───────────────────────────────────────
-            if (watchedHosts.isNotEmpty()) {
-                HostSelector(
-                    isSpectatorOnly = isSpectatorOnly,
-                    watchedHosts = watchedHosts,
-                    selectedHostUid = selectedHostUid,
-                    onHostSelected = viewModel::selectHost,
-                )
+        floatingActionButton = {
+            if (!isOnCurrentMonth) {
+                SmallFloatingActionButton(
+                    onClick = { viewModel.goToToday() },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Icon(Icons.Default.Today, contentDescription = "Today")
+                }
             }
+        },
+    ) { padding ->
+        val calendarContent: @Composable () -> Unit = {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // ── Host selector dropdown ───────────────────────────────────
+                if (watchedHosts.isNotEmpty()) {
+                    HostSelector(
+                        isSpectatorOnly = isSpectatorOnly,
+                        watchedHosts = watchedHosts,
+                        selectedHostUid = selectedHostUid,
+                        onHostSelected = viewModel::selectHost,
+                    )
+                }
 
-            // ── Spectator error banner ───────────────────────────────────────
-            spectatorError?.let { msg ->
-                Text(
-                    text = msg,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center,
+                // ── Spectator error banner ───────────────────────────────────
+                spectatorError?.let { msg ->
+                    Text(
+                        text = msg,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+
+                // ── Swipeable calendar pager ─────────────────────────────────
+                HorizontalPager(
+                    state = pagerState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                        .weight(1f),
+                    beyondViewportPageCount = 1,
+                ) { _ ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        DayOfWeekHeader()
+                        CalendarGrid(
+                            calendarDays = calendarDays,
+                            onDayClick = { date ->
+                                navController.navigate(
+                                    Screen.DayDetail.createRoute(date.toString()),
+                                )
+                            },
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        ShiftLegend()
+                    }
+                }
             }
+        }
 
-            DayOfWeekHeader()
-            CalendarGrid(
-                calendarDays = calendarDays,
-                onDayClick = { date ->
-                    navController.navigate(Screen.DayDetail.createRoute(date.toString()))
-                },
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            ShiftLegend()
-            Spacer(modifier = Modifier.weight(1f))
+        // Wrap in PullToRefreshBox when viewing a spectated calendar
+        if (selectedHostUid != null) {
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refreshSpectator() },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                calendarContent()
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                calendarContent()
+            }
         }
     }
 
@@ -390,9 +476,10 @@ private fun ShiftDayCell(
 ) {
     val colors = LocalShiftColors.current
     val leaveColors = LocalLeaveColors.current
+    val leaveGrey = leaveGreyColor()
     // Full-day leave → light grey; otherwise shift color
     val bgColor = if (day.dayInfo.hasLeave && !day.dayInfo.halfDay) {
-        LeaveGrey
+        leaveGrey
     } else {
         colors.containerColor(day.shiftType)
     }
@@ -419,25 +506,25 @@ private fun ShiftDayCell(
                     .fillMaxHeight(0.5f)
                     .align(Alignment.BottomCenter)
                     .background(
-                        LeaveGrey,
+                        leaveGrey,
                         RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
                     ),
             )
         }
 
-        // Today indicator
+        // Today indicator — solid primary circle behind the number
         if (day.isToday) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize(0.5f)
-                    .border(2.dp, contentColor, RoundedCornerShape(4.dp)),
+                    .size(24.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
             )
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = day.date.dayOfMonth.toString(),
-                color = contentColor,
+                color = if (day.isToday) MaterialTheme.colorScheme.onPrimary else contentColor,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (day.isToday) FontWeight.Bold else FontWeight.Normal,
             )
@@ -454,37 +541,47 @@ private fun ShiftDayCell(
     }
 }
 
-/** Darkens a color by reducing brightness by the given [factor] (0..1). */
-private fun darkenColor(color: Color, factor: Float): Color {
-    return Color(
-        red = (color.red * (1f - factor)).coerceIn(0f, 1f),
-        green = (color.green * (1f - factor)).coerceIn(0f, 1f),
-        blue = (color.blue * (1f - factor)).coerceIn(0f, 1f),
-        alpha = color.alpha,
-    )
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ShiftLegend() {
-    FlowRow(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ShiftType.entries.forEach { type ->
-            LegendChip(
-                color = LocalShiftColors.current.containerColor(type),
-                label = ShiftColors.label(type),
-            )
+        Text(
+            text = "Shifts",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            ShiftType.entries.forEach { type ->
+                LegendChip(
+                    color = LocalShiftColors.current.containerColor(type),
+                    label = ShiftColors.label(type),
+                )
+            }
         }
-        LeaveType.entries.forEach { type ->
-            LegendChip(
-                color = LocalLeaveColors.current.color(type),
-                label = LeaveColors.label(type),
-            )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Leave",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            LeaveType.entries.forEach { type ->
+                LegendChip(
+                    color = LocalLeaveColors.current.color(type),
+                    label = LeaveColors.label(type),
+                )
+            }
         }
     }
 }

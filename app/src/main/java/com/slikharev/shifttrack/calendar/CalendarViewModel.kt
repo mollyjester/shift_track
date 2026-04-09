@@ -55,6 +55,13 @@ class CalendarViewModel @Inject constructor(
     private val _spectatorError = MutableStateFlow<String?>(null)
     val spectatorError: StateFlow<String?> = _spectatorError.asStateFlow()
 
+    /** Incremented to force a re-fetch of spectator data. */
+    private val _refreshTrigger = MutableStateFlow(0)
+
+    /** True while a pull-to-refresh is in progress. */
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         // Restore last selected host from DataStore
         viewModelScope.launch {
@@ -78,7 +85,8 @@ class CalendarViewModel @Inject constructor(
     val calendarDays: StateFlow<List<CalendarDay>> = combine(
         _currentYearMonth,
         _selectedHostUid,
-    ) { ym, hostUid -> ym to hostUid }
+        _refreshTrigger,
+    ) { ym, hostUid, _ -> ym to hostUid }
         .flatMapLatest { (ym, hostUid) ->
             val start = ym.atDay(1)
             val end = ym.atEndOfMonth()
@@ -147,6 +155,23 @@ class CalendarViewModel @Inject constructor(
 
     fun prevMonth() = _currentYearMonth.update { it.minusMonths(1) }
     fun nextMonth() = _currentYearMonth.update { it.plusMonths(1) }
+    fun setMonth(month: YearMonth) { _currentYearMonth.value = month }
+
+    /** Jump back to the current month. */
+    fun goToToday() {
+        _currentYearMonth.value = YearMonth.now()
+    }
+
+    /** Force a re-fetch of spectator data for the current month. */
+    fun refreshSpectator() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _refreshTrigger.update { it + 1 }
+            // Small delay so the combine triggers a new flatMapLatest collect
+            kotlinx.coroutines.delay(300)
+            _isRefreshing.value = false
+        }
+    }
 
     // ── CSV Export ────────────────────────────────────────────────────────────────
 

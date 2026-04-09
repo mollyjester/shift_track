@@ -3,6 +3,12 @@ package com.slikharev.shifttrack.settings
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +38,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -68,6 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -172,6 +180,18 @@ fun SettingsScreen(navController: NavController) {
     var showHolidaysDialog by remember { mutableStateOf(false) }
     var showChangeoverPicker by remember { mutableStateOf(false) }
 
+    // Expandable section states
+    var countryExpanded by remember { mutableStateOf(false) }
+    var incomeExpanded by remember { mutableStateOf(false) }
+    var holidaysExpanded by remember { mutableStateOf(false) }
+    var scheduleExpanded by remember { mutableStateOf(false) }
+    var leaveExpanded by remember { mutableStateOf(false) }
+    var appearanceExpanded by remember { mutableStateOf(false) }
+    var widgetExpanded by remember { mutableStateOf(false) }
+    var storageExpanded by remember { mutableStateOf(false) }
+    var overtimeExpanded by remember { mutableStateOf(false) }
+    var viewersExpanded by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -182,9 +202,9 @@ fun SettingsScreen(navController: NavController) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // ── Account ──────────────────────────────────────────────────────────
+            // ── Account (always visible) ─────────────────────────────────────────
             AccountSection(
                 displayName = viewModel.displayName,
                 email = viewModel.email,
@@ -195,123 +215,160 @@ fun SettingsScreen(navController: NavController) {
             HorizontalDivider()
 
             // ── Country ──────────────────────────────────────────────────────────
-            SettingsSectionHeader("Country")
-            CountryCard(
-                selectedCountryCode = selectedCountryCode,
-                onPickClick = { showCountryPicker = true },
-            )
-
-            if (!isSpectatorOnly) {
-                HorizontalDivider()
-
-                // ── Income rates ─────────────────────────────────────────────────────
-                SettingsSectionHeader("Income Rates")
-                IncomeRatesSection(
-                    currencySymbol = selectedCountryCode?.let { Countries.findByCode(it)?.currencySymbol } ?: "$",
-                    baseRate = baseHourlyRate,
-                    nightMult = nightMultiplier,
-                    weekendMult = weekendMultiplier,
-                    holidayMult = holidayMultiplier,
-                    changeoverHour = shiftChangeoverHour,
-                    onBaseRateChange = viewModel::setBaseHourlyRate,
-                    onNightMultChange = viewModel::setNightMultiplier,
-                    onWeekendMultChange = viewModel::setWeekendMultiplier,
-                    onHolidayMultChange = viewModel::setHolidayMultiplier,
-                    onChangeoverClick = { showChangeoverPicker = true },
-                )
-
-                HorizontalDivider()
-
-                // ── Public holidays ──────────────────────────────────────────────────
-                SettingsSectionHeader("Public Holidays")
-                PublicHolidaysSummary(
-                    count = publicHolidays.size,
-                    onManageClick = { showHolidaysDialog = true },
-                )
-
-                HorizontalDivider()
-
-                // ── Shift schedule ───────────────────────────────────────────────────
-                SettingsSectionHeader("Shift Schedule")
-                ScheduleCard(
-                    anchorDate = anchorDate,
-                    anchorCycleIndex = anchorCycleIndex,
-                    todayShiftLabel = todayShiftLabel,
-                    onEditClick = { showScheduleDialog = true },
-                )
-
-                HorizontalDivider()
-
-                // ── Leave balance (per-category) ─────────────────────────────────────
-                SettingsSectionHeader("Leave Allowance")
-                LeaveBalancesCard(
-                    balances = leaveBalances,
-                    year = LocalDate.now().year,
-                    onEditClick = { showLeaveDialog = true },
-                )
-            }
-
-            HorizontalDivider()
-
-            // ── Shift colors (visible to all users) ──────────────────────────────
-            SettingsSectionHeader("Shift Colors")
-            ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
-
-            HorizontalDivider()
-
-            // ── Leave type colors (visible to all users) ─────────────────────────
-            SettingsSectionHeader("Leave Type Colors")
-            LeaveColorSettingsSection(onColorChange = viewModel::saveLeaveColor)
-
-            HorizontalDivider()
-
-            // ── Widget settings (visible to all users) ───────────────────────────
-            SettingsSectionHeader("Widget")
-            WidgetSettingsSection(
-                bgColorArgb = widgetBgColor,
-                transparency = widgetTransparency,
-                dayCount = widgetDayCount,
-                onBgColorChange = viewModel::setWidgetBgColor,
-                onTransparencyChange = viewModel::setWidgetTransparency,
-                onDayCountChange = viewModel::setWidgetDayCount,
-            )
-
-            if (!isSpectatorOnly) {
-                HorizontalDivider()
-
-                // ── Storage & cleanup ────────────────────────────────────────────────
-                SettingsSectionHeader("Storage & Cleanup")
-                StorageCleanupSection(
-                    usedBytes = storageUsed,
-                    maxBytes = com.slikharev.shifttrack.data.repository.StorageMonitor.MAX_STORAGE_BYTES,
-                    onCleanupClick = { showCleanupDialog = true },
-                    onRestoreClick = { showRestoreConfirm = true },
+            ExpandableSection(
+                title = "Country",
+                expanded = countryExpanded,
+                onToggle = { countryExpanded = !countryExpanded },
+            ) {
+                CountryCard(
+                    selectedCountryCode = selectedCountryCode,
+                    onPickClick = { showCountryPicker = true },
                 )
             }
 
             if (!isSpectatorOnly) {
                 HorizontalDivider()
 
-                // ── Overtime balance ─────────────────────────────────────────────────
-                if (overtimeBalance != null) {
-                    SettingsSectionHeader("Overtime")
-                    OvertimeSettingsCard(
-                        totalHours = overtimeBalance!!.totalHours,
-                        compensatedHours = overtimeBalance!!.compensatedHours,
-                        year = overtimeBalance!!.year,
-                        onEditClick = { showOvertimeDialog = true },
+                // ── Shift schedule ───────────────────────────────────────────────
+                ExpandableSection(
+                    title = "Shift Schedule",
+                    expanded = scheduleExpanded,
+                    onToggle = { scheduleExpanded = !scheduleExpanded },
+                ) {
+                    ScheduleCard(
+                        anchorDate = anchorDate,
+                        anchorCycleIndex = anchorCycleIndex,
+                        todayShiftLabel = todayShiftLabel,
+                        onEditClick = { showScheduleDialog = true },
                     )
-                    HorizontalDivider()
+                    LeaveBalancesCard(
+                        balances = leaveBalances,
+                        year = LocalDate.now().year,
+                        onEditClick = { showLeaveDialog = true },
+                    )
                 }
 
-                // ── Invite viewers ─────────────────────────────────────────────────
-                SettingsSectionHeader("Viewers")
-                InviteCard(
-                    onGenerateClick = {
-                        viewModel.generateInvite()
-                        showShareInviteDialog = true
-                    },
+                HorizontalDivider()
+
+                // ── Income rates ─────────────────────────────────────────────────
+                ExpandableSection(
+                    title = "Income Rates",
+                    expanded = incomeExpanded,
+                    onToggle = { incomeExpanded = !incomeExpanded },
+                ) {
+                    IncomeRatesSection(
+                        currencySymbol = selectedCountryCode?.let { Countries.findByCode(it)?.currencySymbol } ?: "$",
+                        baseRate = baseHourlyRate,
+                        nightMult = nightMultiplier,
+                        weekendMult = weekendMultiplier,
+                        holidayMult = holidayMultiplier,
+                        changeoverHour = shiftChangeoverHour,
+                        onBaseRateChange = viewModel::setBaseHourlyRate,
+                        onNightMultChange = viewModel::setNightMultiplier,
+                        onWeekendMultChange = viewModel::setWeekendMultiplier,
+                        onHolidayMultChange = viewModel::setHolidayMultiplier,
+                        onChangeoverClick = { showChangeoverPicker = true },
+                    )
+                }
+
+                HorizontalDivider()
+
+                // ── Public holidays ──────────────────────────────────────────────
+                ExpandableSection(
+                    title = "Public Holidays",
+                    expanded = holidaysExpanded,
+                    onToggle = { holidaysExpanded = !holidaysExpanded },
+                ) {
+                    PublicHolidaysSummary(
+                        count = publicHolidays.size,
+                        onManageClick = { showHolidaysDialog = true },
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
+            // ── Appearance (shift + leave colors) ────────────────────────────────
+            ExpandableSection(
+                title = "Appearance",
+                expanded = appearanceExpanded,
+                onToggle = { appearanceExpanded = !appearanceExpanded },
+            ) {
+                SettingsSectionHeader("Shift Colors")
+                ColorSettingsSection(onColorChange = viewModel::saveShiftColor)
+                Spacer(modifier = Modifier.height(8.dp))
+                SettingsSectionHeader("Leave Type Colors")
+                LeaveColorSettingsSection(onColorChange = viewModel::saveLeaveColor)
+            }
+
+            HorizontalDivider()
+
+            // ── Widget ───────────────────────────────────────────────────────────
+            ExpandableSection(
+                title = "Widget",
+                expanded = widgetExpanded,
+                onToggle = { widgetExpanded = !widgetExpanded },
+            ) {
+                WidgetSettingsSection(
+                    bgColorArgb = widgetBgColor,
+                    transparency = widgetTransparency,
+                    dayCount = widgetDayCount,
+                    onBgColorChange = viewModel::setWidgetBgColor,
+                    onTransparencyChange = viewModel::setWidgetTransparency,
+                    onDayCountChange = viewModel::setWidgetDayCount,
                 )
+            }
+
+            if (!isSpectatorOnly) {
+                HorizontalDivider()
+
+                // ── Storage & cleanup ────────────────────────────────────────────
+                ExpandableSection(
+                    title = "Storage & Cleanup",
+                    expanded = storageExpanded,
+                    onToggle = { storageExpanded = !storageExpanded },
+                ) {
+                    StorageCleanupSection(
+                        usedBytes = storageUsed,
+                        maxBytes = com.slikharev.shifttrack.data.repository.StorageMonitor.MAX_STORAGE_BYTES,
+                        onCleanupClick = { showCleanupDialog = true },
+                        onRestoreClick = { showRestoreConfirm = true },
+                    )
+                }
+
+                if (overtimeBalance != null) {
+                    HorizontalDivider()
+
+                    // ── Overtime ──────────────────────────────────────────────────
+                    ExpandableSection(
+                        title = "Overtime",
+                        expanded = overtimeExpanded,
+                        onToggle = { overtimeExpanded = !overtimeExpanded },
+                    ) {
+                        OvertimeSettingsCard(
+                            totalHours = overtimeBalance!!.totalHours,
+                            compensatedHours = overtimeBalance!!.compensatedHours,
+                            year = overtimeBalance!!.year,
+                            onEditClick = { showOvertimeDialog = true },
+                        )
+                    }
+                }
+
+                HorizontalDivider()
+
+                // ── Viewers ──────────────────────────────────────────────────────
+                ExpandableSection(
+                    title = "Viewers",
+                    expanded = viewersExpanded,
+                    onToggle = { viewersExpanded = !viewersExpanded },
+                ) {
+                    InviteCard(
+                        onGenerateClick = {
+                            viewModel.generateInvite()
+                            showShareInviteDialog = true
+                        },
+                    )
+                }
             }
 
             if (uiState.isSaving) {
@@ -545,6 +602,48 @@ private fun SettingsSectionHeader(title: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(bottom = 4.dp),
     )
+}
+
+/** Collapsible section with animated expand/collapse. */
+@Composable
+private fun ExpandableSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val rotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "chevron")
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.Default.ExpandMore,
+                contentDescription = if (expanded) "Collapse" else "Expand",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.graphicsLayer { rotationZ = rotation },
+            )
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                content()
+            }
+        }
+    }
 }
 
 @Composable

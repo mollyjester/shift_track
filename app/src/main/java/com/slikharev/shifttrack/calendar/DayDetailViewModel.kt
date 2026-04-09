@@ -130,6 +130,11 @@ class DayDetailViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _successMessage = MutableStateFlow<String?>(null)
+    val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
+
+    fun clearSuccess() { _successMessage.value = null }
+
     // ─── Attachments ─────────────────────────────────────────────────────────────
 
     val attachments: StateFlow<List<AttachmentEntity>> = attachmentRepository
@@ -188,6 +193,7 @@ class DayDetailViewModel @Inject constructor(
                     note = note,
                 )
                 widgetUpdater.updateAll()
+                _successMessage.value = "Override applied"
             } catch (e: Exception) {
                 _error.value = "Failed to save: ${e.message}"
             } finally {
@@ -209,6 +215,7 @@ class DayDetailViewModel @Inject constructor(
                     note = note?.takeIf { it.isNotBlank() },
                 )
                 widgetUpdater.updateAll()
+                _successMessage.value = "Note saved"
             } catch (e: Exception) {
                 _error.value = "Failed to save note: ${e.message}"
             } finally {
@@ -227,6 +234,7 @@ class DayDetailViewModel @Inject constructor(
                     date = date,
                 )
                 widgetUpdater.updateAll()
+                _successMessage.value = "Override cleared"
             } catch (e: Exception) {
                 _error.value = "Failed to clear: ${e.message}"
             } finally {
@@ -242,6 +250,7 @@ class DayDetailViewModel @Inject constructor(
             try {
                 leaveRepository.addLeave(date, leaveType, halfDay, note)
                 widgetUpdater.updateAll()
+                _successMessage.value = "Leave added"
             } catch (e: Exception) {
                 _error.value = "Failed to save leave: ${e.message}"
             } finally {
@@ -257,6 +266,7 @@ class DayDetailViewModel @Inject constructor(
             try {
                 leaveRepository.removeLeave(date)
                 widgetUpdater.updateAll()
+                _successMessage.value = "Leave removed"
             } catch (e: Exception) {
                 _error.value = "Failed to remove leave: ${e.message}"
             } finally {
@@ -272,6 +282,7 @@ class DayDetailViewModel @Inject constructor(
             try {
                 overtimeRepository.addOvertime(date, hours, note)
                 widgetUpdater.updateAll()
+                _successMessage.value = "Overtime added"
             } catch (e: Exception) {
                 _error.value = "Failed to save overtime: ${e.message}"
             } finally {
@@ -287,6 +298,7 @@ class DayDetailViewModel @Inject constructor(
             try {
                 overtimeRepository.removeOvertime(date)
                 widgetUpdater.updateAll()
+                _successMessage.value = "Overtime removed"
             } catch (e: Exception) {
                 _error.value = "Failed to remove overtime: ${e.message}"
             } finally {

@@ -1,11 +1,20 @@
 package com.slikharev.shifttrack.ui
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.slikharev.shifttrack.model.LeaveType
 
 /** Light grey background used for leave days in calendar and widget. */
 val LeaveGrey = Color(0xFFE0E0E0.toInt())
+
+/** Dark-mode counterpart for [LeaveGrey]. */
+val LeaveGreyDark = Color(0xFF3A3A3A.toInt())
+
+/** Returns the theme-aware leave-day grey. */
+@Composable
+fun leaveGreyColor(): Color = if (isSystemInDarkTheme()) LeaveGreyDark else LeaveGrey
 
 /** Default (static) color palette for leave types. */
 object LeaveColors {

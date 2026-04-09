@@ -7,6 +7,11 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
@@ -68,6 +74,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -87,6 +94,7 @@ import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
+import kotlinx.coroutines.delay
 import java.io.File
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -103,6 +111,7 @@ fun DayDetailScreen(navController: NavController) {
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
     val storageWarning by viewModel.storageWarning.collectAsStateWithLifecycle()
     val workedHoursOverride by viewModel.workedHoursOverride.collectAsStateWithLifecycle()
+    val successMessage by viewModel.successMessage.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -153,6 +162,14 @@ fun DayDetailScreen(navController: NavController) {
         }
     }
 
+    // Auto-dismiss success message after 1.5s
+    LaunchedEffect(successMessage) {
+        if (successMessage != null) {
+            delay(1500)
+            viewModel.clearSuccess()
+        }
+    }
+
     val dateFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())
 
     Scaffold(
@@ -176,26 +193,27 @@ fun DayDetailScreen(navController: NavController) {
                 CircularProgressIndicator()
             }
         } else {
-            DayDetailContent(
-                modifier = Modifier.padding(padding),
-                dayInfo = dayInfo!!,
-                overtimeEntry = overtimeEntry,
-                isSaving = isSaving,
-                isSpectator = isSpectator,
-                attachments = attachments,
-                storageWarning = storageWarning,
-                workedHoursOverride = workedHoursOverride?.hours,
-                defaultWorkedHours = viewModel.defaultWorkedHours(dayInfo!!),
-                onSetWorkedHours = viewModel::setWorkedHours,
-                onClearWorkedHours = viewModel::clearWorkedHoursOverride,
-                onOverride = { viewModel.setManualOverride(it) },
-                onClearOverride = viewModel::clearManualOverride,
-                onAddLeave = viewModel::addLeave,
-                onRemoveLeave = viewModel::removeLeave,
-                onAddOvertime = viewModel::addOvertime,
-                onRemoveOvertime = viewModel::removeOvertime,
-                onSaveNote = viewModel::saveNote,
-                onTakePhoto = {
+            Box(modifier = Modifier.fillMaxSize()) {
+                DayDetailContent(
+                    modifier = Modifier.padding(padding),
+                    dayInfo = dayInfo!!,
+                    overtimeEntry = overtimeEntry,
+                    isSaving = isSaving,
+                    isSpectator = isSpectator,
+                    attachments = attachments,
+                    storageWarning = storageWarning,
+                    workedHoursOverride = workedHoursOverride?.hours,
+                    defaultWorkedHours = viewModel.defaultWorkedHours(dayInfo!!),
+                    onSetWorkedHours = viewModel::setWorkedHours,
+                    onClearWorkedHours = viewModel::clearWorkedHoursOverride,
+                    onOverride = { viewModel.setManualOverride(it) },
+                    onClearOverride = viewModel::clearManualOverride,
+                    onAddLeave = viewModel::addLeave,
+                    onRemoveLeave = viewModel::removeLeave,
+                    onAddOvertime = viewModel::addOvertime,
+                    onRemoveOvertime = viewModel::removeOvertime,
+                    onSaveNote = viewModel::saveNote,
+                    onTakePhoto = {
                     val hasCamera = ContextCompat.checkSelfPermission(
                         context, Manifest.permission.CAMERA,
                     ) == PackageManager.PERMISSION_GRANTED
@@ -246,6 +264,40 @@ fun DayDetailScreen(navController: NavController) {
                 },
                 onDeleteAttachment = viewModel::deleteAttachment,
             )
+
+                // ── Animated checkmark overlay ───────────────────────────────
+                AnimatedVisibility(
+                    visible = successMessage != null,
+                    enter = scaleIn(initialScale = 0.5f) + fadeIn(),
+                    exit = scaleOut(targetScale = 0.5f) + fadeOut(),
+                    modifier = Modifier.align(Alignment.Center),
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
+                                RoundedCornerShape(16.dp),
+                            )
+                            .padding(24.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(48.dp),
+                        )
+                        successMessage?.let { msg ->
+                            Text(
+                                text = msg,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
