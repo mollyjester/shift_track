@@ -10,7 +10,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -144,6 +146,11 @@ class CalendarViewModelTest {
 
     @Test
     fun `calendarDays for given month has correct ShiftDay count`() = runTest {
+        // Subscribe so the WhileSubscribed upstream activates
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.calendarDays.collect {}
+        }
+
         // Navigate to a known month: March 2024 (31 days)
         val targetYm = YearMonth.of(2024, 3)
         val current = viewModel.currentYearMonth.value

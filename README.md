@@ -77,6 +77,7 @@ The **Calendar** tab shows a full month with each day colour-coded by shift type
 - **Half-day leave** is shown as a split cell — the top half displays the shift colour and the bottom half uses light grey.
 - **Leave type indicators** appear as coloured dots on days with full-day leave, using the leave type's designated colour (Annual = green, Sick = red, Personal = blue, Unpaid = orange, Study = purple).
 - The **legend** below the calendar shows both shift types and leave types with large, easy-to-read colour circles.
+- **Export to CSV** — Tap the share icon in the top bar to export your calendar data. Pick a date range (defaults to the current month) and share or save the generated `.csv` file. Columns: Date, Day of Week, Shift Type, Leave Type, Half Day, Overtime Hours, Note.
 
 On the Day Detail screen you can:
 
@@ -250,4 +251,4 @@ See the [docs/](docs/) folder for technical documentation:
 firebase deploy --only functions # Deploy Cloud Functions (spectator push notifications)
 ```
 
-Min SDK 34 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose · v3.0.0
+Min SDK 34 · Target SDK 35 · Kotlin 2.0.21 · Jetpack Compose · v4.1.0

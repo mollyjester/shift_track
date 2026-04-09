@@ -1,5 +1,8 @@
 package com.slikharev.shifttrack.calendar
 
+import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.data.local.AppDataStore
@@ -13,12 +16,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
+import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
 
@@ -141,4 +147,44 @@ class CalendarViewModel @Inject constructor(
 
     fun prevMonth() = _currentYearMonth.update { it.minusMonths(1) }
     fun nextMonth() = _currentYearMonth.update { it.plusMonths(1) }
+
+    // ── CSV Export ────────────────────────────────────────────────────────────────
+
+    private val _exportUri = MutableStateFlow<Uri?>(null)
+    val exportUri: StateFlow<Uri?> = _exportUri.asStateFlow()
+
+    fun clearExportUri() {
+        _exportUri.value = null
+    }
+
+    fun exportCsv(context: Context, startDate: LocalDate, endDate: LocalDate) {
+        viewModelScope.launch {
+            val dayInfos = shiftRepository.getDayInfosForRange(startDate, endDate).first()
+            val overtimes = shiftRepository.getOvertimeForRange(startDate, endDate)
+            val overtimeByDate = overtimes.associate { it.date to it.hours }
+
+            val rows = dayInfos.map { info ->
+                ExportRow(
+                    date = info.date,
+                    shiftType = info.shiftType,
+                    leaveType = info.leaveType,
+                    halfDay = info.halfDay,
+                    overtimeHours = overtimeByDate[info.date.toString()] ?: 0f,
+                    note = info.note,
+                )
+            }
+
+            val csv = CsvExporter.generateCsv(rows)
+            val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+            val file = File(exportDir, "shifts_${startDate}_$endDate.csv")
+            file.writeText(csv)
+
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file,
+            )
+            _exportUri.value = uri
+        }
+    }
 }

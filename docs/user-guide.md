@@ -60,6 +60,18 @@ The bottom navigation bar has three sections:
 - Days with overtime show an overtime indicator.
 - Manual overrides (days where you changed the computed shift) are visually distinguished.
 
+### Exporting Calendar Data
+
+1. Open the **Calendar** tab.
+2. Tap the **share** icon in the top-right corner of the toolbar (only visible when viewing your own schedule).
+3. A date range picker opens, defaulting to the first and last day of the current month. Adjust the range as needed — there is no limit on how wide the range can be.
+4. Tap **Export** to generate a `.csv` file.
+5. The system share sheet opens — save the file, email it, or send it to any app.
+
+**CSV columns:** Date, Day of Week, Shift Type, Leave Type, Half Day, Overtime Hours, Note.
+
+> **Note:** The export covers your own calendar only. When viewing a spectated host's calendar, the export button is hidden.
+
 ### Day Detail Screen
 
 Opening a day shows:

@@ -6,6 +6,7 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
+import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.model.DayInfo
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -161,6 +163,15 @@ class ShiftRepository @Inject constructor(
     /** Removes a manual override, reverting the day to cadence-computed. */
     suspend fun clearManualOverride(userId: String, date: LocalDate) {
         shiftDao.deleteByDate(userId, date.toString())
+    }
+
+    /** Returns overtime entries for the given date range (one-shot). */
+    suspend fun getOvertimeForRange(
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<OvertimeEntity> {
+        val uid = userSession.requireUserId()
+        return overtimeDao.getOvertimeForRange(uid, startDate.toString(), endDate.toString()).first()
     }
 
     companion object {

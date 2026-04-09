@@ -1,5 +1,6 @@
 package com.slikharev.shifttrack.calendar
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +25,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,8 +38,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,9 +51,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -58,6 +69,9 @@ import com.slikharev.shifttrack.ui.LeaveGrey
 import com.slikharev.shifttrack.ui.LocalLeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -71,6 +85,23 @@ fun CalendarScreen(navController: NavController) {
     val watchedHosts by viewModel.watchedHosts.collectAsStateWithLifecycle()
     val selectedHostUid by viewModel.selectedHostUid.collectAsStateWithLifecycle()
     val spectatorError by viewModel.spectatorError.collectAsStateWithLifecycle()
+    val exportUri by viewModel.exportUri.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    var showExportDialog by remember { mutableStateOf(false) }
+
+    // Launch share sheet when export URI is ready
+    LaunchedEffect(exportUri) {
+        exportUri?.let { uri ->
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, "Export shifts"))
+            viewModel.clearExportUri()
+        }
+    }
 
     val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
 
@@ -94,6 +125,14 @@ fun CalendarScreen(navController: NavController) {
                     )
                 },
                 actions = {
+                    if (selectedHostUid == null) {
+                        IconButton(onClick = { showExportDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Export to CSV",
+                            )
+                        }
+                    }
                     IconButton(onClick = { viewModel.nextMonth() }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -143,6 +182,88 @@ fun CalendarScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(16.dp))
             ShiftLegend()
             Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+
+    // ── Export date range dialog ─────────────────────────────────────────────
+    if (showExportDialog) {
+        ExportDateRangeDialog(
+            initialYearMonth = currentYearMonth,
+            onConfirm = { start, end ->
+                showExportDialog = false
+                viewModel.exportCsv(context, start, end)
+            },
+            onDismiss = { showExportDialog = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExportDateRangeDialog(
+    initialYearMonth: java.time.YearMonth,
+    onConfirm: (LocalDate, LocalDate) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val startMillis = initialYearMonth.atDay(1)
+        .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    val endMillis = initialYearMonth.atEndOfMonth()
+        .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+
+    val state = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = startMillis,
+        initialSelectedEndDateMillis = endMillis,
+        initialDisplayMode = DisplayMode.Input,
+    )
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+                TextButton(
+                    onClick = {
+                        val selectedStart = state.selectedStartDateMillis
+                        val selectedEnd = state.selectedEndDateMillis
+                        if (selectedStart != null && selectedEnd != null) {
+                            val start = Instant.ofEpochMilli(selectedStart)
+                                .atZone(ZoneOffset.UTC).toLocalDate()
+                            val end = Instant.ofEpochMilli(selectedEnd)
+                                .atZone(ZoneOffset.UTC).toLocalDate()
+                            onConfirm(start, end)
+                        }
+                    },
+                    enabled = state.selectedStartDateMillis != null &&
+                        state.selectedEndDateMillis != null,
+                ) {
+                    Text("Export")
+                }
+            }
+            DateRangePicker(
+                state = state,
+                modifier = Modifier.weight(1f),
+                title = {
+                    Text(
+                        text = "Select date range to export",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(start = 16.dp, top = 16.dp),
+                    )
+                },
+                showModeToggle = true,
+            )
         }
     }
 }

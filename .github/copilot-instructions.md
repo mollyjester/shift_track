@@ -19,7 +19,7 @@ See [docs/architecture.md](docs/architecture.md) for data flow details, sync str
 
 | Directory | Purpose |
 |---|---|
-| `auth/`, `calendar/`, `dashboard/`, `settings/`, `onboarding/`, `invite/` | Feature packages (Screen + ViewModel + UiState) |
+| `auth/`, `calendar/`, `dashboard/`, `settings/`, `onboarding/`, `invite/` | Feature packages (Screen + ViewModel + UiState). `calendar/` also contains `CsvExporter` for CSV export. |
 | `data/local/db/` | Room database, DAOs, entities |
 | `data/remote/` | Firestore data sources and document models |
 | `data/repository/` | Repository layer bridging local ↔ remote |
@@ -85,6 +85,7 @@ Min SDK 34 · Target/Compile SDK 35 · Kotlin 2.0.21 · Java 17
 - **Midnight widget refresh**: `MidnightAlarmScheduler` + `MidnightWidgetReceiver` + `BootReceiver` ensure the widget updates at 00:00 daily.
 - **Delete account reauth**: `AuthRepository.reauthenticateAndDelete()` handles `FirebaseAuthRecentLoginRequiredException` with inline Google Sign-In picker instead of requiring sign-out/sign-in.
 - **Income tracking**: `IncomeCalculator` (pure Kotlin, no Android deps) computes monthly income from shift hours, overtime, and configurable rates. Night shifts split at midnight using `shiftChangeoverHour`. Dashboard shows "Income {month}" with `←` back-navigation and month-name reset button. Settings uses free-text `OutlinedTextField` for rates/multipliers and Material3 `TimePicker` for changeover time. Public holidays are managed via a dialog behind a "Manage" button.
+- **CSV export**: `CsvExporter` (pure Kotlin, no Android deps) generates RFC 4180-compliant CSV from `ExportRow` list. `CalendarViewModel.exportCsv()` merges `DayInfo` + overtime data, writes to `cacheDir/exports/`, shares via `FileProvider` + `Intent.ACTION_SEND`. Export button in `CalendarScreen` top bar is hidden when viewing spectated calendars. Date range picker defaults to current month with no upper limit.
 
 ## Documentation
 
