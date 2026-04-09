@@ -1,7 +1,5 @@
 package com.slikharev.shifttrack.widget
 
-import com.slikharev.shifttrack.alarm.AlarmOverrideDao // [EXPERIMENTAL:ALARM]
-import com.slikharev.shifttrack.alarm.AlarmPreferences // [EXPERIMENTAL:ALARM]
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.repository.SpectatorRepository
@@ -16,6 +14,4 @@ interface ShiftWidgetEntryPoint {
     fun leaveDao(): LeaveDao
     fun spectatorRepository(): SpectatorRepository
     fun shiftWidgetUpdater(): ShiftWidgetUpdater
-    fun alarmOverrideDao(): AlarmOverrideDao // [EXPERIMENTAL:ALARM]
-    fun alarmPreferences(): AlarmPreferences // [EXPERIMENTAL:ALARM]
 }

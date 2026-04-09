@@ -26,7 +26,6 @@ See [docs/architecture.md](docs/architecture.md) for data flow details, sync str
 | `engine/` | Pure Kotlin shift-cycle logic (`CadenceEngine`) |
 | `sync/` | WorkManager sync, FCM, annual reset, spectator cache refresh |
 | `widget/` | RemoteViews-based home-screen widget + midnight refresh alarm |
-| `alarm/` | Experimental auto wake-up alarm feature (self-contained, marked `[EXPERIMENTAL:ALARM]`) |
 | `model/` | Shared enums and UI models (`ShiftType`, `LeaveType`, `DayInfo`) |
 | `di/` | Hilt modules (`AppModule`, `AuthModule`, `InviteModule`) |
 | `ui/` | Theme, colors, shared composables, `ShiftColorConfig` + `LocalShiftColors`, `LeaveColors` |
@@ -62,7 +61,7 @@ Min SDK 34 · Target/Compile SDK 35 · Kotlin 2.0.21 · Java 17
 
 ## Key Gotchas
 
-- **Database schema**: version 3, `exportSchema=true`, schema JSON exported to `app/schemas/`. `fallbackToDestructiveMigration()` is still present but explicit `Migration(2,3)` exists for the `alarm_overrides` table. v1.1 added `leave_type` column to `leave_balance` with unique index `(year, user_id, leave_type)`. v3 added `alarm_overrides` table with unique index `(date, user_id)`.
+- **Database schema**: version 4, `exportSchema=true`, schema JSON exported to `app/schemas/`. `fallbackToDestructiveMigration()` is present. v1.1 added `leave_type` column to `leave_balance` with unique index `(year, user_id, leave_type)`.
 - **Per-category leave**: Leave balances are stored per leave type per year. `LeaveRepository.refreshUsedDays()` calculates used days per category. `AnnualResetUseCase` carries over each category independently.
 - **Configurable colors**: Per-shift-type colors stored as `Long` (ARGB) in `AppDataStore`, provided via `LocalShiftColors` (`CompositionLocal`). Widget reads user-configured colors from `AppDataStore` at render time. Colors are selected via an HSV color picker (Hue/Saturation/Brightness sliders).
 - **Widget configuration**: Background color (`Long` ARGB), transparency (`Float` 0–1), and day count (`Int` 1–7) stored in `AppDataStore`. Applied in `ShiftWidgetProvider.updateSingleWidget()`. Widget configuration is accessed via the system's long-press → Reconfigure menu (`widgetFeatures="reconfigurable"` in `shift_widget_info.xml`). `WidgetConfigActivity` is a full-screen Compose activity with a "Done" button that returns the user to the home screen. Default widget size is 4×1 (one cell height). Each day cell shows the day-of-month number and shift/leave type label stacked vertically. Half-day leave renders as a split background (top = shift colour, bottom = light grey). Leave dots match the calendar rendering. In spectator mode, the widget fetches the host's shift data from Firestore via `SpectatorRepository` using `spectatorMode` and `selectedHostUid` fields from `WidgetSnapshot`.
@@ -83,7 +82,6 @@ Min SDK 34 · Target/Compile SDK 35 · Kotlin 2.0.21 · Java 17
 - **Input limits**: Leave/overtime notes are truncated to 500 characters.
 - **Default leave days**: configurable via `AppDataStore.defaultLeaveDays` (default 28 days), used by `AnnualResetUseCase`.
 - **Deep links**: `shiftapp://day/{date}` and `shiftapp://invite/{token}` are validated (ISO date format and UUID format) before navigation.
-- **Auto wake-up alarms (experimental)**: Self-contained `alarm/` package. Evening trigger fires via `AlarmManager.setExactAndAllowWhileIdle()`. `AlarmTriggerReceiver` checks tomorrow's shift via `CadenceEngine`, posts notification if DAY. Notification opens `AlarmSetterActivity` which fires `AlarmClock.ACTION_SET_ALARM` intents. Per-day overrides stored in `alarm_overrides` table and synced to Firestore. All integration points marked with `// [EXPERIMENTAL:ALARM]` for easy grep-and-remove. Host-only: spectators never see or trigger the feature.
 - **Midnight widget refresh**: `MidnightAlarmScheduler` + `MidnightWidgetReceiver` + `BootReceiver` ensure the widget updates at 00:00 daily.
 - **Delete account reauth**: `AuthRepository.reauthenticateAndDelete()` handles `FirebaseAuthRecentLoginRequiredException` with inline Google Sign-In picker instead of requiring sign-out/sign-in.
 

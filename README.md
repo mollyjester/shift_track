@@ -19,6 +19,7 @@ A personal shift-scheduling app for rotating-shift workers. ShiftTrack automatic
 11. [Troubleshooting](#troubleshooting)
 12. [For Developers](#for-developers)
 
+
 ---
 
 ## Getting Started
@@ -229,21 +230,6 @@ An internet connection is required for the first sign-in. After that, your crede
 
 ### Invite link not working
 Links expire after 7 days and are single-use. Ask the sender to generate a new one. You must be signed in to accept an invite.
-
----
-
-## Experimental Features
-
-### Auto Wake-Up Alarms
-
-ShiftTrack can set wake-up alarms in your phone's Clock app before DAY shifts.
-
-1. Go to **Settings → Experimental Features** and toggle on **Auto wake-up alarms**.
-2. Configure the evening trigger time, first alarm time, number of alarms, and interval.
-3. The evening before a DAY shift, you'll receive a notification.
-4. Tap it to review/customise alarm times, then tap **Set alarms**.
-
-Per-day overrides are saved and synced to Firestore. Only available for host users (not spectators).
 
 ---
 

@@ -50,7 +50,7 @@ class FirestoreUserDataSource @Inject constructor(
      */
     suspend fun deleteUserData(uid: String) {
         val userRef = firestore.collection("users").document(uid)
-        for (sub in listOf("shifts", "leaves", "overtime", "alarm_overrides")) { // [EXPERIMENTAL:ALARM] added alarm_overrides
+        for (sub in listOf("shifts", "leaves", "overtime")) {
             while (true) {
                 val snapshot = userRef.collection(sub).limit(500).get().await()
                 if (snapshot.isEmpty) break

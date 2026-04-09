@@ -2,8 +2,6 @@ package com.slikharev.shifttrack.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.slikharev.shifttrack.alarm.AlarmOverrideDao // [EXPERIMENTAL:ALARM]
-import com.slikharev.shifttrack.alarm.AlarmPreferences // [EXPERIMENTAL:ALARM]
 import com.slikharev.shifttrack.auth.AuthRepository
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.auth.requireUserId
@@ -54,8 +52,6 @@ class SettingsViewModel @Inject constructor(
     private val inviteRepository: InviteRepository,
     private val widgetUpdater: ShiftWidgetUpdater,
     private val firestoreUserDataSource: com.slikharev.shifttrack.data.remote.FirestoreUserDataSource,
-    private val alarmPreferences: AlarmPreferences, // [EXPERIMENTAL:ALARM]
-    private val alarmOverrideDao: AlarmOverrideDao, // [EXPERIMENTAL:ALARM]
 ) : ViewModel() {
 
     private val uid get() = userSession.requireUserId()
@@ -193,43 +189,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    // ─── Alarm preferences (experimental) ──────────────────────────────────── [EXPERIMENTAL:ALARM]
-
-    val alarmEnabled: StateFlow<Boolean> = alarmPreferences.enabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
-    val alarmTriggerTime: StateFlow<String> = alarmPreferences.triggerTime
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.slikharev.shifttrack.alarm.AlarmConstants.DEFAULT_TRIGGER_TIME)
-
-    val alarmCount: StateFlow<Int> = alarmPreferences.alarmCount
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.slikharev.shifttrack.alarm.AlarmConstants.DEFAULT_ALARM_COUNT)
-
-    val alarmIntervalMinutes: StateFlow<Int> = alarmPreferences.intervalMinutes
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.slikharev.shifttrack.alarm.AlarmConstants.DEFAULT_INTERVAL_MINUTES)
-
-    val alarmFirstTime: StateFlow<String> = alarmPreferences.firstAlarmTime
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), com.slikharev.shifttrack.alarm.AlarmConstants.DEFAULT_FIRST_ALARM_TIME)
-
-    fun setAlarmEnabled(value: Boolean) {
-        viewModelScope.launch { alarmPreferences.setEnabled(value) }
-    }
-
-    fun setAlarmTriggerTime(hhmm: String) {
-        viewModelScope.launch { alarmPreferences.setTriggerTime(hhmm) }
-    }
-
-    fun setAlarmCount(count: Int) {
-        viewModelScope.launch { alarmPreferences.setAlarmCount(count) }
-    }
-
-    fun setAlarmIntervalMinutes(minutes: Int) {
-        viewModelScope.launch { alarmPreferences.setIntervalMinutes(minutes) }
-    }
-
-    fun setAlarmFirstTime(hhmm: String) {
-        viewModelScope.launch { alarmPreferences.setFirstAlarmTime(hhmm) }
-    }
-
     // ─── Colors ───────────────────────────────────────────────────────────────
 
     fun saveShiftColor(shiftType: com.slikharev.shifttrack.model.ShiftType, argb: Long) {
@@ -347,7 +306,6 @@ class SettingsViewModel @Inject constructor(
                 leaveBalanceDao.deleteAllForUser(uid)
                 overtimeDao.deleteAllForUser(uid)
                 overtimeBalanceDao.deleteAllForUser(uid)
-                alarmOverrideDao.deleteAllForUser(uid) // [EXPERIMENTAL:ALARM]
                 appDataStore.clearAll()
                 onComplete()
             } catch (e: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
@@ -374,7 +332,6 @@ class SettingsViewModel @Inject constructor(
                 leaveBalanceDao.deleteAllForUser(uid)
                 overtimeDao.deleteAllForUser(uid)
                 overtimeBalanceDao.deleteAllForUser(uid)
-                alarmOverrideDao.deleteAllForUser(uid) // [EXPERIMENTAL:ALARM]
                 appDataStore.clearAll()
                 onComplete()
             } catch (e: Exception) {

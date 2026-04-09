@@ -71,7 +71,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.slikharev.shifttrack.R
-import com.slikharev.shifttrack.alarm.ExperimentalFeaturesSection // [EXPERIMENTAL:ALARM]
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
@@ -127,13 +126,6 @@ fun SettingsScreen(navController: NavController) {
             viewModel.clearMessage()
         }
     }
-
-    // [EXPERIMENTAL:ALARM]
-    val alarmEnabled by viewModel.alarmEnabled.collectAsStateWithLifecycle()
-    val alarmTriggerTime by viewModel.alarmTriggerTime.collectAsStateWithLifecycle()
-    val alarmCount by viewModel.alarmCount.collectAsStateWithLifecycle()
-    val alarmIntervalMinutes by viewModel.alarmIntervalMinutes.collectAsStateWithLifecycle()
-    val alarmFirstTime by viewModel.alarmFirstTime.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.savedMessage, uiState.error) {
@@ -241,23 +233,6 @@ fun SettingsScreen(navController: NavController) {
                         viewModel.generateInvite()
                         showShareInviteDialog = true
                     },
-                )
-
-                HorizontalDivider()
-
-                // ── Experimental features ─────────────────────────────── [EXPERIMENTAL:ALARM]
-                SettingsSectionHeader("Experimental Features")
-                ExperimentalFeaturesSection(
-                    enabled = alarmEnabled,
-                    triggerTime = alarmTriggerTime,
-                    alarmCount = alarmCount,
-                    intervalMinutes = alarmIntervalMinutes,
-                    firstAlarmTime = alarmFirstTime,
-                    onEnabledChange = viewModel::setAlarmEnabled,
-                    onTriggerTimeChange = viewModel::setAlarmTriggerTime,
-                    onAlarmCountChange = viewModel::setAlarmCount,
-                    onIntervalMinutesChange = viewModel::setAlarmIntervalMinutes,
-                    onFirstAlarmTimeChange = viewModel::setAlarmFirstTime,
                 )
             }
 

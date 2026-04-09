@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.slikharev.shifttrack.alarm.AlarmOverrideDao // [EXPERIMENTAL:ALARM]
-import com.slikharev.shifttrack.alarm.AlarmPreferences // [EXPERIMENTAL:ALARM]
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
@@ -47,8 +45,6 @@ class SyncWorker @AssistedInject constructor(
     private val appDataStore: AppDataStore,
     private val annualResetUseCase: AnnualResetUseCase,
     private val widgetUpdater: ShiftWidgetUpdater,
-    private val alarmOverrideDao: AlarmOverrideDao, // [EXPERIMENTAL:ALARM]
-    private val alarmPreferences: AlarmPreferences, // [EXPERIMENTAL:ALARM]
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -63,7 +59,6 @@ class SyncWorker @AssistedInject constructor(
                 runCatching { syncShifts(uid) }.exceptionOrNull(),
                 runCatching { syncLeaves(uid) }.exceptionOrNull(),
                 runCatching { syncOvertimes(uid) }.exceptionOrNull(),
-                runCatching { syncAlarmOverrides(uid) }.exceptionOrNull(), // [EXPERIMENTAL:ALARM]
             )
             // Widget update is non-critical — never fails the sync.
             runCatching { widgetUpdater.updateAll() }
@@ -100,15 +95,6 @@ class SyncWorker @AssistedInject constructor(
         if (unsynced.isEmpty()) return
         syncDataSource.syncOvertimes(uid, unsynced)
         overtimeDao.markSynced(unsynced.map { it.id })
-    }
-
-    // [EXPERIMENTAL:ALARM]
-    private suspend fun syncAlarmOverrides(uid: String) {
-        if (!alarmPreferences.readEnabled()) return
-        val unsynced = alarmOverrideDao.getUnsynced(uid)
-        if (unsynced.isEmpty()) return
-        syncDataSource.syncAlarmOverrides(uid, unsynced)
-        alarmOverrideDao.markSynced(unsynced.map { it.id })
     }
 
     companion object {

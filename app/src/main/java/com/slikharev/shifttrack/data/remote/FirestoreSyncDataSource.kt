@@ -2,7 +2,6 @@ package com.slikharev.shifttrack.data.remote
 
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.slikharev.shifttrack.alarm.AlarmOverrideEntity // [EXPERIMENTAL:ALARM]
 import com.slikharev.shifttrack.data.local.db.entity.LeaveEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
@@ -17,7 +16,6 @@ import javax.inject.Singleton
  *   users/{uid}/shifts/{date}           ← ShiftEntity
  *   users/{uid}/leaves/{date}           ← LeaveEntity
  *   users/{uid}/overtime/{date}         ← OvertimeEntity
- *   users/{uid}/alarm_overrides/{date}  ← AlarmOverrideEntity  [EXPERIMENTAL:ALARM]
  *
  * All writes use SetOptions.merge() so concurrent writes from multiple devices
  * are safe for independent day documents.
@@ -97,31 +95,6 @@ class FirestoreSyncDataSource @Inject constructor(
         "date" to date,
         "hours" to hours,
         "note" to note,
-        "userId" to userId,
-    )
-
-    // [EXPERIMENTAL:ALARM]
-    /** Batch-writes alarm overrides for [uid]. */
-    suspend fun syncAlarmOverrides(uid: String, overrides: List<AlarmOverrideEntity>) {
-        if (overrides.isEmpty()) return
-        overrides.chunked(MAX_BATCH_SIZE).forEach { chunk ->
-            val batch = firestore.batch()
-            chunk.forEach { entity ->
-                val ref = firestore
-                    .collection("users").document(uid)
-                    .collection("alarm_overrides").document(entity.date)
-                batch.set(ref, entity.toMap(), SetOptions.merge())
-            }
-            batch.commit().await()
-        }
-    }
-
-    // [EXPERIMENTAL:ALARM]
-    private fun AlarmOverrideEntity.toMap(): Map<String, Any?> = mapOf(
-        "date" to date,
-        "alarmCount" to alarmCount,
-        "intervalMinutes" to intervalMinutes,
-        "firstAlarmTime" to firstAlarmTime,
         "userId" to userId,
     )
 }
