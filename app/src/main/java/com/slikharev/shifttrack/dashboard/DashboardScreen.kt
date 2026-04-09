@@ -16,13 +16,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -56,6 +62,9 @@ fun DashboardScreen(navController: NavController) {
     val weeklyOvertimeHours by viewModel.weeklyOvertimeHours.collectAsStateWithLifecycle()
     val yearlyOvertimeBalance by viewModel.yearlyOvertimeBalance.collectAsStateWithLifecycle()
     val selectedHostName by viewModel.selectedHostName.collectAsStateWithLifecycle()
+    val currentMonthIncome by viewModel.currentMonthIncome.collectAsStateWithLifecycle()
+    val selectedMonthName by viewModel.selectedMonthName.collectAsStateWithLifecycle()
+    val currencySymbol by viewModel.currencySymbol.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -104,6 +113,16 @@ fun DashboardScreen(navController: NavController) {
                                 Screen.DayDetail.createRoute(todayEntry.dayInfo.date.toString()),
                             )
                         },
+                    )
+                }
+
+                if (!isSpectatorOnly) {
+                    IncomeCard(
+                        currentIncome = currentMonthIncome,
+                        monthName = selectedMonthName,
+                        currencySymbol = currencySymbol,
+                        onNavigateBack = viewModel::navigateMonthBack,
+                        onNavigateToNow = viewModel::navigateToCurrentMonth,
                     )
                 }
 
@@ -220,6 +239,44 @@ private fun LeaveBalancesCard(balances: List<LeaveBalanceEntity>) {
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun IncomeCard(
+    currentIncome: Float,
+    monthName: String,
+    currencySymbol: String,
+    onNavigateBack: () -> Unit,
+    onNavigateToNow: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = "Income $monthName", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "$currencySymbol${"%.2f".format(currentIncome)}",
+                style = MaterialTheme.typography.headlineSmall.copy(fontSize = 24.sp),
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onNavigateBack, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Previous month",
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                TextButton(onClick = onNavigateToNow) {
+                    Text(monthName)
                 }
             }
         }

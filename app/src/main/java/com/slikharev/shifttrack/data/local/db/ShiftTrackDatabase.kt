@@ -7,13 +7,17 @@ import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
+import com.slikharev.shifttrack.data.local.db.dao.PublicHolidayDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
+import com.slikharev.shifttrack.data.local.db.dao.WorkedHoursOverrideDao
 import com.slikharev.shifttrack.data.local.db.entity.AttachmentEntity
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.LeaveEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
+import com.slikharev.shifttrack.data.local.db.entity.PublicHolidayEntity
 import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
+import com.slikharev.shifttrack.data.local.db.entity.WorkedHoursOverrideEntity
 
 @Database(
     entities = [
@@ -23,8 +27,10 @@ import com.slikharev.shifttrack.data.local.db.entity.ShiftEntity
         LeaveBalanceEntity::class,
         OvertimeBalanceEntity::class,
         AttachmentEntity::class,
+        PublicHolidayEntity::class,
+        WorkedHoursOverrideEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class ShiftTrackDatabase : RoomDatabase() {
@@ -34,4 +40,6 @@ abstract class ShiftTrackDatabase : RoomDatabase() {
     abstract fun leaveBalanceDao(): LeaveBalanceDao
     abstract fun overtimeBalanceDao(): OvertimeBalanceDao
     abstract fun attachmentDao(): AttachmentDao
+    abstract fun publicHolidayDao(): PublicHolidayDao
+    abstract fun workedHoursOverrideDao(): WorkedHoursOverrideDao
 }

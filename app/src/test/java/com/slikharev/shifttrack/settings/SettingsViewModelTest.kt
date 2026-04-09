@@ -93,6 +93,8 @@ class SettingsViewModelTest {
             attachmentRepository = mockAttachmentRepository,
             cloudRestoreRepository = mockk(relaxed = true),
             firestoreUserDataSource = mockk(relaxed = true),
+            publicHolidayRepository = mockk(relaxed = true),
+            publicHolidayDao = mockk(relaxed = true),
         )
     }
 

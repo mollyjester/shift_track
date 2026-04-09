@@ -84,6 +84,7 @@ Min SDK 34 · Target/Compile SDK 35 · Kotlin 2.0.21 · Java 17
 - **Deep links**: `shiftapp://day/{date}` and `shiftapp://invite/{token}` are validated (ISO date format and UUID format) before navigation.
 - **Midnight widget refresh**: `MidnightAlarmScheduler` + `MidnightWidgetReceiver` + `BootReceiver` ensure the widget updates at 00:00 daily.
 - **Delete account reauth**: `AuthRepository.reauthenticateAndDelete()` handles `FirebaseAuthRecentLoginRequiredException` with inline Google Sign-In picker instead of requiring sign-out/sign-in.
+- **Income tracking**: `IncomeCalculator` (pure Kotlin, no Android deps) computes monthly income from shift hours, overtime, and configurable rates. Night shifts split at midnight using `shiftChangeoverHour`. Dashboard shows "Income {month}" with `←` back-navigation and month-name reset button. Settings uses free-text `OutlinedTextField` for rates/multipliers and Material3 `TimePicker` for changeover time. Public holidays are managed via a dialog behind a "Manage" button.
 
 ## Documentation
 

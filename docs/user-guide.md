@@ -47,6 +47,7 @@ The bottom navigation bar has three sections:
 ### Dashboard
 
 - **Shift cards** — Each card shows the date, weekday, and shift type. Today's card is highlighted.
+- **Income card** — Shows "Income {month name}" with the calculated income for the selected month based on your configured rates and worked hours. Use the `←` button to view previous months and tap the month name to return to the current month.
 - **Leave balance** — Shows per-category progress bars (Annual, Sick, Personal, Unpaid, Study). Each bar gradually fills as leave is consumed. Remaining days are shown as `remaining / total` next to each bar.
 - **Overtime summary** — Shows hours worked this week and the cumulative yearly total.
 
@@ -86,6 +87,9 @@ Opening a day shows:
 | Setting | Description |
 |---|---|
 | **Anchor date** | Change the reference date for the cadence engine. You may need to update this if your shift pattern was re-based. |
+| **Country** | Select your country to set currency symbol and weekend days. Also fetches public holidays from Nager.Date API. |
+| **Income rates** | Set your base hourly rate, night/weekend/holiday multipliers, and shift changeover time. Rates are entered as free-text decimal fields. Changeover time is set via a time picker. |
+| **Public holidays** | Tap **Manage** to open the holiday list. Add manual holidays or refresh from the Nager.Date API (requires country selection). |
 | **Leave entitlement** | Per-category leave days for the current year (Annual, Sick, Personal, Unpaid, Study). The app resets automatically on the first launch of each new year, carrying over each category's total independently. |
 | **Overtime compensation** | Mark hours as compensated (paid out or taken as time-off). This does not remove them from the history. |
 | **Shift colors** | Customise the colour for each shift type (Day, Night, Rest, Off, Leave) using a color picker with Hue, Saturation, and Brightness sliders. A preview swatch shows your selection in real time. Tap **Reset to default** to revert. Changes take effect immediately across the calendar, dashboard, day detail screens, and widget. |

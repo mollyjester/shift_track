@@ -98,6 +98,7 @@ class DayDetailViewModelTest {
             storageMonitor = mockStorageMonitor,
             storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = mockAppDataStore,
+            workedHoursOverrideDao = mockk(relaxed = true),
         )
     }
 
@@ -138,6 +139,7 @@ class DayDetailViewModelTest {
             storageMonitor = mockStorageMonitor,
             storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = mockAppDataStore,
+            workedHoursOverrideDao = mockk(relaxed = true),
         )
 
         val job = launch { viewModel.dayInfo.collect { } }
@@ -172,6 +174,7 @@ class DayDetailViewModelTest {
             storageMonitor = mockStorageMonitor,
             storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = mockAppDataStore,
+            workedHoursOverrideDao = mockk(relaxed = true),
         )
 
         val job = launch { viewModel.overtimeEntry.collect { } }
@@ -333,6 +336,7 @@ class DayDetailViewModelTest {
             storageMonitor = mockStorageMonitor,
             storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = spectatorDataStore,
+            workedHoursOverrideDao = mockk(relaxed = true),
         )
         val job = launch { vm.isSpectator.collect { } }
         advanceUntilIdle()

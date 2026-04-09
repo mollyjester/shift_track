@@ -1,6 +1,9 @@
 package com.slikharev.shifttrack.dashboard
 
+import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
+import com.slikharev.shifttrack.data.local.db.dao.PublicHolidayDao
+import com.slikharev.shifttrack.data.local.db.dao.WorkedHoursOverrideDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
@@ -45,6 +48,9 @@ class DashboardViewModelTest {
     private lateinit var mockAppDataStore: AppDataStore
     private lateinit var mockSpectatorRepository: SpectatorRepository
     private lateinit var mockWidgetUpdater: ShiftWidgetUpdater
+    private lateinit var mockPublicHolidayDao: PublicHolidayDao
+    private lateinit var mockWorkedHoursOverrideDao: WorkedHoursOverrideDao
+    private val fakeUserSession = object : UserSession { override val currentUserId = "test-uid" }
     private lateinit var viewModel: DashboardViewModel
 
     @Before
@@ -55,10 +61,18 @@ class DashboardViewModelTest {
         mockOvertimeRepository = mockk(relaxed = true)
         mockSpectatorRepository = mockk(relaxed = true)
         mockWidgetUpdater = mockk(relaxed = true)
+        mockPublicHolidayDao = mockk(relaxed = true)
+        mockWorkedHoursOverrideDao = mockk(relaxed = true)
         mockAppDataStore = mockk(relaxed = true) {
             every { spectatorMode } returns flowOf(false)
             every { selectedHostUid } returns flowOf(null)
             every { watchedHosts } returns flowOf(emptyList())
+            every { selectedCountryCode } returns flowOf(null)
+            every { baseHourlyRate } returns flowOf(0f)
+            every { nightMultiplier } returns flowOf(1f)
+            every { weekendMultiplier } returns flowOf(1f)
+            every { holidayMultiplier } returns flowOf(1f)
+            every { shiftChangeoverHour } returns flowOf(7)
         }
 
         every { mockShiftRepository.getDayInfosForRange(any(), any()) } returns flowOf(emptyList())
@@ -71,6 +85,7 @@ class DashboardViewModelTest {
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
     }
 
@@ -100,6 +115,7 @@ class DashboardViewModelTest {
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
 
         val job = launch { viewModel.upcomingDays.collect { } }
@@ -119,6 +135,7 @@ class DashboardViewModelTest {
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
 
         val job = launch { viewModel.upcomingDays.collect { } }
@@ -140,12 +157,19 @@ class DashboardViewModelTest {
             every { spectatorMode } returns flowOf(true)
             every { selectedHostUid } returns flowOf(hostUid)
             every { watchedHosts } returns flowOf(listOf(AppDataStore.WatchedHost(hostUid, "Alice")))
+            every { selectedCountryCode } returns flowOf(null)
+            every { baseHourlyRate } returns flowOf(0f)
+            every { nightMultiplier } returns flowOf(1f)
+            every { weekendMultiplier } returns flowOf(1f)
+            every { holidayMultiplier } returns flowOf(1f)
+            every { shiftChangeoverHour } returns flowOf(7)
         }
         coEvery { mockSpectatorRepository.getDayInfosForRange(hostUid, any(), any()) } returns hostInfos
 
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
 
         val job = launch { viewModel.upcomingDays.collect { } }
@@ -163,12 +187,19 @@ class DashboardViewModelTest {
             every { spectatorMode } returns flowOf(true)
             every { selectedHostUid } returns flowOf(hostUid)
             every { watchedHosts } returns flowOf(listOf(AppDataStore.WatchedHost(hostUid, "Alice")))
+            every { selectedCountryCode } returns flowOf(null)
+            every { baseHourlyRate } returns flowOf(0f)
+            every { nightMultiplier } returns flowOf(1f)
+            every { weekendMultiplier } returns flowOf(1f)
+            every { holidayMultiplier } returns flowOf(1f)
+            every { shiftChangeoverHour } returns flowOf(7)
         }
         coEvery { mockSpectatorRepository.getDayInfosForRange(any(), any(), any()) } returns emptyList()
 
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
 
         val job = launch { viewModel.selectedHostName.collect { } }
@@ -198,6 +229,7 @@ class DashboardViewModelTest {
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
 
         val job = launch { viewModel.leaveBalances.collect { } }
@@ -228,6 +260,7 @@ class DashboardViewModelTest {
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
 
         val job = launch { viewModel.weeklyOvertimeHours.collect { } }
@@ -246,6 +279,7 @@ class DashboardViewModelTest {
         viewModel = DashboardViewModel(
             mockShiftRepository, mockLeaveRepository, mockOvertimeRepository,
             mockAppDataStore, mockSpectatorRepository, mockWidgetUpdater,
+            mockPublicHolidayDao, mockWorkedHoursOverrideDao, fakeUserSession,
         )
 
         val job = launch { viewModel.yearlyOvertimeBalance.collect { } }

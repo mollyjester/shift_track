@@ -15,18 +15,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -40,12 +47,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +73,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,7 +85,10 @@ import com.google.android.gms.common.api.ApiException
 import com.slikharev.shifttrack.R
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
+import com.slikharev.shifttrack.data.local.db.entity.PublicHolidayEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
+import com.slikharev.shifttrack.model.Countries
+import com.slikharev.shifttrack.model.CountryConfig
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
@@ -101,6 +115,13 @@ fun SettingsScreen(navController: NavController) {
     val widgetTransparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val widgetDayCount by viewModel.widgetDayCount.collectAsStateWithLifecycle()
     val storageUsed by viewModel.storageUsed.collectAsStateWithLifecycle()
+    val selectedCountryCode by viewModel.selectedCountryCode.collectAsStateWithLifecycle()
+    val baseHourlyRate by viewModel.baseHourlyRate.collectAsStateWithLifecycle()
+    val nightMultiplier by viewModel.nightMultiplier.collectAsStateWithLifecycle()
+    val weekendMultiplier by viewModel.weekendMultiplier.collectAsStateWithLifecycle()
+    val holidayMultiplier by viewModel.holidayMultiplier.collectAsStateWithLifecycle()
+    val shiftChangeoverHour by viewModel.shiftChangeoverHour.collectAsStateWithLifecycle()
+    val publicHolidays by viewModel.publicHolidays.collectAsStateWithLifecycle()
 
     // Google Sign-In for reauthentication
     val context = LocalContext.current
@@ -146,6 +167,10 @@ fun SettingsScreen(navController: NavController) {
     var showShareInviteDialog by remember { mutableStateOf(false) }
     var showCleanupDialog by remember { mutableStateOf(false) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
+    var showCountryPicker by remember { mutableStateOf(false) }
+    var showAddHolidayDialog by remember { mutableStateOf(false) }
+    var showHolidaysDialog by remember { mutableStateOf(false) }
+    var showChangeoverPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
@@ -167,7 +192,43 @@ fun SettingsScreen(navController: NavController) {
                 onDeleteAccount = { showDeleteConfirm = true },
             )
 
+            HorizontalDivider()
+
+            // ── Country ──────────────────────────────────────────────────────────
+            SettingsSectionHeader("Country")
+            CountryCard(
+                selectedCountryCode = selectedCountryCode,
+                onPickClick = { showCountryPicker = true },
+            )
+
             if (!isSpectatorOnly) {
+                HorizontalDivider()
+
+                // ── Income rates ─────────────────────────────────────────────────────
+                SettingsSectionHeader("Income Rates")
+                IncomeRatesSection(
+                    currencySymbol = selectedCountryCode?.let { Countries.findByCode(it)?.currencySymbol } ?: "$",
+                    baseRate = baseHourlyRate,
+                    nightMult = nightMultiplier,
+                    weekendMult = weekendMultiplier,
+                    holidayMult = holidayMultiplier,
+                    changeoverHour = shiftChangeoverHour,
+                    onBaseRateChange = viewModel::setBaseHourlyRate,
+                    onNightMultChange = viewModel::setNightMultiplier,
+                    onWeekendMultChange = viewModel::setWeekendMultiplier,
+                    onHolidayMultChange = viewModel::setHolidayMultiplier,
+                    onChangeoverClick = { showChangeoverPicker = true },
+                )
+
+                HorizontalDivider()
+
+                // ── Public holidays ──────────────────────────────────────────────────
+                SettingsSectionHeader("Public Holidays")
+                PublicHolidaysSummary(
+                    count = publicHolidays.size,
+                    onManageClick = { showHolidaysDialog = true },
+                )
+
                 HorizontalDivider()
 
                 // ── Shift schedule ───────────────────────────────────────────────────
@@ -427,6 +488,49 @@ fun SettingsScreen(navController: NavController) {
             dismissButton = {
                 TextButton(onClick = { showRestoreConfirm = false }) { Text("Cancel") }
             },
+        )
+    }
+
+    if (showCountryPicker) {
+        CountryPickerDialog(
+            selectedCode = selectedCountryCode,
+            onSelect = { code ->
+                showCountryPicker = false
+                viewModel.setCountry(code)
+            },
+            onDismiss = { showCountryPicker = false },
+        )
+    }
+
+    if (showAddHolidayDialog) {
+        AddHolidayDialog(
+            onConfirm = { date, name ->
+                showAddHolidayDialog = false
+                viewModel.addPublicHoliday(date, name)
+            },
+            onDismiss = { showAddHolidayDialog = false },
+        )
+    }
+
+    if (showHolidaysDialog) {
+        PublicHolidaysDialog(
+            holidays = publicHolidays,
+            onAdd = { showAddHolidayDialog = true },
+            onDelete = viewModel::deletePublicHoliday,
+            onRefresh = viewModel::refreshHolidays,
+            hasCountry = selectedCountryCode != null,
+            onDismiss = { showHolidaysDialog = false },
+        )
+    }
+
+    if (showChangeoverPicker) {
+        ChangeoverTimeDialog(
+            currentHour = shiftChangeoverHour,
+            onConfirm = { hour ->
+                showChangeoverPicker = false
+                viewModel.setShiftChangeoverHour(hour)
+            },
+            onDismiss = { showChangeoverPicker = false },
         )
     }
 }
@@ -1124,6 +1228,394 @@ private fun ShareInviteDialog(link: String?, onDismiss: () -> Unit) {
             } else {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
+        },
+    )
+}
+
+// ── Country ──────────────────────────────────────────────────────────────────
+
+@Composable
+private fun CountryCard(
+    selectedCountryCode: String?,
+    onPickClick: () -> Unit,
+) {
+    val country = selectedCountryCode?.let { Countries.findByCode(it) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (country != null) {
+                    Text(
+                        text = "${country.name} (${country.code})",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        text = "Currency: ${country.currencySymbol}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        text = "Not selected",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            OutlinedButton(onClick = onPickClick) {
+                Text("Select")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CountryPickerDialog(
+    selectedCode: String?,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val allCountries = remember { Countries.all }
+    val filtered = remember(query) {
+        if (query.isBlank()) allCountries
+        else allCountries.filter {
+            it.name.contains(query, ignoreCase = true) || it.code.contains(query, ignoreCase = true)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select country") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search…") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                    items(filtered, key = { it.code }) { country ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(country.code) }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "${country.name} (${country.currencySymbol})",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (country.code == selectedCode) {
+                                Text("✓", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+// ── Income Rates ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun IncomeRatesSection(
+    currencySymbol: String,
+    baseRate: Float,
+    nightMult: Float,
+    weekendMult: Float,
+    holidayMult: Float,
+    changeoverHour: Int,
+    onBaseRateChange: (Float) -> Unit,
+    onNightMultChange: (Float) -> Unit,
+    onWeekendMultChange: (Float) -> Unit,
+    onHolidayMultChange: (Float) -> Unit,
+    onChangeoverClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Changeover hour — tap to open time picker
+            Text("Shift changeover time", style = MaterialTheme.typography.labelMedium)
+            OutlinedButton(onClick = onChangeoverClick) {
+                Text(
+                    text = "%02d:00".format(changeoverHour),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+
+            HorizontalDivider()
+
+            // Base hourly rate
+            RateTextField(
+                label = "Base hourly rate ($currencySymbol/h)",
+                value = baseRate,
+                onValueChange = onBaseRateChange,
+                min = 0f,
+                max = 9999f,
+            )
+
+            HorizontalDivider()
+
+            // Night multiplier
+            RateTextField(
+                label = "Night shift multiplier (×)",
+                value = nightMult,
+                onValueChange = onNightMultChange,
+                min = 1f,
+                max = 10f,
+            )
+
+            // Weekend multiplier
+            RateTextField(
+                label = "Last weekend day multiplier (×)",
+                value = weekendMult,
+                onValueChange = onWeekendMultChange,
+                min = 1f,
+                max = 10f,
+            )
+
+            // Holiday multiplier
+            RateTextField(
+                label = "Public holiday multiplier (×)",
+                value = holidayMult,
+                onValueChange = onHolidayMultChange,
+                min = 1f,
+                max = 10f,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RateTextField(
+    label: String,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    min: Float,
+    max: Float,
+) {
+    var text by remember(value) { mutableStateOf("%.2f".format(value)) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { input ->
+            text = input
+            input.toFloatOrNull()?.let { parsed ->
+                val clamped = parsed.coerceIn(min, max)
+                onValueChange(clamped)
+            }
+        },
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+// ── Public Holidays ──────────────────────────────────────────────────────────
+
+@Composable
+private fun PublicHolidaysSummary(
+    count: Int,
+    onManageClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (count == 0) "No holidays configured" else "$count holiday${if (count != 1) "s" else ""} configured",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (count == 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            )
+            OutlinedButton(onClick = onManageClick) {
+                Text("Manage")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PublicHolidaysDialog(
+    holidays: List<PublicHolidayEntity>,
+    onAdd: () -> Unit,
+    onDelete: (PublicHolidayEntity) -> Unit,
+    onRefresh: () -> Unit,
+    hasCountry: Boolean,
+    onDismiss: () -> Unit,
+) {
+    val dateFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Public Holidays") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (holidays.isEmpty()) {
+                    Text(
+                        text = "No holidays configured",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                        items(holidays, key = { it.id }) { holiday ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                val dateStr = runCatching { LocalDate.parse(holiday.date).format(dateFmt) }
+                                    .getOrDefault(holiday.date)
+                                Text(
+                                    text = dateStr,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = holiday.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                IconButton(
+                                    onClick = { onDelete(holiday) },
+                                    modifier = Modifier.size(24.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onAdd) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add")
+                    }
+                    if (hasCountry) {
+                        OutlinedButton(onClick = onRefresh) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Refresh")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChangeoverTimeDialog(
+    currentHour: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val timePickerState = remember {
+        TimePickerState(
+            initialHour = currentHour,
+            initialMinute = 0,
+            is24Hour = true,
+        )
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Shift changeover time") },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                TimePicker(state = timePickerState)
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(timePickerState.hour) }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun AddHolidayDialog(
+    onConfirm: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var date by remember { mutableStateOf(LocalDate.now()) }
+    var name by remember { mutableStateOf("") }
+    val dateFmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add public holiday") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Date:", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(onClick = { date = date.minusDays(1) }) { Text("−") }
+                    Text(date.format(dateFmt), style = MaterialTheme.typography.bodyMedium)
+                    OutlinedButton(onClick = { date = date.plusDays(1) }) { Text("+") }
+                }
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(100) },
+                    label = { Text("Holiday name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(date.toString(), name.trim()) },
+                enabled = name.isNotBlank(),
+            ) { Text("Add") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
 }

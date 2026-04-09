@@ -64,7 +64,7 @@ class OnboardingViewModelTest {
         )
         appDataStore = AppDataStore(dataStore)
         fakeLeaveBalanceDao = FakeLeaveBalanceDao()
-        viewModel = OnboardingViewModel(appDataStore, fakeLeaveBalanceDao, fakeUserSession, mockk(relaxed = true))
+        viewModel = OnboardingViewModel(appDataStore, fakeLeaveBalanceDao, fakeUserSession, mockk(relaxed = true), mockk(relaxed = true))
     }
 
     @After
@@ -148,18 +148,19 @@ class OnboardingViewModelTest {
     // ── nextStep with valid selection ─────────────────────────────────────────
 
     @Test
-    fun `nextStep on SHIFT_PICKER with selection advances to LEAVE_SETUP`() {
+    fun `nextStep on SHIFT_PICKER with selection advances to COUNTRY_SELECT`() {
         viewModel.selectCycleIndex(0)
         val advanced = viewModel.nextStep()
         assertTrue(advanced)
-        assertEquals(OnboardingStep.LEAVE_SETUP, viewModel.uiState.value.step)
+        assertEquals(OnboardingStep.COUNTRY_SELECT, viewModel.uiState.value.step)
         assertNull(viewModel.uiState.value.error)
     }
 
     @Test
     fun `nextStep on LEAVE_SETUP advances to CONFIRM`() {
         viewModel.selectCycleIndex(1)
-        viewModel.nextStep()
+        viewModel.nextStep() // → COUNTRY_SELECT
+        viewModel.nextStep() // → LEAVE_SETUP
         val advanced = viewModel.nextStep()
         assertTrue(advanced)
         assertEquals(OnboardingStep.CONFIRM, viewModel.uiState.value.step)
@@ -168,6 +169,7 @@ class OnboardingViewModelTest {
     @Test
     fun `nextStep on LEAVE_SETUP populates previewDays`() {
         viewModel.selectCycleIndex(0)
+        viewModel.nextStep() // → COUNTRY_SELECT
         viewModel.nextStep() // → LEAVE_SETUP
         viewModel.nextStep() // → CONFIRM
         assertEquals(7, viewModel.uiState.value.previewDays.size)
@@ -176,8 +178,9 @@ class OnboardingViewModelTest {
     @Test
     fun `nextStep on CONFIRM returns false (use completeOnboarding instead)`() {
         viewModel.selectCycleIndex(0)
-        viewModel.nextStep()
-        viewModel.nextStep()
+        viewModel.nextStep() // → COUNTRY_SELECT
+        viewModel.nextStep() // → LEAVE_SETUP
+        viewModel.nextStep() // → CONFIRM
         assertEquals(OnboardingStep.CONFIRM, viewModel.uiState.value.step)
         val advanced = viewModel.nextStep()
         assertFalse(advanced)
@@ -198,8 +201,9 @@ class OnboardingViewModelTest {
     @Test
     fun `prevStep from CONFIRM goes back to LEAVE_SETUP`() {
         viewModel.selectCycleIndex(0)
-        viewModel.nextStep()
-        viewModel.nextStep()
+        viewModel.nextStep() // → COUNTRY_SELECT
+        viewModel.nextStep() // → LEAVE_SETUP
+        viewModel.nextStep() // → CONFIRM
         viewModel.prevStep()
         assertEquals(OnboardingStep.LEAVE_SETUP, viewModel.uiState.value.step)
     }
@@ -213,9 +217,11 @@ class OnboardingViewModelTest {
     // ── full wizard forward journey ───────────────────────────────────────────
 
     @Test
-    fun `full wizard navigation sequence is SHIFT_PICKER → LEAVE_SETUP → CONFIRM`() {
+    fun `full wizard navigation sequence is SHIFT_PICKER → COUNTRY_SELECT → LEAVE_SETUP → CONFIRM`() {
         assertEquals(OnboardingStep.SHIFT_PICKER, viewModel.uiState.value.step)
         viewModel.selectCycleIndex(3)
+        viewModel.nextStep()
+        assertEquals(OnboardingStep.COUNTRY_SELECT, viewModel.uiState.value.step)
         viewModel.nextStep()
         assertEquals(OnboardingStep.LEAVE_SETUP, viewModel.uiState.value.step)
         viewModel.setLeaveAllowance(LeaveType.ANNUAL, 25)

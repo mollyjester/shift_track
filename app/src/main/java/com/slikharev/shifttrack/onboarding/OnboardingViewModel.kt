@@ -6,6 +6,7 @@ import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
+import com.slikharev.shifttrack.data.repository.PublicHolidayRepository
 import com.slikharev.shifttrack.model.LeaveType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,7 @@ class OnboardingViewModel @Inject constructor(
     private val leaveBalanceDao: LeaveBalanceDao,
     private val userSession: UserSession,
     private val firestoreUserDataSource: com.slikharev.shifttrack.data.remote.FirestoreUserDataSource,
+    private val publicHolidayRepository: PublicHolidayRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OnboardingUiState())
@@ -46,7 +48,13 @@ class OnboardingViewModel @Inject constructor(
         _uiState.update { it.copy(spectatorOnly = enabled, error = null) }
     }
 
-    // ── Step 2: per-category leave setup ─────────────────────────────────────
+    // ── Step 2: country select ───────────────────────────────────────────
+
+    fun setCountry(code: String) {
+        _uiState.update { it.copy(selectedCountryCode = code, error = null) }
+    }
+
+    // ── Step 3: per-category leave setup ─────────────────────────────────────
 
     fun setLeaveAllowance(leaveType: LeaveType, days: Int) {
         val clamped = days.coerceIn(0, 365)
@@ -69,10 +77,16 @@ class OnboardingViewModel @Inject constructor(
                     false
                 } else {
                     _uiState.update {
-                        it.copy(step = OnboardingStep.LEAVE_SETUP, error = null)
+                        it.copy(step = OnboardingStep.COUNTRY_SELECT, error = null)
                     }
                     true
                 }
+            }
+            OnboardingStep.COUNTRY_SELECT -> {
+                _uiState.update {
+                    it.copy(step = OnboardingStep.LEAVE_SETUP, error = null)
+                }
+                true
             }
             OnboardingStep.LEAVE_SETUP -> {
                 val preview = state.buildPreview()
@@ -88,7 +102,8 @@ class OnboardingViewModel @Inject constructor(
     fun prevStep() {
         _uiState.update { state ->
             when (state.step) {
-                OnboardingStep.LEAVE_SETUP -> state.copy(step = OnboardingStep.SHIFT_PICKER, error = null)
+                OnboardingStep.COUNTRY_SELECT -> state.copy(step = OnboardingStep.SHIFT_PICKER, error = null)
+                OnboardingStep.LEAVE_SETUP -> state.copy(step = OnboardingStep.COUNTRY_SELECT, error = null)
                 OnboardingStep.CONFIRM -> state.copy(step = OnboardingStep.LEAVE_SETUP, error = null)
                 OnboardingStep.SHIFT_PICKER -> state
             }
@@ -136,6 +151,14 @@ class OnboardingViewModel @Inject constructor(
 
                 appDataStore.setSpectatorMode(state.spectatorOnly)
                 appDataStore.setOnboardingComplete(true)
+
+                // Save country and fetch holidays (non-blocking)
+                state.selectedCountryCode?.let { code ->
+                    appDataStore.setSelectedCountryCode(code)
+                    viewModelScope.launch {
+                        publicHolidayRepository.fetchAndStoreHolidays(code, LocalDate.now().year)
+                    }
+                }
 
                 _uiState.update { it.copy(isSaving = false) }
                 onSuccess()

@@ -102,6 +102,7 @@ fun DayDetailScreen(navController: NavController) {
     val isSpectator by viewModel.isSpectator.collectAsStateWithLifecycle()
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
     val storageWarning by viewModel.storageWarning.collectAsStateWithLifecycle()
+    val workedHoursOverride by viewModel.workedHoursOverride.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -183,6 +184,10 @@ fun DayDetailScreen(navController: NavController) {
                 isSpectator = isSpectator,
                 attachments = attachments,
                 storageWarning = storageWarning,
+                workedHoursOverride = workedHoursOverride?.hours,
+                defaultWorkedHours = viewModel.defaultWorkedHours(dayInfo!!),
+                onSetWorkedHours = viewModel::setWorkedHours,
+                onClearWorkedHours = viewModel::clearWorkedHoursOverride,
                 onOverride = { viewModel.setManualOverride(it) },
                 onClearOverride = viewModel::clearManualOverride,
                 onAddLeave = viewModel::addLeave,
@@ -255,6 +260,10 @@ private fun DayDetailContent(
     isSpectator: Boolean,
     attachments: List<AttachmentEntity>,
     storageWarning: Boolean,
+    workedHoursOverride: Float?,
+    defaultWorkedHours: Float,
+    onSetWorkedHours: (Float) -> Unit,
+    onClearWorkedHours: () -> Unit,
     onOverride: (ShiftType) -> Unit,
     onClearOverride: () -> Unit,
     onAddLeave: (LeaveType, Boolean, String?) -> Unit,
@@ -315,6 +324,14 @@ private fun DayDetailContent(
                 )
             }
         } else {
+            // Worked hours section
+            WorkedHoursSection(
+                currentHours = workedHoursOverride ?: defaultWorkedHours,
+                isOverridden = workedHoursOverride != null,
+                onHoursChange = onSetWorkedHours,
+                onReset = onClearWorkedHours,
+            )
+
             // Note section
             NoteSection(
                 noteText = noteText,
@@ -445,6 +462,40 @@ private fun NoteSection(
             enabled = !isSaving,
         ) {
             Text("Save note")
+        }
+    }
+}
+
+@Composable
+private fun WorkedHoursSection(
+    currentHours: Float,
+    isOverridden: Boolean,
+    onHoursChange: (Float) -> Unit,
+    onReset: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = "Worked hours", style = MaterialTheme.typography.titleMedium)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedButton(
+                onClick = { if (currentHours >= 0.5f) onHoursChange(currentHours - 0.5f) },
+                enabled = currentHours >= 0.5f,
+            ) { Text("−") }
+            Text(
+                text = "${"%.1f".format(currentHours)} h${if (!isOverridden) " (default)" else ""}",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            OutlinedButton(
+                onClick = { if (currentHours < 24f) onHoursChange(currentHours + 0.5f) },
+                enabled = currentHours < 24f,
+            ) { Text("+") }
+            if (isOverridden) {
+                TextButton(onClick = onReset) {
+                    Text("Reset", color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
     }
 }

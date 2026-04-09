@@ -51,6 +51,13 @@ object PrefsKeys {
     val SPECTATOR_WIDGET_CACHE = stringPreferencesKey("spectator_widget_cache")
     // Cached spectator calendar data for offline viewing (broader than widget cache)
     val SPECTATOR_CALENDAR_CACHE = stringPreferencesKey("spectator_calendar_cache")
+    // Country & income rates
+    val SELECTED_COUNTRY_CODE = stringPreferencesKey("selected_country_code")
+    val BASE_HOURLY_RATE = floatPreferencesKey("base_hourly_rate")
+    val NIGHT_MULTIPLIER = floatPreferencesKey("night_multiplier")
+    val WEEKEND_MULTIPLIER = floatPreferencesKey("weekend_multiplier")
+    val HOLIDAY_MULTIPLIER = floatPreferencesKey("holiday_multiplier")
+    val SHIFT_CHANGEOVER_HOUR = intPreferencesKey("shift_changeover_hour")
 }
 
 /**
@@ -319,12 +326,60 @@ class AppDataStore @Inject constructor(
         val spectatorCache: List<SpectatorWidgetEntry> = emptyList(),
     )
 
+    // ── Country & income rates ─────────────────────────────────────────────────
+
+    val selectedCountryCode: Flow<String?> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.SELECTED_COUNTRY_CODE] }
+
+    val baseHourlyRate: Flow<Float> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.BASE_HOURLY_RATE] ?: 0f }
+
+    val nightMultiplier: Flow<Float> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.NIGHT_MULTIPLIER] ?: DEFAULT_NIGHT_MULTIPLIER }
+
+    val weekendMultiplier: Flow<Float> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.WEEKEND_MULTIPLIER] ?: DEFAULT_WEEKEND_MULTIPLIER }
+
+    val holidayMultiplier: Flow<Float> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.HOLIDAY_MULTIPLIER] ?: DEFAULT_HOLIDAY_MULTIPLIER }
+
+    val shiftChangeoverHour: Flow<Int> = dataStore.data
+        .map { prefs -> prefs[PrefsKeys.SHIFT_CHANGEOVER_HOUR] ?: DEFAULT_CHANGEOVER_HOUR }
+
+    suspend fun setSelectedCountryCode(code: String) {
+        dataStore.edit { it[PrefsKeys.SELECTED_COUNTRY_CODE] = code }
+    }
+
+    suspend fun setBaseHourlyRate(rate: Float) {
+        dataStore.edit { it[PrefsKeys.BASE_HOURLY_RATE] = rate.coerceAtLeast(0f) }
+    }
+
+    suspend fun setNightMultiplier(multiplier: Float) {
+        dataStore.edit { it[PrefsKeys.NIGHT_MULTIPLIER] = multiplier.coerceAtLeast(1f) }
+    }
+
+    suspend fun setWeekendMultiplier(multiplier: Float) {
+        dataStore.edit { it[PrefsKeys.WEEKEND_MULTIPLIER] = multiplier.coerceAtLeast(1f) }
+    }
+
+    suspend fun setHolidayMultiplier(multiplier: Float) {
+        dataStore.edit { it[PrefsKeys.HOLIDAY_MULTIPLIER] = multiplier.coerceAtLeast(1f) }
+    }
+
+    suspend fun setShiftChangeoverHour(hour: Int) {
+        dataStore.edit { it[PrefsKeys.SHIFT_CHANGEOVER_HOUR] = hour.coerceIn(0, 23) }
+    }
+
     companion object {
         const val DEFAULT_LEAVE_DAYS = 28f
         const val DEFAULT_WIDGET_TRANSPARENCY = 1f
         const val DEFAULT_WIDGET_DAY_COUNT = 4
         const val MIN_WIDGET_DAYS = 1
         const val MAX_WIDGET_DAYS = 7
+        const val DEFAULT_NIGHT_MULTIPLIER = 1f
+        const val DEFAULT_WEEKEND_MULTIPLIER = 1f
+        const val DEFAULT_HOLIDAY_MULTIPLIER = 1f
+        const val DEFAULT_CHANGEOVER_HOUR = 7
 
         /** Encode as "uid1|name1\nuid2|name2" */
         internal fun encodeWatchedHosts(hosts: List<WatchedHost>): String =

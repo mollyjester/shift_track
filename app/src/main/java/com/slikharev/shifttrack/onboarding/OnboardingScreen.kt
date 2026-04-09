@@ -1,6 +1,7 @@
 package com.slikharev.shifttrack.onboarding
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,12 +36,16 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.slikharev.shifttrack.model.Countries
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import java.time.format.DateTimeFormatter
@@ -54,8 +59,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
 
     val progress = when (state.step) {
-        OnboardingStep.SHIFT_PICKER -> 0.33f
-        OnboardingStep.LEAVE_SETUP -> 0.66f
+        OnboardingStep.SHIFT_PICKER -> 0.25f
+        OnboardingStep.COUNTRY_SELECT -> 0.50f
+        OnboardingStep.LEAVE_SETUP -> 0.75f
         OnboardingStep.CONFIRM -> 1.0f
     }
 
@@ -80,6 +86,12 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     onNext = { viewModel.nextStep() },
                     onSetSpectatorOnly = viewModel::setSpectatorOnly,
                     onCompleteAsSpectator = { viewModel.completeOnboarding(onComplete) },
+                )
+                OnboardingStep.COUNTRY_SELECT -> CountrySelectStep(
+                    state = state,
+                    onSelectCountry = viewModel::setCountry,
+                    onNext = { viewModel.nextStep() },
+                    onBack = viewModel::prevStep,
                 )
                 OnboardingStep.LEAVE_SETUP -> LeaveSetupStep(
                     state = state,
@@ -115,7 +127,7 @@ private fun ShiftPickerStep(
     ) {
         Column {
             Text(
-                text = "Step 1 of 3",
+                text = "Step 1 of 4",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -286,7 +298,109 @@ private fun shiftTypeEmoji(type: ShiftType) = when (type) {
     ShiftType.LEAVE -> "🌴"
 }
 
-// ── Step 2 ────────────────────────────────────────────────────────────────────
+// ── Step 2: Country ───────────────────────────────────────────────────────────
+
+@Composable
+private fun CountrySelectStep(
+    state: OnboardingUiState,
+    onSelectCountry: (String) -> Unit,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    val allCountries = remember { Countries.all }
+    val filtered = remember(query) {
+        if (query.isBlank()) allCountries
+        else allCountries.filter {
+            it.name.contains(query, ignoreCase = true) || it.code.contains(query, ignoreCase = true)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Step 2 of 4",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Select your country",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Used for public holidays, weekend days, and currency.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Search countries…") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyColumn(modifier = Modifier.weight(1f)) {
+                items(filtered, key = { it.code }) { country ->
+                    val isSelected = country.code == state.selectedCountryCode
+                    val containerColor = if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    }
+                    Card(
+                        onClick = { onSelectCountry(country.code) },
+                        colors = CardDefaults.cardColors(containerColor = containerColor),
+                        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = country.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = country.currencySymbol,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
+            state.error?.let {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FilledTonalButton(onClick = onBack, modifier = Modifier.weight(1f).height(50.dp)) {
+                Text("Back")
+            }
+            Button(onClick = onNext, modifier = Modifier.weight(1f).height(50.dp)) {
+                Text(if (state.selectedCountryCode != null) "Next" else "Skip")
+            }
+        }
+    }
+}
+
+// ── Step 3 ────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun LeaveSetupStep(
@@ -301,7 +415,7 @@ private fun LeaveSetupStep(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Step 2 of 3",
+                text = "Step 3 of 4",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -393,7 +507,7 @@ private fun ConfirmStep(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Step 3 of 3",
+                text = "Step 4 of 4",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )

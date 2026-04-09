@@ -20,7 +20,10 @@ import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
+import com.slikharev.shifttrack.data.local.db.dao.PublicHolidayDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
+import com.slikharev.shifttrack.data.local.db.dao.WorkedHoursOverrideDao
+import com.slikharev.shifttrack.data.remote.HolidayApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -50,6 +53,45 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
             """
             CREATE UNIQUE INDEX IF NOT EXISTS `index_attachments_date_user_id_file_name`
             ON `attachments` (`date`, `user_id`, `file_name`)
+            """.trimIndent(),
+        )
+    }
+}
+
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `public_holidays` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `country_code` TEXT NOT NULL,
+                `user_id` TEXT NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS `index_public_holidays_date_user_id`
+            ON `public_holidays` (`date`, `user_id`)
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `worked_hours_override` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `date` TEXT NOT NULL,
+                `hours` REAL NOT NULL,
+                `user_id` TEXT NOT NULL,
+                `synced` INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS `index_worked_hours_override_date_user_id`
+            ON `worked_hours_override` (`date`, `user_id`)
             """.trimIndent(),
         )
     }
@@ -101,7 +143,7 @@ object AppModule {
     @Singleton
     fun provideShiftTrackDatabase(@ApplicationContext context: Context): ShiftTrackDatabase =
         Room.databaseBuilder(context, ShiftTrackDatabase::class.java, "shift_track.db")
-            .addMigrations(MIGRATION_4_5)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
             .build()
 
     @Provides
@@ -121,4 +163,14 @@ object AppModule {
 
     @Provides
     fun provideAttachmentDao(db: ShiftTrackDatabase): AttachmentDao = db.attachmentDao()
+
+    @Provides
+    fun providePublicHolidayDao(db: ShiftTrackDatabase): PublicHolidayDao = db.publicHolidayDao()
+
+    @Provides
+    fun provideWorkedHoursOverrideDao(db: ShiftTrackDatabase): WorkedHoursOverrideDao = db.workedHoursOverrideDao()
+
+    @Provides
+    @Singleton
+    fun provideHolidayApiService(): HolidayApiService = HolidayApiService()
 }
