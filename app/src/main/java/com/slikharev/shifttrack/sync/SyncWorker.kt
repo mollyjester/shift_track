@@ -6,9 +6,12 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.data.local.AppDataStore
+import com.slikharev.shifttrack.data.local.AttachmentFileManager
+import com.slikharev.shifttrack.data.local.db.dao.AttachmentDao
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
+import com.slikharev.shifttrack.data.remote.FirebaseStorageSyncDataSource
 import com.slikharev.shifttrack.data.remote.FirestoreSyncDataSource
 import com.slikharev.shifttrack.data.remote.FirestoreUserDataSource
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
@@ -40,7 +43,10 @@ class SyncWorker @AssistedInject constructor(
     private val shiftDao: ShiftDao,
     private val leaveDao: LeaveDao,
     private val overtimeDao: OvertimeDao,
+    private val attachmentDao: AttachmentDao,
     private val syncDataSource: FirestoreSyncDataSource,
+    private val storageSyncDataSource: FirebaseStorageSyncDataSource,
+    private val attachmentFileManager: AttachmentFileManager,
     private val userDataSource: FirestoreUserDataSource,
     private val appDataStore: AppDataStore,
     private val annualResetUseCase: AnnualResetUseCase,
@@ -59,6 +65,7 @@ class SyncWorker @AssistedInject constructor(
                 runCatching { syncShifts(uid) }.exceptionOrNull(),
                 runCatching { syncLeaves(uid) }.exceptionOrNull(),
                 runCatching { syncOvertimes(uid) }.exceptionOrNull(),
+                runCatching { syncAttachments(uid) }.exceptionOrNull(),
             )
             // Widget update is non-critical — never fails the sync.
             runCatching { widgetUpdater.updateAll() }
@@ -95,6 +102,21 @@ class SyncWorker @AssistedInject constructor(
         if (unsynced.isEmpty()) return
         syncDataSource.syncOvertimes(uid, unsynced)
         overtimeDao.markSynced(unsynced.map { it.id })
+    }
+
+    private suspend fun syncAttachments(uid: String) {
+        val unsynced = attachmentDao.getUnsynced(uid)
+        for (attachment in unsynced) {
+            val localFile = attachmentFileManager.getFile(attachment.localPath)
+            if (!localFile.exists()) {
+                // Local file was deleted — mark as synced to avoid retrying
+                attachmentDao.markSynced(attachment.id, "")
+                continue
+            }
+            val storagePath = "users/$uid/attachments/${attachment.date}/${attachment.fileName}"
+            storageSyncDataSource.uploadFile(uid, localFile, storagePath)
+            attachmentDao.markSynced(attachment.id, storagePath)
+        }
     }
 
     companion object {

@@ -6,8 +6,12 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
+import com.slikharev.shifttrack.data.local.AttachmentFileManager
+import com.slikharev.shifttrack.data.repository.AttachmentRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.data.repository.SpectatorRepository
+import com.slikharev.shifttrack.data.repository.StorageMonitor
+import com.slikharev.shifttrack.sync.StorageWarningNotifier
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
@@ -50,6 +54,10 @@ class DayDetailViewModelTest {
     private lateinit var mockSpectatorRepository: SpectatorRepository
     private lateinit var mockUserSession: UserSession
     private lateinit var mockWidgetUpdater: ShiftWidgetUpdater
+    private lateinit var mockAttachmentRepository: AttachmentRepository
+    private lateinit var mockAttachmentFileManager: AttachmentFileManager
+    private lateinit var mockStorageMonitor: StorageMonitor
+    private lateinit var mockStorageWarningNotifier: StorageWarningNotifier
     private lateinit var mockAppDataStore: AppDataStore
     private lateinit var viewModel: DayDetailViewModel
 
@@ -64,6 +72,10 @@ class DayDetailViewModelTest {
             every { currentUserId } returns "test-uid"
         }
         mockWidgetUpdater = mockk(relaxed = true)
+        mockAttachmentRepository = mockk(relaxed = true)
+        mockAttachmentFileManager = mockk(relaxed = true)
+        mockStorageMonitor = mockk(relaxed = true)
+        mockStorageWarningNotifier = mockk(relaxed = true)
         mockAppDataStore = mockk {
             every { spectatorMode } returns flowOf(false)
             every { selectedHostUid } returns flowOf(null)
@@ -81,6 +93,10 @@ class DayDetailViewModelTest {
             spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
+            attachmentRepository = mockAttachmentRepository,
+            attachmentFileManager = mockAttachmentFileManager,
+            storageMonitor = mockStorageMonitor,
+            storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = mockAppDataStore,
         )
     }
@@ -117,6 +133,10 @@ class DayDetailViewModelTest {
             spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
+            attachmentRepository = mockAttachmentRepository,
+            attachmentFileManager = mockAttachmentFileManager,
+            storageMonitor = mockStorageMonitor,
+            storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = mockAppDataStore,
         )
 
@@ -147,6 +167,10 @@ class DayDetailViewModelTest {
             spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
+            attachmentRepository = mockAttachmentRepository,
+            attachmentFileManager = mockAttachmentFileManager,
+            storageMonitor = mockStorageMonitor,
+            storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = mockAppDataStore,
         )
 
@@ -304,6 +328,10 @@ class DayDetailViewModelTest {
             spectatorRepository = mockSpectatorRepository,
             userSession = mockUserSession,
             widgetUpdater = mockWidgetUpdater,
+            attachmentRepository = mockAttachmentRepository,
+            attachmentFileManager = mockAttachmentFileManager,
+            storageMonitor = mockStorageMonitor,
+            storageWarningNotifier = mockStorageWarningNotifier,
             appDataStore = spectatorDataStore,
         )
         val job = launch { vm.isSpectator.collect { } }

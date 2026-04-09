@@ -25,8 +25,8 @@ android {
         applicationId = "com.slikharev.shifttrack"
         minSdk = 34
         targetSdk = 35
-        versionCode = 27
-        versionName = "3.2.0"
+        versionCode = 28
+        versionName = "3.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -116,9 +116,16 @@ dependencies {
     implementation(libs.firebase.auth.ktx)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.messaging.ktx)
+    implementation(libs.firebase.storage.ktx)
 
     // Google Sign-In
     implementation(libs.play.services.auth)
+
+    // Image loading
+    implementation(libs.coil.compose)
+
+    // ExifInterface
+    implementation(libs.androidx.exifinterface)
 
     // Security
     implementation(libs.androidx.security.crypto)

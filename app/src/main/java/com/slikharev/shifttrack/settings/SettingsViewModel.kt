@@ -14,6 +14,8 @@ import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.local.PrefsKeys
+import com.slikharev.shifttrack.data.repository.AttachmentRepository
+import com.slikharev.shifttrack.data.repository.CloudRestoreRepository
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.invite.InviteRepository
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
@@ -51,6 +53,8 @@ class SettingsViewModel @Inject constructor(
     private val userSession: UserSession,
     private val inviteRepository: InviteRepository,
     private val widgetUpdater: ShiftWidgetUpdater,
+    private val attachmentRepository: AttachmentRepository,
+    private val cloudRestoreRepository: CloudRestoreRepository,
     private val firestoreUserDataSource: com.slikharev.shifttrack.data.remote.FirestoreUserDataSource,
 ) : ViewModel() {
 
@@ -252,6 +256,46 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ─── Storage & Cleanup ────────────────────────────────────────────────────────
+
+    /** Reactive total bytes used by attachments. */
+    val storageUsed: StateFlow<Long> = attachmentRepository.observeStorageUsed()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
+    fun cleanupAttachments(months: Int) {
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                attachmentRepository.cleanupOlderThan(months)
+                _uiState.value = SettingsUiState(savedMessage = "Old attachments deleted")
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(error = "Cleanup failed: ${e.message}")
+            }
+        }
+    }
+
+    // ─── Cloud Restore ────────────────────────────────────────────────────────────
+
+    fun restoreFromCloud() {
+        viewModelScope.launch {
+            _uiState.value = SettingsUiState(isSaving = true)
+            try {
+                val result = cloudRestoreRepository.restore()
+                val message = buildString {
+                    append("Restored ")
+                    append("${result.shiftsRestored} shifts, ")
+                    append("${result.leavesRestored} leaves, ")
+                    append("${result.overtimeRestored} overtime records")
+                }
+                _uiState.value = SettingsUiState(savedMessage = message)
+            } catch (e: Exception) {
+                _uiState.value = SettingsUiState(
+                    error = "Restore failed: ${e.message}",
+                )
+            }
+        }
+    }
+
     // ─── Invite ───────────────────────────────────────────────────────────────────
 
     /** Deep link ready to be shared, e.g. `shiftapp://invite/{token}`. Null when idle. */
@@ -306,6 +350,7 @@ class SettingsViewModel @Inject constructor(
                 leaveBalanceDao.deleteAllForUser(uid)
                 overtimeDao.deleteAllForUser(uid)
                 overtimeBalanceDao.deleteAllForUser(uid)
+                attachmentRepository.deleteAllForUser(uid)
                 appDataStore.clearAll()
                 onComplete()
             } catch (e: com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
@@ -332,6 +377,7 @@ class SettingsViewModel @Inject constructor(
                 leaveBalanceDao.deleteAllForUser(uid)
                 overtimeDao.deleteAllForUser(uid)
                 overtimeBalanceDao.deleteAllForUser(uid)
+                attachmentRepository.deleteAllForUser(uid)
                 appDataStore.clearAll()
                 onComplete()
             } catch (e: Exception) {

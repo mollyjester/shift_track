@@ -1,6 +1,14 @@
 package com.slikharev.shifttrack.calendar
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +26,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -31,6 +47,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -40,6 +57,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,11 +68,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.slikharev.shifttrack.data.local.db.entity.AttachmentEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
@@ -62,6 +87,7 @@ import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
 import com.slikharev.shifttrack.ui.LocalShiftColors
 import com.slikharev.shifttrack.ui.ShiftColors
+import java.io.File
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -74,8 +100,50 @@ fun DayDetailScreen(navController: NavController) {
     val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val isSpectator by viewModel.isSpectator.collectAsStateWithLifecycle()
+    val attachments by viewModel.attachments.collectAsStateWithLifecycle()
+    val storageWarning by viewModel.storageWarning.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Camera photo URI (stored so the camera app can write to it)
+    var cameraPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    // ── Activity result launchers ────────────────────────────────────────────────
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { /* handled inline via the camera launcher */ }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+    ) { success ->
+        if (success) {
+            cameraPhotoUri?.let { uri ->
+                viewModel.addAttachment(uri, "image/jpeg", "photo_${System.currentTimeMillis()}.jpg")
+            }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+    ) { uri: Uri? ->
+        uri?.let {
+            val mimeType = context.contentResolver.getType(it) ?: "image/*"
+            val displayName = queryDisplayName(context, it) ?: "image_${System.currentTimeMillis()}"
+            viewModel.addAttachment(it, mimeType, displayName)
+        }
+    }
+
+    val documentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        uri?.let {
+            val mimeType = context.contentResolver.getType(it) ?: "application/octet-stream"
+            val displayName = queryDisplayName(context, it) ?: "document_${System.currentTimeMillis()}"
+            viewModel.addAttachment(it, mimeType, displayName)
+        }
+    }
 
     LaunchedEffect(error) {
         if (error != null) {
@@ -113,6 +181,8 @@ fun DayDetailScreen(navController: NavController) {
                 overtimeEntry = overtimeEntry,
                 isSaving = isSaving,
                 isSpectator = isSpectator,
+                attachments = attachments,
+                storageWarning = storageWarning,
                 onOverride = { viewModel.setManualOverride(it) },
                 onClearOverride = viewModel::clearManualOverride,
                 onAddLeave = viewModel::addLeave,
@@ -120,11 +190,62 @@ fun DayDetailScreen(navController: NavController) {
                 onAddOvertime = viewModel::addOvertime,
                 onRemoveOvertime = viewModel::removeOvertime,
                 onSaveNote = viewModel::saveNote,
+                onTakePhoto = {
+                    val hasCamera = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.CAMERA,
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (hasCamera) {
+                        val photoFile = File(
+                            context.cacheDir,
+                            "camera_photos/photo_${System.currentTimeMillis()}.jpg",
+                        ).also { it.parentFile?.mkdirs() }
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            photoFile,
+                        )
+                        cameraPhotoUri = uri
+                        cameraLauncher.launch(uri)
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                onPickGallery = { galleryLauncher.launch("image/*") },
+                onPickDocument = { documentLauncher.launch(arrayOf("*/*")) },
+                onOpenAttachment = { attachment ->
+                    val file = viewModel.getAttachmentFile(attachment)
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file,
+                    )
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, attachment.mimeType)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Open with"))
+                },
+                onShareAttachment = { attachment ->
+                    val file = viewModel.getAttachmentFile(attachment)
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file,
+                    )
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = attachment.mimeType
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(intent, "Share"))
+                },
+                onDeleteAttachment = viewModel::deleteAttachment,
             )
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DayDetailContent(
     modifier: Modifier = Modifier,
@@ -132,6 +253,8 @@ private fun DayDetailContent(
     overtimeEntry: OvertimeEntity?,
     isSaving: Boolean,
     isSpectator: Boolean,
+    attachments: List<AttachmentEntity>,
+    storageWarning: Boolean,
     onOverride: (ShiftType) -> Unit,
     onClearOverride: () -> Unit,
     onAddLeave: (LeaveType, Boolean, String?) -> Unit,
@@ -139,10 +262,18 @@ private fun DayDetailContent(
     onAddOvertime: (Float, String?) -> Unit,
     onRemoveOvertime: () -> Unit,
     onSaveNote: (String?) -> Unit,
+    onTakePhoto: () -> Unit,
+    onPickGallery: () -> Unit,
+    onPickDocument: () -> Unit,
+    onOpenAttachment: (AttachmentEntity) -> Unit,
+    onShareAttachment: (AttachmentEntity) -> Unit,
+    onDeleteAttachment: (AttachmentEntity) -> Unit,
 ) {
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showOvertimeDialog by remember { mutableStateOf(false) }
     var showOverrideMenu by remember { mutableStateOf(false) }
+    var showAttachmentSheet by remember { mutableStateOf(false) }
+    var attachmentToDelete by remember { mutableStateOf<AttachmentEntity?>(null) }
     var noteText by remember(dayInfo.note) { mutableStateOf(dayInfo.note ?: "") }
 
     Column(
@@ -222,6 +353,17 @@ private fun DayDetailContent(
                 onAddOvertimeClick = { showOvertimeDialog = true },
                 onRemoveOvertime = onRemoveOvertime,
             )
+
+            // Attachments section
+            AttachmentsSection(
+                attachments = attachments,
+                storageWarning = storageWarning,
+                isSaving = isSaving,
+                onAddClick = { showAttachmentSheet = true },
+                onOpen = onOpenAttachment,
+                onShare = onShareAttachment,
+                onDelete = { attachmentToDelete = it },
+            )
         }
     }
 
@@ -242,6 +384,41 @@ private fun DayDetailContent(
                 onAddOvertime(hours, null)
             },
             onDismiss = { showOvertimeDialog = false },
+        )
+    }
+
+    if (!isSpectator && showAttachmentSheet) {
+        AddAttachmentBottomSheet(
+            onDismiss = { showAttachmentSheet = false },
+            onTakePhoto = {
+                showAttachmentSheet = false
+                onTakePhoto()
+            },
+            onPickGallery = {
+                showAttachmentSheet = false
+                onPickGallery()
+            },
+            onPickDocument = {
+                showAttachmentSheet = false
+                onPickDocument()
+            },
+        )
+    }
+
+    if (attachmentToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { attachmentToDelete = null },
+            title = { Text("Delete attachment?") },
+            text = { Text("\"${attachmentToDelete!!.fileName}\" will be permanently deleted.") },
+            confirmButton = {
+                Button(onClick = {
+                    onDeleteAttachment(attachmentToDelete!!)
+                    attachmentToDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { attachmentToDelete = null }) { Text("Cancel") }
+            },
         )
     }
 }
@@ -501,4 +678,200 @@ private fun AddOvertimeDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+// ── Attachments composables ─────────────────────────────────────────────────────
+
+@Composable
+private fun AttachmentsSection(
+    attachments: List<AttachmentEntity>,
+    storageWarning: Boolean,
+    isSaving: Boolean,
+    onAddClick: () -> Unit,
+    onOpen: (AttachmentEntity) -> Unit,
+    onShare: (AttachmentEntity) -> Unit,
+    onDelete: (AttachmentEntity) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = "Attachments", style = MaterialTheme.typography.titleMedium)
+
+        if (storageWarning) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                ),
+            ) {
+                Text(
+                    text = "Storage nearly full. Go to Settings \u2192 Storage & Cleanup to free space.",
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+
+        if (attachments.isNotEmpty()) {
+            attachments.forEach { attachment ->
+                AttachmentRow(
+                    attachment = attachment,
+                    onOpen = { onOpen(attachment) },
+                    onShare = { onShare(attachment) },
+                    onDelete = { onDelete(attachment) },
+                )
+            }
+        }
+
+        Button(onClick = onAddClick, enabled = !isSaving) {
+            Icon(Icons.Default.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Add attachment")
+        }
+    }
+}
+
+@Composable
+private fun AttachmentRow(
+    attachment: AttachmentEntity,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpen)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Thumbnail or icon
+            if (attachment.mimeType.startsWith("image/")) {
+                AsyncImage(
+                    model = File(
+                        LocalContext.current.filesDir,
+                        attachment.localPath,
+                    ),
+                    contentDescription = attachment.fileName,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(6.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Description,
+                    contentDescription = "Document",
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Name and size
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = attachment.fileName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = formatFileSize(attachment.fileSizeBytes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Action icons
+            IconButton(onClick = onOpen) {
+                Icon(Icons.Default.OpenInNew, contentDescription = "Open")
+            }
+            IconButton(onClick = onShare) {
+                Icon(Icons.Default.Share, contentDescription = "Share")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddAttachmentBottomSheet(
+    onDismiss: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onPickGallery: () -> Unit,
+    onPickDocument: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "Add attachment",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+            TextButton(
+                onClick = onTakePhoto,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.CameraAlt, contentDescription = null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Take photo", modifier = Modifier.weight(1f))
+            }
+            TextButton(
+                onClick = onPickGallery,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.Photo, contentDescription = null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Choose from gallery", modifier = Modifier.weight(1f))
+            }
+            TextButton(
+                onClick = onPickDocument,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Default.Description, contentDescription = null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Choose document", modifier = Modifier.weight(1f))
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+private fun formatFileSize(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "${"%.1f".format(bytes / 1024.0)} KB"
+    else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
+}
+
+private fun queryDisplayName(context: android.content.Context, uri: Uri): String? {
+    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (nameIndex >= 0 && cursor.moveToFirst()) {
+            return cursor.getString(nameIndex)
+        }
+    }
+    return uri.lastPathSegment
 }

@@ -1,19 +1,25 @@
 package com.slikharev.shifttrack.calendar
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.slikharev.shifttrack.auth.UserSession
 import com.slikharev.shifttrack.auth.requireUserId
 import com.slikharev.shifttrack.data.local.AppDataStore
+import com.slikharev.shifttrack.data.local.AttachmentFileManager
+import com.slikharev.shifttrack.data.local.db.entity.AttachmentEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
+import com.slikharev.shifttrack.data.repository.AttachmentRepository
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
 import com.slikharev.shifttrack.data.repository.ShiftRepository
 import com.slikharev.shifttrack.data.repository.SpectatorRepository
+import com.slikharev.shifttrack.data.repository.StorageMonitor
 import com.slikharev.shifttrack.model.DayInfo
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
+import com.slikharev.shifttrack.sync.StorageWarningNotifier
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,6 +33,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -40,6 +47,10 @@ class DayDetailViewModel @Inject constructor(
     private val spectatorRepository: SpectatorRepository,
     private val userSession: UserSession,
     private val widgetUpdater: ShiftWidgetUpdater,
+    private val attachmentRepository: AttachmentRepository,
+    private val attachmentFileManager: AttachmentFileManager,
+    private val storageMonitor: StorageMonitor,
+    private val storageWarningNotifier: StorageWarningNotifier,
     appDataStore: AppDataStore,
 ) : ViewModel() {
 
@@ -80,6 +91,52 @@ class DayDetailViewModel @Inject constructor(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    // ─── Attachments ─────────────────────────────────────────────────────────────
+
+    val attachments: StateFlow<List<AttachmentEntity>> = attachmentRepository
+        .getAttachmentsForDate(date.toString())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    private val _storageWarning = MutableStateFlow(false)
+    val storageWarning: StateFlow<Boolean> = _storageWarning.asStateFlow()
+
+    fun addAttachment(uri: Uri, mimeType: String, displayName: String) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _error.value = null
+            try {
+                attachmentRepository.addAttachment(date.toString(), uri, mimeType, displayName)
+                // Check quota after adding
+                val status = storageMonitor.checkQuota()
+                _storageWarning.value = status.isNearQuota
+                if (status.isNearQuota) {
+                    storageWarningNotifier.showWarning(status.usedBytes, status.maxBytes)
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to add attachment: ${e.message}"
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun deleteAttachment(attachment: AttachmentEntity) {
+        viewModelScope.launch {
+            _isSaving.value = true
+            _error.value = null
+            try {
+                attachmentRepository.deleteAttachment(attachment)
+            } catch (e: Exception) {
+                _error.value = "Failed to delete attachment: ${e.message}"
+            } finally {
+                _isSaving.value = false
+            }
+        }
+    }
+
+    fun getAttachmentFile(attachment: AttachmentEntity): File =
+        attachmentFileManager.getFile(attachment.localPath)
 
     fun setManualOverride(shiftType: ShiftType, note: String? = null) {
         viewModelScope.launch {

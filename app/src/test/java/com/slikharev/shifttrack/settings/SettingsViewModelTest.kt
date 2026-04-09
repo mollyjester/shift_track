@@ -14,6 +14,8 @@ import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
 import com.slikharev.shifttrack.data.remote.InviteDocument
+import com.slikharev.shifttrack.data.repository.AttachmentRepository
+import com.slikharev.shifttrack.data.repository.CloudRestoreRepository
 import com.slikharev.shifttrack.invite.InviteRepository
 import com.slikharev.shifttrack.invite.RedeemResult
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
@@ -60,6 +62,7 @@ class SettingsViewModelTest {
     private lateinit var mockAuthRepository: AuthRepository
     private lateinit var fakeInviteRepository: FakeInviteRepository
     private val mockWidgetUpdater = mockk<ShiftWidgetUpdater>(relaxed = true)
+    private val mockAttachmentRepository = mockk<AttachmentRepository>(relaxed = true)
     private lateinit var viewModel: SettingsViewModel
 
     @Before
@@ -87,6 +90,8 @@ class SettingsViewModelTest {
             userSession = fakeUserSession,
             inviteRepository = fakeInviteRepository,
             widgetUpdater = mockWidgetUpdater,
+            attachmentRepository = mockAttachmentRepository,
+            cloudRestoreRepository = mockk(relaxed = true),
             firestoreUserDataSource = mockk(relaxed = true),
         )
     }

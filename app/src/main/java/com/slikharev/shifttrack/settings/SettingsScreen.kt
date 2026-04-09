@@ -37,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -99,6 +100,7 @@ fun SettingsScreen(navController: NavController) {
     val widgetBgColor by viewModel.widgetBgColor.collectAsStateWithLifecycle()
     val widgetTransparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val widgetDayCount by viewModel.widgetDayCount.collectAsStateWithLifecycle()
+    val storageUsed by viewModel.storageUsed.collectAsStateWithLifecycle()
 
     // Google Sign-In for reauthentication
     val context = LocalContext.current
@@ -142,6 +144,8 @@ fun SettingsScreen(navController: NavController) {
     var showSignOutConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showShareInviteDialog by remember { mutableStateOf(false) }
+    var showCleanupDialog by remember { mutableStateOf(false) }
+    var showRestoreConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
@@ -210,6 +214,19 @@ fun SettingsScreen(navController: NavController) {
                 onTransparencyChange = viewModel::setWidgetTransparency,
                 onDayCountChange = viewModel::setWidgetDayCount,
             )
+
+            if (!isSpectatorOnly) {
+                HorizontalDivider()
+
+                // ── Storage & cleanup ────────────────────────────────────────────────
+                SettingsSectionHeader("Storage & Cleanup")
+                StorageCleanupSection(
+                    usedBytes = storageUsed,
+                    maxBytes = com.slikharev.shifttrack.data.repository.StorageMonitor.MAX_STORAGE_BYTES,
+                    onCleanupClick = { showCleanupDialog = true },
+                    onRestoreClick = { showRestoreConfirm = true },
+                )
+            }
 
             if (!isSpectatorOnly) {
                 HorizontalDivider()
@@ -374,6 +391,41 @@ fun SettingsScreen(navController: NavController) {
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.clearMessage() }) { Text("Cancel") }
+            },
+        )
+    }
+
+    if (showCleanupDialog) {
+        CleanupDialog(
+            onConfirm = { months ->
+                showCleanupDialog = false
+                viewModel.cleanupAttachments(months)
+            },
+            onDismiss = { showCleanupDialog = false },
+        )
+    }
+
+    if (showRestoreConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRestoreConfirm = false },
+            title = { Text("Restore from cloud") },
+            text = {
+                Text(
+                    "This will download your shifts, leaves, and overtime " +
+                        "records from the cloud. Existing local data will not " +
+                        "be overwritten. Requires an internet connection.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRestoreConfirm = false
+                        viewModel.restoreFromCloud()
+                    },
+                ) { Text("Restore") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreConfirm = false }) { Text("Cancel") }
             },
         )
     }
@@ -1072,6 +1124,104 @@ private fun ShareInviteDialog(link: String?, onDismiss: () -> Unit) {
             } else {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
+        },
+    )
+}
+
+// ── Storage & Cleanup composables ────────────────────────────────────────────
+
+@Composable
+private fun StorageCleanupSection(
+    usedBytes: Long,
+    maxBytes: Long,
+    onCleanupClick: () -> Unit,
+    onRestoreClick: () -> Unit,
+) {
+    val usedMb = usedBytes / (1024.0 * 1024.0)
+    val maxMb = maxBytes / (1024.0 * 1024.0)
+    val fraction = if (maxBytes > 0) (usedBytes.toFloat() / maxBytes).coerceIn(0f, 1f) else 0f
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "${"%.1f".format(usedMb)} MB / ${"%.0f".format(maxMb)} MB used",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = if (fraction > 0.9f) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+            )
+            OutlinedButton(onClick = onCleanupClick) {
+                Text("Clean up attachments")
+            }
+            OutlinedButton(onClick = onRestoreClick) {
+                Text("Restore data from cloud")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CleanupDialog(
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val options = listOf(1, 3, 6, 12)
+    var selectedMonths by remember { mutableIntStateOf(3) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Clean up attachments") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Delete all attachments older than:")
+                options.forEach { months ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedMonths = months }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        androidx.compose.material3.RadioButton(
+                            selected = selectedMonths == months,
+                            onClick = { selectedMonths = months },
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (months == 1) "1 month" else "$months months",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedMonths) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text("Delete") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
 }
