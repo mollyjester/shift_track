@@ -74,6 +74,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -1516,20 +1517,59 @@ private fun RateTextField(
     min: Float,
     max: Float,
 ) {
-    var text by remember(value) { mutableStateOf("%.2f".format(value)) }
+    var text by remember(value) { mutableStateOf(if (value == 0f) "" else value.toBigDecimal().stripTrailingZeros().toPlainString()) }
+    var isError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    fun validate(input: String): Boolean {
+        if (input.isBlank()) {
+            isError = true
+            errorMessage = "Required"
+            return false
+        }
+        val parsed = input.toFloatOrNull()
+        if (parsed == null) {
+            isError = true
+            errorMessage = "Not a valid number"
+            return false
+        }
+        if (parsed < min || parsed > max) {
+            isError = true
+            errorMessage = "Must be between ${"%.2f".format(min)} and ${"%.2f".format(max)}"
+            return false
+        }
+        isError = false
+        errorMessage = ""
+        return true
+    }
+
     OutlinedTextField(
         value = text,
-        onValueChange = { input ->
-            text = input
-            input.toFloatOrNull()?.let { parsed ->
-                val clamped = parsed.coerceIn(min, max)
-                onValueChange(clamped)
-            }
-        },
+        onValueChange = { input -> text = input },
         label = { Text(label) },
+        supportingText = if (isError) ({ Text(errorMessage) }) else null,
+        isError = isError,
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Decimal,
+            imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+        ),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+            onDone = {
+                if (validate(text)) {
+                    onValueChange(text.toFloat())
+                }
+            },
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { state ->
+                if (!state.isFocused) {
+                    if (validate(text)) {
+                        onValueChange(text.toFloat())
+                    }
+                }
+            },
     )
 }
 
