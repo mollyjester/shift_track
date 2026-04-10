@@ -27,7 +27,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DisplayMode
@@ -168,7 +170,7 @@ fun CalendarScreen(navController: NavController) {
                     if (selectedHostUid == null) {
                         IconButton(onClick = { showExportDialog = true }) {
                             Icon(
-                                imageVector = Icons.Default.Share,
+                                imageVector = Icons.Default.FileDownload,
                                 contentDescription = "Export to CSV",
                             )
                         }
@@ -349,7 +351,47 @@ private fun ExportDateRangeDialog(
                         modifier = Modifier.padding(start = 16.dp, top = 16.dp),
                     )
                 },
-                showModeToggle = true,
+                headline = {
+                    Row(
+                        modifier = Modifier.padding(start = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val formatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
+                        val startDate = state.selectedStartDateMillis?.let {
+                            Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                        }
+                        val endDate = state.selectedEndDateMillis?.let {
+                            Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                        }
+                        val text = when {
+                            startDate != null && endDate != null ->
+                                "${startDate.format(formatter)} – ${endDate.format(formatter)}"
+                            startDate != null -> startDate.format(formatter)
+                            else -> "Start date – End date"
+                        }
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = {
+                            state.displayMode = if (state.displayMode == DisplayMode.Input) {
+                                DisplayMode.Picker
+                            } else {
+                                DisplayMode.Input
+                            }
+                        }) {
+                            Icon(
+                                imageVector = if (state.displayMode == DisplayMode.Input)
+                                    Icons.Default.DateRange
+                                else
+                                    Icons.Default.Edit,
+                                contentDescription = "Toggle input mode",
+                            )
+                        }
+                    }
+                },
+                showModeToggle = false,
             )
         }
     }
