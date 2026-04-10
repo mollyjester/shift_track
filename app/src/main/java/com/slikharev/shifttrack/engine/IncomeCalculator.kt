@@ -42,15 +42,20 @@ object IncomeCalculator {
      *
      * Overtime uses the day-condition multiplier only (no night multiplier).
      */
-    fun calculateMonthlyIncome(input: IncomeInput, targetMonth: YearMonth): Float {
+    fun calculateMonthlyIncome(
+        input: IncomeInput,
+        targetMonth: YearMonth,
+        upToDate: LocalDate? = null,
+    ): Float {
         if (input.baseRate <= 0f) return 0f
 
         val dayInfoByDate = input.dayInfos.associateBy { it.date }
         var totalIncome = 0f
 
-        // Process each day in the target month
+        // Process each day in the target month, capped at upToDate
         val startDate = targetMonth.atDay(1)
-        val endDate = targetMonth.atEndOfMonth()
+        val monthEnd = targetMonth.atEndOfMonth()
+        val endDate = if (upToDate != null) minOf(monthEnd, upToDate) else monthEnd
         var currentDate = startDate
 
         while (!currentDate.isAfter(endDate)) {
@@ -58,7 +63,7 @@ object IncomeCalculator {
 
             // Shift income
             if (dayInfo != null) {
-                totalIncome += calculateShiftIncome(input, dayInfo, targetMonth)
+                totalIncome += calculateShiftIncome(input, dayInfo, targetMonth, endDate)
             }
 
             // Overtime income (always on the calendar date, no splitting)
@@ -81,7 +86,7 @@ object IncomeCalculator {
             if (totalHours > 0f) {
                 val postPortion = totalHours * postHours.toFloat() / DEFAULT_SHIFT_HOURS
                 val nextDate = dayBeforeMonth.plusDays(1) // = first day of month
-                if (YearMonth.from(nextDate) == targetMonth) {
+                if (YearMonth.from(nextDate) == targetMonth && !nextDate.isAfter(endDate)) {
                     val dayCondition = dayConditionMultiplier(nextDate, input)
                     val effectiveMultiplier = maxOf(dayCondition, input.nightMultiplier)
                     totalIncome += postPortion * input.baseRate * effectiveMultiplier
@@ -92,12 +97,12 @@ object IncomeCalculator {
         return totalIncome
     }
 
-    private fun calculateShiftIncome(input: IncomeInput, dayInfo: DayInfo, targetMonth: YearMonth): Float {
+    private fun calculateShiftIncome(input: IncomeInput, dayInfo: DayInfo, targetMonth: YearMonth, endDate: LocalDate): Float {
         val totalHours = shiftHours(dayInfo, input)
         if (totalHours <= 0f) return 0f
 
         return if (isNightShift(dayInfo)) {
-            calculateNightShiftIncome(input, dayInfo, totalHours, targetMonth)
+            calculateNightShiftIncome(input, dayInfo, totalHours, targetMonth, endDate)
         } else {
             // Day shifts, leave, etc. — all hours belong to the shift date
             val dayCondition = dayConditionMultiplier(dayInfo.date, input)
@@ -110,6 +115,7 @@ object IncomeCalculator {
         dayInfo: DayInfo,
         totalHours: Float,
         targetMonth: YearMonth,
+        endDate: LocalDate,
     ): Float {
         val (preHours, postHours) = nightShiftHourSplit(input.shiftChangeoverHour)
         val prePortion = totalHours * preHours.toFloat() / DEFAULT_SHIFT_HOURS
@@ -125,9 +131,9 @@ object IncomeCalculator {
             income += prePortion * input.baseRate * effectiveMultiplier
         }
 
-        // Post-midnight portion belongs to the next date
+        // Post-midnight portion belongs to the next date (skip if beyond cutoff)
         val nextDate = shiftDate.plusDays(1)
-        if (YearMonth.from(nextDate) == targetMonth) {
+        if (YearMonth.from(nextDate) == targetMonth && !nextDate.isAfter(endDate)) {
             val dayCondition = dayConditionMultiplier(nextDate, input)
             val effectiveMultiplier = maxOf(dayCondition, input.nightMultiplier)
             income += postPortion * input.baseRate * effectiveMultiplier

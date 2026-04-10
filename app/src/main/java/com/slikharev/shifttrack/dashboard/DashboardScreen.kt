@@ -65,6 +65,7 @@ fun DashboardScreen(navController: NavController) {
     val currentMonthIncome by viewModel.currentMonthIncome.collectAsStateWithLifecycle()
     val selectedMonthName by viewModel.selectedMonthName.collectAsStateWithLifecycle()
     val currencySymbol by viewModel.currencySymbol.collectAsStateWithLifecycle()
+    val currentMonthName = viewModel.currentMonthName
 
     Scaffold(
         topBar = {
@@ -120,6 +121,7 @@ fun DashboardScreen(navController: NavController) {
                     IncomeCard(
                         currentIncome = currentMonthIncome,
                         monthName = selectedMonthName,
+                        currentMonthName = currentMonthName,
                         currencySymbol = currencySymbol,
                         onNavigateBack = viewModel::navigateMonthBack,
                         onNavigateToNow = viewModel::navigateToCurrentMonth,
@@ -249,6 +251,7 @@ private fun LeaveBalancesCard(balances: List<LeaveBalanceEntity>) {
 private fun IncomeCard(
     currentIncome: Float,
     monthName: String,
+    currentMonthName: String,
     currencySymbol: String,
     onNavigateBack: () -> Unit,
     onNavigateToNow: () -> Unit,
@@ -276,7 +279,7 @@ private fun IncomeCard(
                     )
                 }
                 TextButton(onClick = onNavigateToNow) {
-                    Text(monthName)
+                    Text("Back to $currentMonthName")
                 }
             }
         }

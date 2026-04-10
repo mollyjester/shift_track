@@ -314,6 +314,47 @@ class IncomeCalculatorTest {
         assertEquals(75f, result, 0.01f)
     }
 
+    // ── upToDate cutoff ────────────────────────────────────────────────────────
+
+    @Test
+    fun `upToDate excludes shifts after cutoff date`() {
+        // Two day shifts: April 1 and April 3. Cutoff April 2 → only April 1 counted.
+        // 12h × $10 = $120
+        val input = defaultInput.copy(
+            dayInfos = listOf(
+                dayInfo(LocalDate.of(2025, 4, 1), ShiftType.DAY),
+                dayInfo(LocalDate.of(2025, 4, 3), ShiftType.DAY),
+            ),
+        )
+        val result = IncomeCalculator.calculateMonthlyIncome(input, april2025, upToDate = LocalDate.of(2025, 4, 2))
+        assertEquals(120f, result, 0.01f)
+    }
+
+    @Test
+    fun `upToDate excludes night shift post-midnight beyond cutoff`() {
+        // Night shift on April 10 (cutoff April 10)
+        // changeover=7 → pre=5h, post=7h
+        // Pre-midnight (April 10): 5h × $10 × 1.5 = $75 ✓
+        // Post-midnight (April 11): beyond cutoff → $0
+        val date = LocalDate.of(2025, 4, 10) // Thursday
+        val input = defaultInput.copy(
+            dayInfos = listOf(dayInfo(date, ShiftType.NIGHT)),
+        )
+        val result = IncomeCalculator.calculateMonthlyIncome(input, april2025, upToDate = LocalDate.of(2025, 4, 10))
+        assertEquals(75f, result, 0.01f)
+    }
+
+    @Test
+    fun `upToDate null calculates full month`() {
+        // Same as basic test — no cutoff means full month
+        val date = LocalDate.of(2025, 4, 2)
+        val input = defaultInput.copy(
+            dayInfos = listOf(dayInfo(date, ShiftType.DAY)),
+        )
+        val result = IncomeCalculator.calculateMonthlyIncome(input, april2025, upToDate = null)
+        assertEquals(120f, result, 0.01f)
+    }
+
     // ── dayConditionMultiplier ───────────────────────────────────────────────────
 
     @Test

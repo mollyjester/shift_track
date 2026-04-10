@@ -154,6 +154,9 @@ class DashboardViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
+    val currentMonthName: String =
+        YearMonth.now().month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+
     val currencySymbol: StateFlow<String> = appDataStore.selectedCountryCode
         .map { code -> code?.let { Countries.findByCode(it)?.currencySymbol } ?: "$" }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "$")
@@ -208,7 +211,7 @@ class DashboardViewModel @Inject constructor(
                 holidayMultiplier = rates.holidayMultiplier,
                 shiftChangeoverHour = rates.changeoverHour,
             )
-            IncomeCalculator.calculateMonthlyIncome(input, month)
+            IncomeCalculator.calculateMonthlyIncome(input, month, upToDate = LocalDate.now())
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0f)
     }
 
