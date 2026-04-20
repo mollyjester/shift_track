@@ -1,6 +1,11 @@
 package com.slikharev.shifttrack.calendar
 
 import android.content.Intent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -88,6 +94,12 @@ import java.util.Locale
 /** Centre page index for the HorizontalPager (allows ±5000 months of scroll). */
 private const val PAGER_CENTRE = 5000
 
+/** Identifies which legend item is currently highlighted (tapped). */
+private sealed interface LegendHighlight {
+    data class Shift(val type: ShiftType) : LegendHighlight
+    data class Leave(val type: LeaveType) : LegendHighlight
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(navController: NavController) {
@@ -104,6 +116,15 @@ fun CalendarScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showExportDialog by remember { mutableStateOf(false) }
+    var legendHighlight by remember { mutableStateOf<LegendHighlight?>(null) }
+
+    // Auto-clear legend highlight after 3 seconds
+    LaunchedEffect(legendHighlight) {
+        if (legendHighlight != null) {
+            kotlinx.coroutines.delay(3_000)
+            legendHighlight = null
+        }
+    }
 
     // ── Pager state — page offset from today's month ─────────────────────────
     val baseMonth = remember { YearMonth.now() }
@@ -239,6 +260,7 @@ fun CalendarScreen(navController: NavController) {
                         DayOfWeekHeader()
                         CalendarGrid(
                             calendarDays = calendarDays,
+                            legendHighlight = legendHighlight,
                             onDayClick = { date ->
                                 navController.navigate(
                                     Screen.DayDetail.createRoute(date.toString()),
@@ -246,7 +268,11 @@ fun CalendarScreen(navController: NavController) {
                             },
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        ShiftLegend()
+                        ShiftLegend(
+                            onLegendTap = { item ->
+                                legendHighlight = if (legendHighlight == item) null else item
+                            },
+                        )
                     }
                 }
             }
@@ -482,6 +508,7 @@ private fun DayOfWeekHeader() {
 @Composable
 private fun CalendarGrid(
     calendarDays: List<CalendarDay>,
+    legendHighlight: LegendHighlight?,
     onDayClick: (java.time.LocalDate) -> Unit,
 ) {
     val weeks = calendarDays.chunked(7)
@@ -500,6 +527,7 @@ private fun CalendarGrid(
                         is CalendarDay.ShiftDay -> {
                             ShiftDayCell(
                                 day = cell,
+                                legendHighlight = legendHighlight,
                                 modifier = Modifier.weight(1f),
                                 onClick = { onDayClick(cell.date) },
                             )
@@ -514,12 +542,42 @@ private fun CalendarGrid(
 @Composable
 private fun ShiftDayCell(
     day: CalendarDay.ShiftDay,
+    legendHighlight: LegendHighlight?,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val colors = LocalShiftColors.current
     val leaveColors = LocalLeaveColors.current
     val leaveGrey = leaveGreyColor()
+
+    // Determine whether this cell matches the active legend highlight
+    val isHighlighted = when (legendHighlight) {
+        is LegendHighlight.Shift -> day.shiftType == legendHighlight.type
+        is LegendHighlight.Leave -> day.dayInfo.hasLeave && day.dayInfo.leaveType == legendHighlight.type
+        null -> true // no highlight active — all cells fully visible
+    }
+
+    // Pulse animation for matching cells
+    val pulseAlpha = if (legendHighlight != null && isHighlighted) {
+        val transition = rememberInfiniteTransition(label = "legendPulse")
+        transition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.4f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 500),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "pulseAlpha",
+        ).value
+    } else {
+        1f
+    }
+
+    val cellAlpha = when {
+        legendHighlight == null -> 1f
+        isHighlighted -> pulseAlpha
+        else -> 0.15f
+    }
     // Full-day leave → light grey; otherwise shift color
     val bgColor = if (day.dayInfo.hasLeave && !day.dayInfo.halfDay) {
         leaveGrey
@@ -536,6 +594,7 @@ private fun ShiftDayCell(
         modifier = modifier
             .aspectRatio(1f)
             .padding(2.dp)
+            .alpha(cellAlpha)
             .clip(shape)
             .background(bgColor)
             .clickable(onClick = onClick),
@@ -587,7 +646,7 @@ private fun ShiftDayCell(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ShiftLegend() {
+private fun ShiftLegend(onLegendTap: (LegendHighlight) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -607,6 +666,7 @@ private fun ShiftLegend() {
                 LegendChip(
                     color = LocalShiftColors.current.containerColor(type),
                     label = ShiftColors.label(type),
+                    onClick = { onLegendTap(LegendHighlight.Shift(type)) },
                 )
             }
         }
@@ -624,6 +684,7 @@ private fun ShiftLegend() {
                 LegendChip(
                     color = LocalLeaveColors.current.color(type),
                     label = LeaveColors.label(type),
+                    onClick = { onLegendTap(LegendHighlight.Leave(type)) },
                 )
             }
         }
@@ -631,10 +692,11 @@ private fun ShiftLegend() {
 }
 
 @Composable
-private fun LegendChip(color: Color, label: String) {
+private fun LegendChip(color: Color, label: String, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.clickable(onClick = onClick),
     ) {
         Box(
             modifier = Modifier

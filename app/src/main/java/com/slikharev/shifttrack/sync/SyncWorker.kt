@@ -50,6 +50,7 @@ class SyncWorker @AssistedInject constructor(
     private val userDataSource: FirestoreUserDataSource,
     private val appDataStore: AppDataStore,
     private val annualResetUseCase: AnnualResetUseCase,
+    private val spectatorCacheRefresher: SpectatorCacheRefresher,
     private val widgetUpdater: ShiftWidgetUpdater,
 ) : CoroutineWorker(context, params) {
 
@@ -67,6 +68,9 @@ class SyncWorker @AssistedInject constructor(
                 runCatching { syncOvertimes(uid) }.exceptionOrNull(),
                 runCatching { syncAttachments(uid) }.exceptionOrNull(),
             )
+            // Refresh spectator cache (if applicable) before updating widgets
+            // so the widget renders the latest host data.
+            runCatching { spectatorCacheRefresher.refresh() }
             // Widget update is non-critical — never fails the sync.
             runCatching { widgetUpdater.updateAll() }
             if (failures.isNotEmpty()) throw failures.first()
