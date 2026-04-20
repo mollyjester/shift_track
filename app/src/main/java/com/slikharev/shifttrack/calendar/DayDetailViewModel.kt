@@ -10,8 +10,6 @@ import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.AttachmentFileManager
 import com.slikharev.shifttrack.data.local.db.entity.AttachmentEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeEntity
-import com.slikharev.shifttrack.data.local.db.entity.WorkedHoursOverrideEntity
-import com.slikharev.shifttrack.data.local.db.dao.WorkedHoursOverrideDao
 import com.slikharev.shifttrack.data.repository.AttachmentRepository
 import com.slikharev.shifttrack.data.repository.LeaveRepository
 import com.slikharev.shifttrack.data.repository.OvertimeRepository
@@ -53,7 +51,6 @@ class DayDetailViewModel @Inject constructor(
     private val attachmentFileManager: AttachmentFileManager,
     private val storageMonitor: StorageMonitor,
     private val storageWarningNotifier: StorageWarningNotifier,
-    private val workedHoursOverrideDao: WorkedHoursOverrideDao,
     appDataStore: AppDataStore,
 ) : ViewModel() {
 
@@ -88,41 +85,6 @@ class DayDetailViewModel @Inject constructor(
         .getOvertimeForRange(date, date)
         .map { it.firstOrNull() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    // ─── Worked hours override ───────────────────────────────────────────────────
-
-    val workedHoursOverride: StateFlow<WorkedHoursOverrideEntity?> =
-        workedHoursOverrideDao.getForRange(
-            userSession.requireUserId(), date.toString(), date.toString(),
-        ).map { it.firstOrNull() }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    /** Default worked hours based on shift type and leave status. */
-    fun defaultWorkedHours(info: DayInfo): Float = when {
-        info.halfDay -> 6f
-        info.hasLeave && info.leaveType == LeaveType.UNPAID -> 0f
-        info.hasLeave -> 12f
-        info.shiftType == ShiftType.DAY || info.shiftType == ShiftType.NIGHT -> 12f
-        else -> 0f // REST, OFF
-    }
-
-    fun setWorkedHours(hours: Float) {
-        viewModelScope.launch {
-            workedHoursOverrideDao.upsert(
-                WorkedHoursOverrideEntity(
-                    date = date.toString(),
-                    hours = hours.coerceIn(0f, 24f),
-                    userId = userSession.requireUserId(),
-                ),
-            )
-        }
-    }
-
-    fun clearWorkedHoursOverride() {
-        viewModelScope.launch {
-            workedHoursOverrideDao.deleteByDate(userSession.requireUserId(), date.toString())
-        }
-    }
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()

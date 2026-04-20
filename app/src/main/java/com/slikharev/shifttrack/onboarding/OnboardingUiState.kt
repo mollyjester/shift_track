@@ -6,14 +6,13 @@ import com.slikharev.shifttrack.model.ShiftType
 import java.time.LocalDate
 
 /**
- * The four pages of the onboarding flow.
+ * The three pages of the onboarding flow.
  *
  *  Step 1 — Pick what today's shift is in the 5-day rotation.
- *  Step 2 — Select your country (for holidays, weekends, currency).
- *  Step 3 — Set per-category leave entitlement (days per year).
- *  Step 4 — Preview the user's next 5 days and confirm.
+ *  Step 2 — Set per-category leave entitlement (days per year).
+ *  Step 3 — Preview the user's next 5 days and confirm.
  */
-enum class OnboardingStep { SHIFT_PICKER, COUNTRY_SELECT, LEAVE_SETUP, CONFIRM }
+enum class OnboardingStep { SHIFT_PICKER, LEAVE_SETUP, CONFIRM }
 
 /** Labels shown to the user for each cycle position (index 0-4). */
 val CYCLE_LABELS: List<String> = listOf(
@@ -40,7 +39,6 @@ data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.SHIFT_PICKER,
     val anchorDate: LocalDate = LocalDate.now(),
     val selectedCycleIndex: Int = -1,
-    val selectedCountryCode: String? = null,
     val leaveAllowances: Map<LeaveType, Int> = DEFAULT_LEAVE_ALLOWANCES,
     val isSaving: Boolean = false,
     val error: String? = null,

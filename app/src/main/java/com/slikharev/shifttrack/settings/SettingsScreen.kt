@@ -94,10 +94,7 @@ import com.google.android.gms.common.api.ApiException
 import com.slikharev.shifttrack.R
 import com.slikharev.shifttrack.data.local.AppDataStore
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
-import com.slikharev.shifttrack.data.local.db.entity.PublicHolidayEntity
 import com.slikharev.shifttrack.engine.CadenceEngine
-import com.slikharev.shifttrack.model.Countries
-import com.slikharev.shifttrack.model.CountryConfig
 import com.slikharev.shifttrack.model.LeaveType
 import com.slikharev.shifttrack.model.ShiftType
 import com.slikharev.shifttrack.ui.LeaveColors
@@ -124,13 +121,6 @@ fun SettingsScreen(navController: NavController) {
     val widgetTransparency by viewModel.widgetTransparency.collectAsStateWithLifecycle()
     val widgetDayCount by viewModel.widgetDayCount.collectAsStateWithLifecycle()
     val storageUsed by viewModel.storageUsed.collectAsStateWithLifecycle()
-    val selectedCountryCode by viewModel.selectedCountryCode.collectAsStateWithLifecycle()
-    val baseHourlyRate by viewModel.baseHourlyRate.collectAsStateWithLifecycle()
-    val nightMultiplier by viewModel.nightMultiplier.collectAsStateWithLifecycle()
-    val weekendMultiplier by viewModel.weekendMultiplier.collectAsStateWithLifecycle()
-    val holidayMultiplier by viewModel.holidayMultiplier.collectAsStateWithLifecycle()
-    val shiftChangeoverHour by viewModel.shiftChangeoverHour.collectAsStateWithLifecycle()
-    val publicHolidays by viewModel.publicHolidays.collectAsStateWithLifecycle()
 
     // Google Sign-In for reauthentication
     val context = LocalContext.current
@@ -176,17 +166,8 @@ fun SettingsScreen(navController: NavController) {
     var showShareInviteDialog by remember { mutableStateOf(false) }
     var showCleanupDialog by remember { mutableStateOf(false) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
-    var showCountryPicker by remember { mutableStateOf(false) }
-    var showAddHolidayDialog by remember { mutableStateOf(false) }
-    var showHolidaysDialog by remember { mutableStateOf(false) }
-    var showChangeoverPicker by remember { mutableStateOf(false) }
 
-    // Expandable section states
-    var countryExpanded by remember { mutableStateOf(false) }
-    var incomeExpanded by remember { mutableStateOf(false) }
-    var holidaysExpanded by remember { mutableStateOf(false) }
     var scheduleExpanded by remember { mutableStateOf(false) }
-    var leaveExpanded by remember { mutableStateOf(false) }
     var appearanceExpanded by remember { mutableStateOf(false) }
     var widgetExpanded by remember { mutableStateOf(false) }
     var storageExpanded by remember { mutableStateOf(false) }
@@ -205,7 +186,6 @@ fun SettingsScreen(navController: NavController) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // ── Account (always visible) ─────────────────────────────────────────
             AccountSection(
                 displayName = viewModel.displayName,
                 email = viewModel.email,
@@ -213,24 +193,8 @@ fun SettingsScreen(navController: NavController) {
                 onDeleteAccount = { showDeleteConfirm = true },
             )
 
-            HorizontalDivider()
-
-            // ── Country ──────────────────────────────────────────────────────────
-            ExpandableSection(
-                title = "Country",
-                expanded = countryExpanded,
-                onToggle = { countryExpanded = !countryExpanded },
-            ) {
-                CountryCard(
-                    selectedCountryCode = selectedCountryCode,
-                    onPickClick = { showCountryPicker = true },
-                )
-            }
-
             if (!isSpectatorOnly) {
                 HorizontalDivider()
-
-                // ── Shift schedule ───────────────────────────────────────────────
                 ExpandableSection(
                     title = "Shift Schedule",
                     expanded = scheduleExpanded,
@@ -248,48 +212,9 @@ fun SettingsScreen(navController: NavController) {
                         onEditClick = { showLeaveDialog = true },
                     )
                 }
-
-                HorizontalDivider()
-
-                // ── Income rates ─────────────────────────────────────────────────
-                ExpandableSection(
-                    title = "Income Rates",
-                    expanded = incomeExpanded,
-                    onToggle = { incomeExpanded = !incomeExpanded },
-                ) {
-                    IncomeRatesSection(
-                        currencySymbol = selectedCountryCode?.let { Countries.findByCode(it)?.currencySymbol } ?: "$",
-                        baseRate = baseHourlyRate,
-                        nightMult = nightMultiplier,
-                        weekendMult = weekendMultiplier,
-                        holidayMult = holidayMultiplier,
-                        changeoverHour = shiftChangeoverHour,
-                        onBaseRateChange = viewModel::setBaseHourlyRate,
-                        onNightMultChange = viewModel::setNightMultiplier,
-                        onWeekendMultChange = viewModel::setWeekendMultiplier,
-                        onHolidayMultChange = viewModel::setHolidayMultiplier,
-                        onChangeoverClick = { showChangeoverPicker = true },
-                    )
-                }
-
-                HorizontalDivider()
-
-                // ── Public holidays ──────────────────────────────────────────────
-                ExpandableSection(
-                    title = "Public Holidays",
-                    expanded = holidaysExpanded,
-                    onToggle = { holidaysExpanded = !holidaysExpanded },
-                ) {
-                    PublicHolidaysSummary(
-                        count = publicHolidays.size,
-                        onManageClick = { showHolidaysDialog = true },
-                    )
-                }
             }
 
             HorizontalDivider()
-
-            // ── Appearance (shift + leave colors) ────────────────────────────────
             ExpandableSection(
                 title = "Appearance",
                 expanded = appearanceExpanded,
@@ -303,8 +228,6 @@ fun SettingsScreen(navController: NavController) {
             }
 
             HorizontalDivider()
-
-            // ── Widget ───────────────────────────────────────────────────────────
             ExpandableSection(
                 title = "Widget",
                 expanded = widgetExpanded,
@@ -322,8 +245,6 @@ fun SettingsScreen(navController: NavController) {
 
             if (!isSpectatorOnly) {
                 HorizontalDivider()
-
-                // ── Storage & cleanup ────────────────────────────────────────────
                 ExpandableSection(
                     title = "Storage & Cleanup",
                     expanded = storageExpanded,
@@ -339,8 +260,6 @@ fun SettingsScreen(navController: NavController) {
 
                 if (overtimeBalance != null) {
                     HorizontalDivider()
-
-                    // ── Overtime ──────────────────────────────────────────────────
                     ExpandableSection(
                         title = "Overtime",
                         expanded = overtimeExpanded,
@@ -356,8 +275,6 @@ fun SettingsScreen(navController: NavController) {
                 }
 
                 HorizontalDivider()
-
-                // ── Viewers ──────────────────────────────────────────────────────
                 ExpandableSection(
                     title = "Viewers",
                     expanded = viewersExpanded,
@@ -382,8 +299,6 @@ fun SettingsScreen(navController: NavController) {
             }
         }
     }
-
-    // ── Dialogs ─────────────────────────────────────────────────────────────────
 
     if (showScheduleDialog) {
         EditScheduleDialog(
@@ -486,7 +401,6 @@ fun SettingsScreen(navController: NavController) {
         )
     }
 
-    // Reauth dialog — shown when Firebase needs a fresh credential
     if (uiState.needsReauth) {
         AlertDialog(
             onDismissRequest = { viewModel.clearMessage() },
@@ -548,52 +462,7 @@ fun SettingsScreen(navController: NavController) {
             },
         )
     }
-
-    if (showCountryPicker) {
-        CountryPickerDialog(
-            selectedCode = selectedCountryCode,
-            onSelect = { code ->
-                showCountryPicker = false
-                viewModel.setCountry(code)
-            },
-            onDismiss = { showCountryPicker = false },
-        )
-    }
-
-    if (showAddHolidayDialog) {
-        AddHolidayDialog(
-            onConfirm = { date, name ->
-                showAddHolidayDialog = false
-                viewModel.addPublicHoliday(date, name)
-            },
-            onDismiss = { showAddHolidayDialog = false },
-        )
-    }
-
-    if (showHolidaysDialog) {
-        PublicHolidaysDialog(
-            holidays = publicHolidays,
-            onAdd = { showAddHolidayDialog = true },
-            onDelete = viewModel::deletePublicHoliday,
-            onRefresh = viewModel::refreshHolidays,
-            hasCountry = selectedCountryCode != null,
-            onDismiss = { showHolidaysDialog = false },
-        )
-    }
-
-    if (showChangeoverPicker) {
-        ChangeoverTimeDialog(
-            currentHour = shiftChangeoverHour,
-            onConfirm = { hour ->
-                showChangeoverPicker = false
-                viewModel.setShiftChangeoverHour(hour)
-            },
-            onDismiss = { showChangeoverPicker = false },
-        )
-    }
 }
-
-// ── Section composables ───────────────────────────────────────────────────────
 
 @Composable
 private fun SettingsSectionHeader(title: String) {
@@ -605,7 +474,6 @@ private fun SettingsSectionHeader(title: String) {
     )
 }
 
-/** Collapsible section with animated expand/collapse. */
 @Composable
 private fun ExpandableSection(
     title: String,
@@ -1328,433 +1196,6 @@ private fun ShareInviteDialog(link: String?, onDismiss: () -> Unit) {
             } else {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
-        },
-    )
-}
-
-// ── Country ──────────────────────────────────────────────────────────────────
-
-@Composable
-private fun CountryCard(
-    selectedCountryCode: String?,
-    onPickClick: () -> Unit,
-) {
-    val country = selectedCountryCode?.let { Countries.findByCode(it) }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (country != null) {
-                    Text(
-                        text = "${country.name} (${country.code})",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = "Currency: ${country.currencySymbol}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    Text(
-                        text = "Not selected",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            OutlinedButton(onClick = onPickClick) {
-                Text("Select")
-            }
-        }
-    }
-}
-
-@Composable
-private fun CountryPickerDialog(
-    selectedCode: String?,
-    onSelect: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var query by remember { mutableStateOf("") }
-    val allCountries = remember { Countries.all }
-    val filtered = remember(query) {
-        if (query.isBlank()) allCountries
-        else allCountries.filter {
-            it.name.contains(query, ignoreCase = true) || it.code.contains(query, ignoreCase = true)
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select country") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = { Text("Search…") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                    items(filtered, key = { it.code }) { country ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelect(country.code) }
-                                .padding(vertical = 10.dp, horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "${country.name} (${country.currencySymbol})",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (country.code == selectedCode) {
-                                Text("✓", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-    )
-}
-
-// ── Income Rates ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun IncomeRatesSection(
-    currencySymbol: String,
-    baseRate: Float,
-    nightMult: Float,
-    weekendMult: Float,
-    holidayMult: Float,
-    changeoverHour: Int,
-    onBaseRateChange: (Float) -> Unit,
-    onNightMultChange: (Float) -> Unit,
-    onWeekendMultChange: (Float) -> Unit,
-    onHolidayMultChange: (Float) -> Unit,
-    onChangeoverClick: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            // Changeover hour — tap to open time picker
-            Text("Shift changeover time", style = MaterialTheme.typography.labelMedium)
-            OutlinedButton(onClick = onChangeoverClick) {
-                Text(
-                    text = "%02d:00".format(changeoverHour),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
-
-            HorizontalDivider()
-
-            // Base hourly rate
-            RateTextField(
-                label = "Base hourly rate ($currencySymbol/h)",
-                value = baseRate,
-                onValueChange = onBaseRateChange,
-                min = 0f,
-                max = 9999f,
-            )
-
-            HorizontalDivider()
-
-            // Night multiplier
-            RateTextField(
-                label = "Night shift multiplier (×)",
-                value = nightMult,
-                onValueChange = onNightMultChange,
-                min = 1f,
-                max = 10f,
-            )
-
-            // Weekend multiplier
-            RateTextField(
-                label = "Last weekend day multiplier (×)",
-                value = weekendMult,
-                onValueChange = onWeekendMultChange,
-                min = 1f,
-                max = 10f,
-            )
-
-            // Holiday multiplier
-            RateTextField(
-                label = "Public holiday multiplier (×)",
-                value = holidayMult,
-                onValueChange = onHolidayMultChange,
-                min = 1f,
-                max = 10f,
-            )
-        }
-    }
-}
-
-@Composable
-private fun RateTextField(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    min: Float,
-    max: Float,
-) {
-    var text by remember(value) { mutableStateOf(if (value == 0f) "" else value.toBigDecimal().stripTrailingZeros().toPlainString()) }
-    var isError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
-
-    fun validate(input: String): Boolean {
-        if (input.isBlank()) {
-            isError = true
-            errorMessage = "Required"
-            return false
-        }
-        val parsed = input.toFloatOrNull()
-        if (parsed == null) {
-            isError = true
-            errorMessage = "Not a valid number"
-            return false
-        }
-        if (parsed < min || parsed > max) {
-            isError = true
-            errorMessage = "Must be between ${"%.2f".format(min)} and ${"%.2f".format(max)}"
-            return false
-        }
-        isError = false
-        errorMessage = ""
-        return true
-    }
-
-    OutlinedTextField(
-        value = text,
-        onValueChange = { input -> text = input },
-        label = { Text(label) },
-        supportingText = if (isError) ({ Text(errorMessage) }) else null,
-        isError = isError,
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Decimal,
-            imeAction = androidx.compose.ui.text.input.ImeAction.Done,
-        ),
-        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-            onDone = {
-                if (validate(text)) {
-                    onValueChange(text.toFloat())
-                }
-            },
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .onFocusChanged { state ->
-                if (!state.isFocused) {
-                    if (validate(text)) {
-                        onValueChange(text.toFloat())
-                    }
-                }
-            },
-    )
-}
-
-// ── Public Holidays ──────────────────────────────────────────────────────────
-
-@Composable
-private fun PublicHolidaysSummary(
-    count: Int,
-    onManageClick: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = if (count == 0) "No holidays configured" else "$count holiday${if (count != 1) "s" else ""} configured",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (count == 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-            )
-            OutlinedButton(onClick = onManageClick) {
-                Text("Manage")
-            }
-        }
-    }
-}
-
-@Composable
-private fun PublicHolidaysDialog(
-    holidays: List<PublicHolidayEntity>,
-    onAdd: () -> Unit,
-    onDelete: (PublicHolidayEntity) -> Unit,
-    onRefresh: () -> Unit,
-    hasCountry: Boolean,
-    onDismiss: () -> Unit,
-) {
-    val dateFmt = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Public Holidays") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (holidays.isEmpty()) {
-                    Text(
-                        text = "No holidays configured",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-                        items(holidays, key = { it.id }) { holiday ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                val dateStr = runCatching { LocalDate.parse(holiday.date).format(dateFmt) }
-                                    .getOrDefault(holiday.date)
-                                Text(
-                                    text = dateStr,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    text = holiday.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                IconButton(
-                                    onClick = { onDelete(holiday) },
-                                    modifier = Modifier.size(24.dp),
-                                ) {
-                                    Icon(
-                                        Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onAdd) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Add")
-                    }
-                    if (hasCountry) {
-                        OutlinedButton(onClick = onRefresh) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Refresh")
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        },
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ChangeoverTimeDialog(
-    currentHour: Int,
-    onConfirm: (Int) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val timePickerState = remember {
-        TimePickerState(
-            initialHour = currentHour,
-            initialMinute = 0,
-            is24Hour = true,
-        )
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Shift changeover time") },
-        text = {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                TimePicker(state = timePickerState)
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onConfirm(timePickerState.hour) }) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-    )
-}
-
-@Composable
-private fun AddHolidayDialog(
-    onConfirm: (String, String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var date by remember { mutableStateOf(LocalDate.now()) }
-    var name by remember { mutableStateOf("") }
-    val dateFmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add public holiday") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Date:", style = MaterialTheme.typography.labelMedium)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(onClick = { date = date.minusDays(1) }) { Text("−") }
-                    Text(date.format(dateFmt), style = MaterialTheme.typography.bodyMedium)
-                    OutlinedButton(onClick = { date = date.plusDays(1) }) { Text("+") }
-                }
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it.take(100) },
-                    label = { Text("Holiday name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(date.toString(), name.trim()) },
-                enabled = name.isNotBlank(),
-            ) { Text("Add") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
 }

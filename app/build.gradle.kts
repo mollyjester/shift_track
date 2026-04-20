@@ -25,8 +25,8 @@ android {
         applicationId = "com.slikharev.shifttrack"
         minSdk = 34
         targetSdk = 35
-        versionCode = 36
-        versionName = "4.1.5"
+        versionCode = 37
+        versionName = "4.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

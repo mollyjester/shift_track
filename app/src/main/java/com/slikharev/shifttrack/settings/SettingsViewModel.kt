@@ -10,15 +10,12 @@ import com.slikharev.shifttrack.data.local.db.dao.LeaveBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.LeaveDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeBalanceDao
 import com.slikharev.shifttrack.data.local.db.dao.OvertimeDao
-import com.slikharev.shifttrack.data.local.db.dao.PublicHolidayDao
 import com.slikharev.shifttrack.data.local.db.dao.ShiftDao
 import com.slikharev.shifttrack.data.local.db.entity.LeaveBalanceEntity
 import com.slikharev.shifttrack.data.local.db.entity.OvertimeBalanceEntity
-import com.slikharev.shifttrack.data.local.db.entity.PublicHolidayEntity
 import com.slikharev.shifttrack.data.local.PrefsKeys
 import com.slikharev.shifttrack.data.repository.AttachmentRepository
 import com.slikharev.shifttrack.data.repository.CloudRestoreRepository
-import com.slikharev.shifttrack.data.repository.PublicHolidayRepository
 import com.slikharev.shifttrack.engine.CadenceEngine
 import com.slikharev.shifttrack.invite.InviteRepository
 import com.slikharev.shifttrack.widget.ShiftWidgetUpdater
@@ -60,8 +57,6 @@ class SettingsViewModel @Inject constructor(
     private val attachmentRepository: AttachmentRepository,
     private val cloudRestoreRepository: CloudRestoreRepository,
     private val firestoreUserDataSource: com.slikharev.shifttrack.data.remote.FirestoreUserDataSource,
-    private val publicHolidayRepository: PublicHolidayRepository,
-    private val publicHolidayDao: PublicHolidayDao,
 ) : ViewModel() {
 
     private val uid get() = userSession.requireUserId()
@@ -113,88 +108,6 @@ class SettingsViewModel @Inject constructor(
             type.name.lowercase().replaceFirstChar { it.uppercase() }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    // ─── Income / Country settings ─────────────────────────────────────────────
-
-    val selectedCountryCode: StateFlow<String?> = appDataStore.selectedCountryCode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    val baseHourlyRate: StateFlow<Float> = appDataStore.baseHourlyRate
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0f)
-
-    val nightMultiplier: StateFlow<Float> = appDataStore.nightMultiplier
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDataStore.DEFAULT_NIGHT_MULTIPLIER)
-
-    val weekendMultiplier: StateFlow<Float> = appDataStore.weekendMultiplier
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDataStore.DEFAULT_WEEKEND_MULTIPLIER)
-
-    val holidayMultiplier: StateFlow<Float> = appDataStore.holidayMultiplier
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDataStore.DEFAULT_HOLIDAY_MULTIPLIER)
-
-    val shiftChangeoverHour: StateFlow<Int> = appDataStore.shiftChangeoverHour
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDataStore.DEFAULT_CHANGEOVER_HOUR)
-
-    val publicHolidays: StateFlow<List<PublicHolidayEntity>> =
-        publicHolidayDao.getHolidaysForRange(uid, "$currentYear-01-01", "$currentYear-12-31")
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    fun setCountry(code: String) {
-        viewModelScope.launch {
-            appDataStore.setSelectedCountryCode(code)
-            publicHolidayRepository.fetchAndStoreHolidays(code, currentYear)
-        }
-    }
-
-    fun setBaseHourlyRate(rate: Float) {
-        viewModelScope.launch { appDataStore.setBaseHourlyRate(rate) }
-    }
-
-    fun setNightMultiplier(m: Float) {
-        viewModelScope.launch { appDataStore.setNightMultiplier(m) }
-    }
-
-    fun setWeekendMultiplier(m: Float) {
-        viewModelScope.launch { appDataStore.setWeekendMultiplier(m) }
-    }
-
-    fun setHolidayMultiplier(m: Float) {
-        viewModelScope.launch { appDataStore.setHolidayMultiplier(m) }
-    }
-
-    fun setShiftChangeoverHour(hour: Int) {
-        viewModelScope.launch { appDataStore.setShiftChangeoverHour(hour) }
-    }
-
-    fun addPublicHoliday(date: String, name: String) {
-        viewModelScope.launch {
-            val localDate = LocalDate.parse(date)
-            val countryCode = selectedCountryCode.value ?: "GB"
-            publicHolidayRepository.addManualHoliday(localDate, name, countryCode)
-        }
-    }
-
-    fun deletePublicHoliday(entity: PublicHolidayEntity) {
-        viewModelScope.launch {
-            publicHolidayRepository.deleteHoliday(entity)
-        }
-    }
-
-    fun updatePublicHoliday(entity: PublicHolidayEntity) {
-        viewModelScope.launch {
-            publicHolidayRepository.updateHoliday(entity)
-        }
-    }
-
-    fun refreshHolidays() {
-        viewModelScope.launch {
-            val code = selectedCountryCode.value ?: return@launch
-            _uiState.value = SettingsUiState(isSaving = true)
-            publicHolidayRepository.fetchAndStoreHolidays(code, currentYear).fold(
-                onSuccess = { _uiState.value = SettingsUiState(savedMessage = "Holidays updated") },
-                onFailure = { _uiState.value = SettingsUiState(error = "Failed to fetch holidays: ${it.message}") },
-            )
-        }
-    }
 
     // ─── Actions ─────────────────────────────────────────────────────────────────
 
@@ -438,7 +351,6 @@ class SettingsViewModel @Inject constructor(
                 leaveBalanceDao.deleteAllForUser(uid)
                 overtimeDao.deleteAllForUser(uid)
                 overtimeBalanceDao.deleteAllForUser(uid)
-                publicHolidayDao.deleteAllForUser(uid)
                 attachmentRepository.deleteAllForUser(uid)
                 appDataStore.clearAll()
                 onComplete()
@@ -466,7 +378,6 @@ class SettingsViewModel @Inject constructor(
                 leaveBalanceDao.deleteAllForUser(uid)
                 overtimeDao.deleteAllForUser(uid)
                 overtimeBalanceDao.deleteAllForUser(uid)
-                publicHolidayDao.deleteAllForUser(uid)
                 attachmentRepository.deleteAllForUser(uid)
                 appDataStore.clearAll()
                 onComplete()
